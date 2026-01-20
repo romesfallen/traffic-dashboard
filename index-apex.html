@@ -791,7 +791,7 @@
 
         async function loadAhrefsCSV() {
             try {
-                const response = await fetch('ahrefs-data.csv');
+                const response = await fetch('ahrefs_organic_traffic_results.csv');
                 if (!response.ok) throw new Error('Failed to load Ahrefs CSV');
                 
                 const text = await response.text();
