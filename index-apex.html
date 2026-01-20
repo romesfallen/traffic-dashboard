@@ -665,6 +665,65 @@
             }
         }
 
+        async function loadAhrefsCSV() {
+            try {
+                const response = await fetch('ahrefs-data.csv');
+                if (!response.ok) throw new Error('Failed to load Ahrefs CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                // Filter for lyncconf.com
+                const lyncconfRows = parsed.data.filter(row => 
+                    row.domain && row.domain.toLowerCase() === 'lyncconf.com'
+                );
+                
+                if (lyncconfRows.length === 0) {
+                    throw new Error('lyncconf.com not found in Ahrefs CSV');
+                }
+                
+                // Convert to map: date string -> traffic value
+                const ahrefsDataMap = new Map();
+                
+                lyncconfRows.forEach(row => {
+                    if (!row.date || !row.organic_traffic) return;
+                    
+                    // Parse ISO date: "2024-01-01T00:00:00Z" -> "Jan 1 2024"
+                    const isoDate = new Date(row.date);
+                    if (isNaN(isoDate.getTime())) return;
+                    
+                    // Format to match traffic CSV format: "Jan 1 2024"
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const month = monthNames[isoDate.getMonth()];
+                    const day = isoDate.getDate();
+                    const year = isoDate.getFullYear();
+                    const dateStr = `${month} ${day} ${year}`;
+                    
+                    const value = parseNumber(row.organic_traffic);
+                    if (value !== null && value !== undefined) {
+                        ahrefsDataMap.set(dateStr, value);
+                    }
+                });
+                
+                console.log('✅ Ahrefs data loaded:', {
+                    totalRows: lyncconfRows.length,
+                    dataPoints: ahrefsDataMap.size,
+                    firstDate: Array.from(ahrefsDataMap.keys()).sort()[0],
+                    lastDate: Array.from(ahrefsDataMap.keys()).sort().slice(-1)[0],
+                    sampleValues: Array.from(ahrefsDataMap.entries()).slice(0, 5)
+                });
+                
+                return ahrefsDataMap;
+            } catch (error) {
+                console.error('Error loading Ahrefs CSV:', error);
+                throw error;
+            }
+        }
+
         async function loadTrafficCSV() {
             try {
                 const response = await fetch('traffic-data.csv');
@@ -695,7 +754,8 @@
                 
                 const dates = [];
                 const ourData = [];
-                const ahrefsData = [];
+                // Note: ahrefsData will come from separate CSV file, not from this one
+                const ahrefsData = []; // This will be empty - we'll fill it from Ahrefs CSV
                 
                 // Track which dates we've seen to detect duplicates
                 const seenDates = new Map(); // dateStr -> { firstIndex, secondIndex }
