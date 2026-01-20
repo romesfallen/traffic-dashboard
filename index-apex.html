@@ -418,8 +418,6 @@
             chartsDiv.innerHTML = '';
 
             const filtered = filterByDateRange(data, dateRange);
-            const ourChange = calcChange(filtered.ourData);
-            const ahrefsChange = calcChange(filtered.ahrefsData);
 
             const card = document.createElement('div');
             card.className = 'card';
@@ -428,7 +426,6 @@
                 <div class="chart-header">
                     <div>
                         <div class="chart-title">${domain}</div>
-                        <div class="chart-subtitle">Rank #${data.rank}</div>
                     </div>
                     <select class="chart-range-select" id="chartDateRange">
                         <option value="7" ${dateRange === '7' ? 'selected' : ''}>Last 7 days</option>
@@ -438,16 +435,6 @@
                         <option value="365" ${dateRange === '365' ? 'selected' : ''}>Last year</option>
                         <option value="all" ${dateRange === 'all' ? 'selected' : ''}>All time</option>
                     </select>
-                </div>
-                <div class="stats-row">
-                    <div class="stat-box">
-                        <div class="stat-label">Our Data Change</div>
-                        <div class="stat-value ${getStatClass(ourChange)}">${ourChange}</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Ahrefs Change</div>
-                        <div class="stat-value ${getStatClass(ahrefsChange)}">${ahrefsChange}</div>
-                    </div>
                 </div>
                 <div id="apex-chart"></div>
             `;
