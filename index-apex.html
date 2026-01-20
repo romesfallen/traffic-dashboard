@@ -460,35 +460,44 @@
                         rotate: -45,
                         trim: true,
                         hideOverlappingLabels: true,
-                        maxHeight: 80,
+                        maxHeight: 100,
                         showDuplicates: false,
                         formatter: function(value, timestamp, opts) {
-                            // Show only month labels for better readability
-                            const date = new Date(value);
-                            if (isNaN(date.getTime())) {
-                                // Try parsing as "Jan 1 2024" format
-                                const parts = String(value).split(' ');
-                                if (parts.length === 3) {
-                                    const [month, day, year] = parts;
-                                    const dateObj = new Date(`${month} ${day}, ${year}`);
-                                    if (!isNaN(dateObj.getTime())) {
-                                        // Show only first of month or every 3 months
-                                        if (parseInt(day) === 1) {
-                                            return month + ' ' + year;
-                                        }
-                                        return '';
+                            // Parse the date string (format: "Jan 1 2024")
+                            const parts = String(value).split(' ');
+                            if (parts.length !== 3) return '';
+                            
+                            const [month, day, year] = parts;
+                            const dayNum = parseInt(day);
+                            const yearNum = parseInt(year);
+                            
+                            // Only show labels for:
+                            // 1. First of each quarter (Jan 1, Apr 1, Jul 1, Oct 1)
+                            // 2. Or if there are fewer than 24 months, show first of every month
+                            const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
+                            
+                            if (dayNum === 1) {
+                                // Count total months in dataset
+                                const totalMonths = xCategories.length > 0 ? 
+                                    Math.ceil(xCategories.length / 30) : 48; // Rough estimate
+                                
+                                if (totalMonths <= 24) {
+                                    // Show every month if less than 2 years
+                                    return month + ' ' + year;
+                                } else {
+                                    // Show only quarters (Jan, Apr, Jul, Oct)
+                                    if (monthIndex % 3 === 0) {
+                                        return month + ' ' + year;
                                     }
+                                    return '';
                                 }
-                                return value;
-                            }
-                            // Show only first of month
-                            if (date.getDate() === 1) {
-                                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                return monthNames[date.getMonth()] + ' ' + date.getFullYear();
                             }
                             return '';
                         }
                     },
+                    tickAmount: undefined, // Let ApexCharts auto-calculate
+                    min: undefined,
+                    max: undefined
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
                     crosshairs: {
