@@ -395,7 +395,8 @@
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             const revenueData = revenueResult.revenue;
-            const xCategories = revenueResult.categories;
+            // Use actual dates as categories for proper x-axis labels
+            const xCategories = filtered.dates;
             
             // Debug logging
             console.log('Chart data:', {
@@ -468,50 +469,50 @@
                     type: 'category',
                     categories: xCategories,
                     labels: {
-                        style: { colors: '#333333', fontSize: '10px', fontWeight: 500 },
+                        style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
                         rotate: -45,
-                        trim: true,
+                        rotateAlways: false,
                         hideOverlappingLabels: true,
-                        maxHeight: 100,
-                        showDuplicates: false,
+                        maxHeight: 120,
                         formatter: function(value, timestamp, opts) {
                             // Parse the date string (format: "Jan 1 2024")
                             const parts = String(value).split(' ');
-                            if (parts.length !== 3) return value; // Return original if can't parse
+                            if (parts.length !== 3) return ''; // Hide if can't parse
                             
                             const [month, day, year] = parts;
                             const dayNum = parseInt(day);
                             
-                            // Count total months in dataset
-                            const totalMonths = xCategories.length > 0 ? 
-                                Math.ceil(xCategories.length / 30) : 48; // Rough estimate
+                            // Calculate total data points to determine label frequency
+                            const totalDays = xCategories.length;
+                            const totalMonths = Math.ceil(totalDays / 30);
                             
-                            // Show labels more frequently based on data range
-                            if (totalMonths <= 12) {
-                                // Less than 1 year: show first of every month
-                                if (dayNum === 1) return month + ' ' + year;
+                            // Only show labels on the 1st of the month
+                            if (dayNum !== 1) return '';
+                            
+                            // Determine which months to show based on data range
+                            const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
+                            if (monthIndex === -1) return '';
+                            
+                            if (totalMonths <= 6) {
+                                // Up to 6 months: show every month
+                                return month + ' ' + year;
+                            } else if (totalMonths <= 12) {
+                                // 6-12 months: show every month
+                                return month + ' ' + year;
                             } else if (totalMonths <= 24) {
-                                // 1-2 years: show first of every month
-                                if (dayNum === 1) return month + ' ' + year;
-                            } else if (totalMonths <= 48) {
-                                // 2-4 years: show quarterly (Jan, Apr, Jul, Oct on 1st)
-                                const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
-                                if (dayNum === 1 && monthIndex !== -1 && monthIndex % 3 === 0) {
-                                    return month + ' ' + year;
-                                }
+                                // 1-2 years: show every other month
+                                if (monthIndex % 2 === 0) return month + ' ' + year;
+                            } else if (totalMonths <= 36) {
+                                // 2-3 years: show quarterly (Jan, Apr, Jul, Oct)
+                                if (monthIndex % 3 === 0) return month + ' ' + year;
                             } else {
-                                // More than 4 years: show every 6 months (Jan, Jul on 1st)
-                                const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
-                                if (dayNum === 1 && (monthIndex === 0 || monthIndex === 6)) {
-                                    return month + ' ' + year;
-                                }
+                                // More than 3 years: show every 6 months (Jan, Jul)
+                                if (monthIndex === 0 || monthIndex === 6) return month + ' ' + year;
                             }
-                            return ''; // Hide label for other dates
+                            return '';
                         }
                     },
-                    tickAmount: undefined, // Let ApexCharts auto-calculate
-                    min: undefined,
-                    max: undefined,
+                    tickAmount: 12, // Limit to ~12 ticks max for clean display
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
                     crosshairs: {
