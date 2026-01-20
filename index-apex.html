@@ -696,40 +696,8 @@
                 const ourData = [];
                 const ahrefsData = [];
                 
-                // Find split point by looking for _1 vs _2 suffixes
-                // The CSV uses _1 for ourData and _2 for ahrefsData (or _1 for first occurrence, _1 for second)
-                // Actually, let's check for the pattern: if header ends with _2, it's ahrefsData
-                let splitPoint = -1;
-                
-                dateColumns.forEach((header, idx) => {
-                    if (!header) return;
-                    // Check if this header ends with _2 (or any _N where N > 1), indicating ahrefsData section
-                    if (header.match(/_\d+$/) && !header.endsWith('_1')) {
-                        if (splitPoint === -1) {
-                            splitPoint = idx;
-                        }
-                    }
-                });
-                
-                // If no _2 pattern found, fall back to duplicate date detection
-                if (splitPoint === -1) {
-                    const seenDates = new Map();
-                    dateColumns.forEach((header, idx) => {
-                        if (!header) return;
-                        const dateStr = parseDate(header);
-                        if (!dateStr || dateStr === '') return;
-                        
-                        if (seenDates.has(dateStr)) {
-                            if (splitPoint === -1) {
-                                splitPoint = idx;
-                            }
-                        } else {
-                            seenDates.set(dateStr, idx);
-                        }
-                    });
-                }
-                
                 // Build date-to-index maps for both sections
+                // Use _1/_2 suffixes to determine which dataset each column belongs to
                 const ourDataMap = new Map(); // date -> {index, value}
                 const ahrefsDataMap = new Map(); // date -> value
                 
@@ -756,15 +724,20 @@
                     // Include all dates (no filtering) - even if value is null/empty
                     const value = parseNumber(lyncconfRow[header]);
                     
-                    if (splitPoint > 0 && idx >= splitPoint) {
-                        // This is ahrefsData section
-                        // Only set if not already set (first occurrence takes precedence)
+                    // Determine which dataset based on _1/_2 suffix
+                    // If header ends with _2 (or _N where N > 1), it's ahrefsData
+                    // Otherwise (ends with _1 or no suffix), it's ourData
+                    const isAhrefsData = header.match(/_\d+$/) && !header.endsWith('_1');
+                    
+                    if (isAhrefsData) {
+                        // This is ahrefsData - use the dateStr as key (without _2 suffix)
+                        // If we already have this date, keep the first value (don't overwrite)
                         if (!ahrefsDataMap.has(dateStr)) {
                             ahrefsDataMap.set(dateStr, value);
                         }
                     } else {
-                        // This is ourData section
-                        // Only set if not already set (first occurrence takes precedence)
+                        // This is ourData
+                        // If we already have this date, keep the first value (don't overwrite)
                         if (!ourDataMap.has(dateStr)) {
                             ourDataMap.set(dateStr, { index: ourDataMap.size, value: value });
                         }
@@ -807,11 +780,14 @@
                     totalDates: sortedDates.length,
                     ourDataPoints: sortedOurData.filter(v => v !== null && v !== undefined).length,
                     ahrefsDataPoints: sortedAhrefsData.filter(v => v !== null && v !== undefined).length,
-                    splitPoint: splitPoint,
+                    ourDataMapSize: ourDataMap.size,
+                    ahrefsDataMapSize: ahrefsDataMap.size,
                     firstDate: sortedDates[0],
                     lastDate: sortedDates[sortedDates.length - 1],
-                    sampleOurData: sortedOurData.slice(0, 5),
-                    sampleAhrefsData: sortedAhrefsData.slice(0, 5)
+                    sampleOurData: sortedOurData.slice(0, 10),
+                    sampleAhrefsData: sortedAhrefsData.slice(0, 10),
+                    ourDataNonZero: sortedOurData.filter(v => v !== null && v !== undefined && v > 0).length,
+                    ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length
                 });
                 
                 return { dates: sortedDates, ourData: sortedOurData, ahrefsData: sortedAhrefsData };
