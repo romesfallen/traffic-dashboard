@@ -293,7 +293,8 @@
             };
         }
 
-        // Generate monthly revenue as "block" pattern for stepped area
+        // Generate monthly revenue with dynamic 80% width blocks
+        // Uses actual calendar days, not data point count
         function generateMonthlyRevenue(dates, monthlyRevenueData = null) {
             // Use CSV data if provided, otherwise use default
             const monthRevenue = monthlyRevenueData || {
@@ -301,37 +302,106 @@
                 'Oct2025': 500, 'Nov2025': 600, 'Dec2025': 700, 'Jan2026': 800
             };
             
-            // Find the start/end index for each month
-            const monthIndices = {};
-            dates.forEach((date, idx) => {
-                const parts = date.split(' ');
-                const key = parts[0] + parts[2]; // e.g., "Jun2025"
-                if (!monthIndices[key]) {
-                    monthIndices[key] = { start: idx, end: idx, month: parts[0], year: parts[2] };
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            // Helper: Get days in a specific month
+            function getDaysInMonth(year, monthIndex) {
+                return new Date(year, monthIndex + 1, 0).getDate();
+            }
+            
+            // Helper: Parse "Jan 1 2024" to Date object
+            function parseDate(dateStr) {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return null;
+                const [month, day, year] = parts;
+                const monthIndex = monthNames.indexOf(month);
+                if (monthIndex === -1) return null;
+                return new Date(parseInt(year), monthIndex, parseInt(day));
+            }
+            
+            // Helper: Get the 80% cutoff day for a month
+            function get80PercentDay(year, monthIndex) {
+                const daysInMonth = getDaysInMonth(year, monthIndex);
+                return Math.floor(daysInMonth * 0.8);
+            }
+            
+            // Step A: Build month info map with calendar-based calculations
+            const monthInfo = {};
+            dates.forEach((dateStr, idx) => {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return;
+                
+                const [month, day, year] = parts;
+                const key = month + year; // e.g., "Jun2025"
+                const dayNum = parseInt(day);
+                const monthIndex = monthNames.indexOf(month);
+                const yearNum = parseInt(year);
+                
+                if (!monthInfo[key]) {
+                    const cutoffDay = get80PercentDay(yearNum, monthIndex);
+                    const daysInMonth = getDaysInMonth(yearNum, monthIndex);
+                    monthInfo[key] = {
+                        month: month,
+                        year: year,
+                        monthIndex: monthIndex,
+                        yearNum: yearNum,
+                        cutoffDay: cutoffDay, // Day number where 80% ends
+                        daysInMonth: daysInMonth,
+                        firstDataIdx: idx,
+                        lastDataIdx: idx,
+                        midLabelIdx: null // Will calculate after we know all indices
+                    };
                 } else {
-                    monthIndices[key].end = idx;
+                    monthInfo[key].lastDataIdx = idx;
                 }
             });
             
-            // Create "block" pattern: fill ~80% of month with value, then drop to 0
+            // Step B: Generate revenue array and categories
             const revenue = new Array(dates.length).fill(0);
-            // Create category labels - empty for most, "Mon 'YY" at mid-month
             const categories = new Array(dates.length).fill(' ');
             
-            Object.entries(monthIndices).forEach(([key, info]) => {
-                const monthLength = info.end - info.start + 1;
-                const blockEnd = info.start + Math.floor(monthLength * 0.8); // 80% of month
+            // Process each date point
+            dates.forEach((dateStr, idx) => {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return;
+                
+                const [month, day, year] = parts;
+                const key = month + year;
+                const dayNum = parseInt(day);
+                const info = monthInfo[key];
+                
+                if (!info) return;
+                
                 const revenueValue = monthRevenue[key] || 0;
                 
-                // Fill from start to ~80% with revenue value
-                for (let i = info.start; i <= blockEnd && i <= info.end; i++) {
-                    revenue[i] = revenueValue;
+                // Dynamic 80% width: Show revenue if day <= 80% cutoff day
+                // This is based on actual calendar days, not data point count
+                if (dayNum <= info.cutoffDay) {
+                    revenue[idx] = revenueValue;
                 }
-                // Remaining ~20% stays at 0 (gap before next month)
+                // Days after cutoffDay stay at 0 (creates the gap)
+            });
+            
+            // Calculate mid-point for labels (center of the 80% block visually)
+            Object.entries(monthInfo).forEach(([key, info]) => {
+                // Find the index closest to mid-month (around day 12-15)
+                const targetDay = Math.floor(info.cutoffDay / 2); // Middle of the 80% block
+                let bestIdx = info.firstDataIdx;
+                let bestDiff = Infinity;
                 
-                // Label at mid-month position: "Jun 2025" format
-                const midIdx = Math.floor((info.start + info.end) / 2);
-                categories[midIdx] = info.month + ' ' + info.year;
+                for (let i = info.firstDataIdx; i <= info.lastDataIdx; i++) {
+                    const parts = dates[i].split(' ');
+                    if (parts.length !== 3) continue;
+                    const dayNum = parseInt(parts[1]);
+                    const diff = Math.abs(dayNum - targetDay);
+                    if (diff < bestDiff) {
+                        bestDiff = diff;
+                        bestIdx = i;
+                    }
+                }
+                
+                // Set label at mid-point of the 80% block
+                categories[bestIdx] = info.month + ' ' + info.year;
             });
             
             return { revenue, categories };
