@@ -711,23 +711,119 @@
             const chart = new ApexCharts(document.querySelector('#apex-chart'), options);
             chart.render();
             
-            // Make tooltip follow cursor on Y axis
+            // Store series data for custom tooltip
+            const allSeriesData = [ourDataPoints, ahrefsDataPoints, revenuePoints];
+            const colors = ['#f97316', '#3b82f6', '#10b981'];
+            const names = ['Our Data', 'Ahrefs', 'Revenue'];
+            
+            // Get date range from data
+            const allTimestamps = [...ourDataPoints.map(p => p.x), ...ahrefsDataPoints.map(p => p.x)];
+            const minDate = Math.min(...allTimestamps);
+            const maxDate = Math.max(...allTimestamps);
+            
+            // Create custom tooltip element
+            const customTooltip = document.createElement('div');
+            customTooltip.id = 'custom-smooth-tooltip';
+            customTooltip.style.cssText = 'position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 1000; padding: 10px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-family: Inter, sans-serif;';
+            document.querySelector('#apex-chart').appendChild(customTooltip);
+            
+            // Smooth tooltip on mousemove
             const chartEl = document.querySelector('#apex-chart');
             chartEl.addEventListener('mousemove', function(e) {
-                const tooltip = chartEl.querySelector('.apexcharts-tooltip');
-                if (tooltip && tooltip.classList.contains('apexcharts-active')) {
-                    const chartRect = chartEl.getBoundingClientRect();
-                    const mouseY = e.clientY - chartRect.top;
-                    const tooltipHeight = tooltip.offsetHeight;
-                    
-                    // Position tooltip near cursor Y, with some offset
-                    let newTop = mouseY - tooltipHeight / 2;
-                    
-                    // Keep within chart bounds
-                    newTop = Math.max(10, Math.min(newTop, chartRect.height - tooltipHeight - 10));
-                    
-                    tooltip.style.top = newTop + 'px';
+                const chartArea = chartEl.querySelector('.apexcharts-inner');
+                if (!chartArea) return;
+                
+                const chartRect = chartArea.getBoundingClientRect();
+                const mouseX = e.clientX - chartRect.left;
+                const mouseY = e.clientY - chartRect.top;
+                
+                // Check if mouse is within chart area
+                if (mouseX < 0 || mouseX > chartRect.width || mouseY < 0 || mouseY > chartRect.height) {
+                    customTooltip.style.opacity = '0';
+                    return;
                 }
+                
+                // Calculate date from X position
+                const xPercent = mouseX / chartRect.width;
+                const hoveredTimestamp = minDate + (maxDate - minDate) * xPercent;
+                const hoveredDate = new Date(hoveredTimestamp);
+                
+                // Format date
+                const dateStr = hoveredDate.toLocaleDateString('en-GB', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric' 
+                });
+                
+                // Build tooltip content
+                let html = '<div style="font-weight: 600; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #eee; color: #333;">' + dateStr + '</div>';
+                
+                for (let i = 0; i < 3; i++) {
+                    const seriesData = allSeriesData[i];
+                    let value = null;
+                    let closestDiff = Infinity;
+                    const maxDiff = i === 2 ? 15 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000; // 15 days for revenue, 12 hours for traffic
+                    
+                    for (let j = 0; j < seriesData.length; j++) {
+                        const point = seriesData[j];
+                        if (point && point.x !== undefined) {
+                            const diff = Math.abs(point.x - hoveredTimestamp);
+                            if (diff < closestDiff && diff <= maxDiff) {
+                                closestDiff = diff;
+                                value = point.y;
+                            }
+                        }
+                    }
+                    
+                    let displayValue = '—';
+                    if (value !== null && value !== undefined && value !== 0) {
+                        if (i === 2) {
+                            displayValue = '$' + value.toLocaleString();
+                        } else {
+                            displayValue = value.toLocaleString() + ' visits';
+                        }
+                    }
+                    
+                    // Skip revenue if no value
+                    if (i === 2 && (value === null || value === 0)) continue;
+                    
+                    html += '<div style="display: flex; align-items: center; padding: 4px 0;">';
+                    html += '<span style="width: 10px; height: 10px; border-radius: 50%; background: ' + colors[i] + '; margin-right: 8px;"></span>';
+                    html += '<span style="color: #666; min-width: 70px;">' + names[i] + ':</span>';
+                    html += '<span style="font-weight: 600; color: #333; margin-left: auto;">' + displayValue + '</span>';
+                    html += '</div>';
+                }
+                
+                customTooltip.innerHTML = html;
+                
+                // Position tooltip
+                const tooltipWidth = customTooltip.offsetWidth || 180;
+                const tooltipHeight = customTooltip.offsetHeight || 100;
+                const containerRect = chartEl.getBoundingClientRect();
+                
+                let left = e.clientX - containerRect.left + 15;
+                let top = e.clientY - containerRect.top - tooltipHeight / 2;
+                
+                // Keep within bounds
+                if (left + tooltipWidth > containerRect.width - 10) {
+                    left = e.clientX - containerRect.left - tooltipWidth - 15;
+                }
+                top = Math.max(10, Math.min(top, containerRect.height - tooltipHeight - 10));
+                
+                customTooltip.style.left = left + 'px';
+                customTooltip.style.top = top + 'px';
+                customTooltip.style.opacity = '1';
+                
+                // Hide the default ApexCharts tooltip
+                const defaultTooltip = chartEl.querySelector('.apexcharts-tooltip');
+                if (defaultTooltip) {
+                    defaultTooltip.style.opacity = '0';
+                    defaultTooltip.style.visibility = 'hidden';
+                }
+            });
+            
+            chartEl.addEventListener('mouseleave', function() {
+                customTooltip.style.opacity = '0';
             });
         }
 
