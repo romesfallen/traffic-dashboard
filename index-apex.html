@@ -480,15 +480,44 @@
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
             
-            // Debug logging
-            console.log('Chart data:', {
-                ourDataLength: ourDataPoints.length,
-                ahrefsDataLength: ahrefsDataPoints.length,
-                revenueDataLength: revenuePoints.length,
-                ourDataSample: ourDataPoints.slice(0, 3),
-                ahrefsDataSample: ahrefsDataPoints.slice(0, 3),
-                revenueSample: revenuePoints.slice(0, 6)
-            });
+            // ===== DEBUG: Tooltip troubleshooting =====
+            console.log('🔍 TOOLTIP DEBUG - Series Data:');
+            console.log('Our Data points:', ourDataPoints.length);
+            console.log('Ahrefs points:', ahrefsDataPoints.length);
+            console.log('Revenue points:', revenuePoints.length);
+            
+            // Check if timestamps align between Our Data and Ahrefs
+            console.log('🔍 TOOLTIP DEBUG - Timestamp alignment check:');
+            const ourTimestamps = ourDataPoints.map(p => p.x);
+            const ahrefsTimestamps = ahrefsDataPoints.map(p => p.x);
+            
+            // Find mismatches
+            const ourNotInAhrefs = ourTimestamps.filter(t => !ahrefsTimestamps.includes(t));
+            const ahrefsNotInOur = ahrefsTimestamps.filter(t => !ourTimestamps.includes(t));
+            
+            console.log('Timestamps in Our Data but NOT in Ahrefs:', ourNotInAhrefs.length, ourNotInAhrefs.slice(0, 5).map(t => new Date(t).toDateString()));
+            console.log('Timestamps in Ahrefs but NOT in Our Data:', ahrefsNotInOur.length, ahrefsNotInOur.slice(0, 5).map(t => new Date(t).toDateString()));
+            
+            // Sample comparison - first 5 points
+            console.log('🔍 TOOLTIP DEBUG - First 5 points comparison:');
+            for (let i = 0; i < 5 && i < ourDataPoints.length; i++) {
+                const ourPoint = ourDataPoints[i];
+                const ahrefsPoint = ahrefsDataPoints[i];
+                console.log(`Point ${i}:`, {
+                    ourDate: new Date(ourPoint?.x).toDateString(),
+                    ourValue: ourPoint?.y,
+                    ahrefsDate: ahrefsPoint ? new Date(ahrefsPoint.x).toDateString() : 'N/A',
+                    ahrefsValue: ahrefsPoint?.y,
+                    timestampsMatch: ourPoint?.x === ahrefsPoint?.x
+                });
+            }
+            
+            // Check for null values in each series
+            const ourNulls = ourDataPoints.filter(p => p.y === null || p.y === undefined).length;
+            const ahrefsNulls = ahrefsDataPoints.filter(p => p.y === null || p.y === undefined).length;
+            console.log('🔍 TOOLTIP DEBUG - Null values:', { ourNulls, ahrefsNulls });
+            
+            // ===== END DEBUG =====
 
             const options = {
                 series: [{
@@ -609,7 +638,16 @@
                         format: 'dd MMM yyyy'
                     },
                     y: {
-                        formatter: function(value, { seriesIndex }) {
+                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                            // DEBUG: Log what tooltip receives
+                            console.log('🎯 TOOLTIP FORMATTER:', {
+                                seriesIndex,
+                                dataPointIndex,
+                                value,
+                                seriesName: w.config.series[seriesIndex]?.name,
+                                allSeriesLengths: w.config.series.map(s => s.data.length)
+                            });
+                            
                             if (value === null || value === undefined) return 'N/A';
                             if (seriesIndex === 2) {
                                 if (value === 0) return null; // Hide revenue gaps
