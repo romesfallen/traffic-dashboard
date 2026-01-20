@@ -479,45 +479,6 @@
             const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
-            
-            // ===== DEBUG: Tooltip troubleshooting =====
-            console.log('🔍 TOOLTIP DEBUG - Series Data:');
-            console.log('Our Data points:', ourDataPoints.length);
-            console.log('Ahrefs points:', ahrefsDataPoints.length);
-            console.log('Revenue points:', revenuePoints.length);
-            
-            // Check if timestamps align between Our Data and Ahrefs
-            console.log('🔍 TOOLTIP DEBUG - Timestamp alignment check:');
-            const ourTimestamps = ourDataPoints.map(p => p.x);
-            const ahrefsTimestamps = ahrefsDataPoints.map(p => p.x);
-            
-            // Find mismatches
-            const ourNotInAhrefs = ourTimestamps.filter(t => !ahrefsTimestamps.includes(t));
-            const ahrefsNotInOur = ahrefsTimestamps.filter(t => !ourTimestamps.includes(t));
-            
-            console.log('Timestamps in Our Data but NOT in Ahrefs:', ourNotInAhrefs.length, ourNotInAhrefs.slice(0, 5).map(t => new Date(t).toDateString()));
-            console.log('Timestamps in Ahrefs but NOT in Our Data:', ahrefsNotInOur.length, ahrefsNotInOur.slice(0, 5).map(t => new Date(t).toDateString()));
-            
-            // Sample comparison - first 5 points
-            console.log('🔍 TOOLTIP DEBUG - First 5 points comparison:');
-            for (let i = 0; i < 5 && i < ourDataPoints.length; i++) {
-                const ourPoint = ourDataPoints[i];
-                const ahrefsPoint = ahrefsDataPoints[i];
-                console.log(`Point ${i}:`, {
-                    ourDate: new Date(ourPoint?.x).toDateString(),
-                    ourValue: ourPoint?.y,
-                    ahrefsDate: ahrefsPoint ? new Date(ahrefsPoint.x).toDateString() : 'N/A',
-                    ahrefsValue: ahrefsPoint?.y,
-                    timestampsMatch: ourPoint?.x === ahrefsPoint?.x
-                });
-            }
-            
-            // Check for null values in each series
-            const ourNulls = ourDataPoints.filter(p => p.y === null || p.y === undefined).length;
-            const ahrefsNulls = ahrefsDataPoints.filter(p => p.y === null || p.y === undefined).length;
-            console.log('🔍 TOOLTIP DEBUG - Null values:', { ourNulls, ahrefsNulls });
-            
-            // ===== END DEBUG =====
 
             const options = {
                 series: [{
@@ -767,6 +728,20 @@
             return dateObj >= start && dateObj <= end;
         }
 
+        // List of domains to load
+        const TARGET_DOMAINS = [
+            'lyncconf.com',
+            'betterthisworld.com',
+            'etruesports.com',
+            'activepropertycare.com',
+            'seattlesportsonline.com',
+            'healthsciencesforum.com',
+            'famousparenting.com',
+            'simplyseven.net',
+            'decoratoradvice.com',
+            'rapidhomedirect.com'
+        ];
+
         async function loadRevenueCSV() {
             try {
                 const response = await fetch('revenue-history.csv');
@@ -778,40 +753,36 @@
                     skipEmptyLines: true
                 });
                 
-                // Find lyncconf.com row
-                const lyncconfRow = parsed.data.find(row => 
-                    row.Website && row.Website.toLowerCase() === 'lyncconf.com'
-                );
-                
-                if (!lyncconfRow) {
-                    throw new Error('lyncconf.com not found in revenue CSV');
-                }
-                
-                // Extract monthly revenue values
-                const monthlyRevenue = {};
                 const headers = parsed.meta.fields || [];
+                const revenueByDomain = {};
                 
-                // Month names mapping
-                const monthMap = {
-                    'Jan': 'Jan', 'Feb': 'Feb', 'Mar': 'Mar', 'Apr': 'Apr',
-                    'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Aug': 'Aug',
-                    'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dec': 'Dec'
-                };
-                
-                headers.forEach(header => {
-                    // Check if header is a month (e.g., "Jan 2022", "Jun 2025")
-                    const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
-                    if (monthMatch) {
-                        const [, month, year] = monthMatch;
-                        const key = month + year; // e.g., "Jun2025"
-                        const value = parseCurrency(lyncconfRow[header]);
-                        if (value > 0) {
-                            monthlyRevenue[key] = value;
-                        }
+                // Process each target domain
+                TARGET_DOMAINS.forEach(domain => {
+                    const row = parsed.data.find(r => 
+                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
+                    );
+                    
+                    if (row) {
+                        const monthlyRevenue = {};
+                        headers.forEach(header => {
+                            const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
+                            if (monthMatch) {
+                                const [, month, year] = monthMatch;
+                                const key = month + year;
+                                const value = parseCurrency(row[header]);
+                                if (value > 0) {
+                                    monthlyRevenue[key] = value;
+                                }
+                            }
+                        });
+                        revenueByDomain[domain] = monthlyRevenue;
+                    } else {
+                        revenueByDomain[domain] = {};
                     }
                 });
                 
-                return monthlyRevenue;
+                console.log('✅ Revenue data loaded for domains:', Object.keys(revenueByDomain));
+                return revenueByDomain;
             } catch (error) {
                 console.error('Error loading revenue CSV:', error);
                 throw error;
@@ -829,48 +800,39 @@
                     skipEmptyLines: true
                 });
                 
-                // Filter for lyncconf.com
-                const lyncconfRows = parsed.data.filter(row => 
-                    row.domain && row.domain.toLowerCase() === 'lyncconf.com'
-                );
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const ahrefsByDomain = {};
                 
-                if (lyncconfRows.length === 0) {
-                    throw new Error('lyncconf.com not found in Ahrefs CSV');
-                }
-                
-                // Convert to map: date string -> traffic value
-                const ahrefsDataMap = new Map();
-                
-                lyncconfRows.forEach(row => {
-                    if (!row.date || !row.organic_traffic) return;
+                // Process each target domain
+                TARGET_DOMAINS.forEach(domain => {
+                    const domainRows = parsed.data.filter(row => 
+                        row.domain && row.domain.toLowerCase() === domain.toLowerCase()
+                    );
                     
-                    // Parse ISO date: "2024-01-01T00:00:00Z" -> "Jan 1 2024"
-                    const isoDate = new Date(row.date);
-                    if (isNaN(isoDate.getTime())) return;
+                    const ahrefsDataMap = new Map();
+                    domainRows.forEach(row => {
+                        if (!row.date || !row.organic_traffic) return;
+                        
+                        const isoDate = new Date(row.date);
+                        if (isNaN(isoDate.getTime())) return;
+                        
+                        const month = monthNames[isoDate.getMonth()];
+                        const day = isoDate.getDate();
+                        const year = isoDate.getFullYear();
+                        const dateStr = `${month} ${day} ${year}`;
+                        
+                        const value = parseNumber(row.organic_traffic);
+                        if (value !== null && value !== undefined) {
+                            ahrefsDataMap.set(dateStr, value);
+                        }
+                    });
                     
-                    // Format to match traffic CSV format: "Jan 1 2024"
-                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                    const month = monthNames[isoDate.getMonth()];
-                    const day = isoDate.getDate();
-                    const year = isoDate.getFullYear();
-                    const dateStr = `${month} ${day} ${year}`;
-                    
-                    const value = parseNumber(row.organic_traffic);
-                    if (value !== null && value !== undefined) {
-                        ahrefsDataMap.set(dateStr, value);
-                    }
+                    ahrefsByDomain[domain] = ahrefsDataMap;
                 });
                 
-                console.log('✅ Ahrefs data loaded:', {
-                    totalRows: lyncconfRows.length,
-                    dataPoints: ahrefsDataMap.size,
-                    firstDate: Array.from(ahrefsDataMap.keys()).sort()[0],
-                    lastDate: Array.from(ahrefsDataMap.keys()).sort().slice(-1)[0],
-                    sampleValues: Array.from(ahrefsDataMap.entries()).slice(0, 5)
-                });
-                
-                return ahrefsDataMap;
+                console.log('✅ Ahrefs data loaded for domains:', Object.keys(ahrefsByDomain).map(d => `${d}: ${ahrefsByDomain[d].size} points`));
+                return ahrefsByDomain;
             } catch (error) {
                 console.error('Error loading Ahrefs CSV:', error);
                 throw error;
@@ -886,273 +848,97 @@
                 const parsed = Papa.parse(text, { 
                     header: true,
                     skipEmptyLines: false,
-                    transformHeader: (header) => header.trim() // Clean headers
+                    transformHeader: (header) => header.trim()
                 });
                 
-                // Find lyncconf.com row
-                const lyncconfRow = parsed.data.find(row => 
-                    row.Website && row.Website.toLowerCase() === 'lyncconf.com'
-                );
-                
-                if (!lyncconfRow) {
-                    throw new Error('lyncconf.com not found in traffic CSV');
-                }
-                
                 const headers = parsed.meta.fields || [];
-                // Skip first 6 columns: empty, Website, Ahrefs Links, Link Working, Type, "Original \nType"
-                const dateColumns = headers.slice(6);
+                const dateColumns = headers.slice(6); // Skip first 6 metadata columns
                 
-                // No date filtering - show all available data from CSV
-                // (Previously filtered to June 4 2025 - Jan 13 2026, now showing all)
-                
-                const dates = [];
-                const ourData = [];
-                // Note: ahrefsData will come from separate CSV file, not from this one
-                const ahrefsData = []; // This will be empty - we'll fill it from Ahrefs CSV
-                
-                // Track which dates we've seen to detect duplicates
-                const seenDates = new Map(); // dateStr -> { firstIndex, secondIndex }
-                
-                // First pass: identify duplicate dates and their positions
+                // Build date info once (shared across all domains)
+                const seenDates = new Map();
                 dateColumns.forEach((header, idx) => {
                     if (!header || header.trim() === '') return;
-                    
                     const dateStr = parseDate(header);
                     if (!dateStr || dateStr === '') return;
-                    
                     if (!seenDates.has(dateStr)) {
                         seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1, headers: [header] });
                     } else {
                         const entry = seenDates.get(dateStr);
-                        if (entry.secondIndex === -1) {
-                            entry.secondIndex = idx;
-                        }
+                        if (entry.secondIndex === -1) entry.secondIndex = idx;
                         entry.headers.push(header);
                     }
                 });
                 
-                // Find the split point (where duplicates start appearing)
                 let splitPoint = -1;
-                seenDates.forEach((entry, dateStr) => {
+                seenDates.forEach((entry) => {
                     if (entry.secondIndex !== -1 && (splitPoint === -1 || entry.secondIndex < splitPoint)) {
                         splitPoint = entry.secondIndex;
                     }
                 });
                 
-                console.log('🔍 DEBUG: Duplicate detection', {
-                    totalDateColumns: dateColumns.length,
-                    uniqueDates: seenDates.size,
-                    datesWithDuplicates: Array.from(seenDates.entries()).filter(([_, entry]) => entry.secondIndex !== -1).length,
-                    splitPoint: splitPoint,
-                    sampleDuplicates: Array.from(seenDates.entries())
-                        .filter(([_, entry]) => entry.secondIndex !== -1)
-                        .slice(0, 5)
-                        .map(([dateStr, entry]) => ({
-                            date: dateStr,
-                            firstIdx: entry.firstIndex,
-                            secondIdx: entry.secondIndex,
-                            headers: entry.headers
-                        }))
-                });
+                const trafficByDomain = {};
                 
-                // Build date-to-index maps for both sections
-                const ourDataMap = new Map(); // date -> {index, value}
-                const ahrefsDataMap = new Map(); // date -> value
-                const assignmentLog = []; // For debugging
-                
-                dateColumns.forEach((header, idx) => {
-                    if (!header || header.trim() === '') return;
+                // Process each target domain
+                TARGET_DOMAINS.forEach(domain => {
+                    const row = parsed.data.find(r => 
+                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
+                    );
                     
-                    // Check for PapaParse suffix (_1, _2, etc.)
-                    const suffixMatch = header.match(/_(\d+)$/);
-                    const hasSuffix = suffixMatch !== null;
-                    const suffixNum = hasSuffix ? parseInt(suffixMatch[1]) : 0;
-                    
-                    // Remove suffix for date parsing
-                    const headerForDate = hasSuffix ? header.replace(/_(\d+)$/, '') : header;
-                    const dateStr = parseDate(headerForDate);
-                    if (!dateStr || dateStr === '') return;
-                    
-                    const parts = dateStr.split(' ');
-                    if (parts.length !== 3) return;
-                    
-                    const [month, day, year] = parts;
-                    const dateObj = new Date(`${month} ${day}, ${year}`);
-                    
-                    if (isNaN(dateObj.getTime())) {
-                        // Skip invalid dates (but don't log _1/_2 suffixes as they're expected)
-                        if (!hasSuffix) {
-                            console.warn('Invalid date format:', header, '->', dateStr);
-                        }
+                    if (!row) {
+                        trafficByDomain[domain] = { dates: [], ourData: [] };
                         return;
                     }
                     
-                    // Include all dates (no filtering) - even if value is null/empty
-                    const value = parseNumber(lyncconfRow[header]);
+                    const ourDataMap = new Map();
                     
-                    // Determine which dataset:
-                    // PapaParse adds _1 to the SECOND occurrence of duplicate column names
-                    // So: no suffix = first occurrence (ourData), _1 suffix = second occurrence (ahrefsData)
-                    // 1. If header has ANY suffix (_1, _2, etc.), it's ahrefsData (second+ occurrence)
-                    // 2. If header has no suffix AND we're before split point, it's ourData
-                    // 3. If header has no suffix AND we're at/after split point, check if this date was seen before
-                    let isAhrefsData = false;
-                    let assignmentReason = '';
-                    
-                    if (hasSuffix) {
-                        // ANY suffix (_1, _2, etc.) means this is a duplicate column = ahrefsData
-                        isAhrefsData = true;
-                        assignmentReason = `suffix_${suffixNum}_duplicate`;
-                    } else if (splitPoint > 0 && idx >= splitPoint) {
-                        // We're in the second section (after split point) but no suffix
-                        // Check if this date was already seen (duplicate)
-                        const entry = seenDates.get(dateStr);
-                        if (entry && entry.secondIndex !== -1 && idx >= entry.secondIndex) {
-                            isAhrefsData = true;
-                            assignmentReason = `split_point_duplicate_no_suffix`;
-                        } else {
-                            assignmentReason = `split_point_new_date_no_suffix`;
-                        }
-                    } else {
-                        // No suffix and before split point = first occurrence = ourData
-                        assignmentReason = `first_section_no_suffix`;
-                    }
-                    
-                    if (isAhrefsData) {
-                        // This is ahrefsData
-                        if (!ahrefsDataMap.has(dateStr)) {
-                            ahrefsDataMap.set(dateStr, value);
-                            assignmentLog.push({
-                                date: dateStr,
-                                header: header,
-                                idx: idx,
-                                value: value,
-                                dataset: 'ahrefs',
-                                reason: assignmentReason
-                            });
-                        } else {
-                            assignmentLog.push({
-                                date: dateStr,
-                                header: header,
-                                idx: idx,
-                                value: value,
-                                dataset: 'ahrefs',
-                                reason: `${assignmentReason}_skipped_already_exists`,
-                                existingValue: ahrefsDataMap.get(dateStr)
-                            });
-                        }
-                    } else {
-                        // This is ourData
-                        if (!ourDataMap.has(dateStr)) {
-                            ourDataMap.set(dateStr, { index: ourDataMap.size, value: value });
-                            assignmentLog.push({
-                                date: dateStr,
-                                header: header,
-                                idx: idx,
-                                value: value,
-                                dataset: 'our',
-                                reason: assignmentReason
-                            });
-                        } else {
-                            assignmentLog.push({
-                                date: dateStr,
-                                header: header,
-                                idx: idx,
-                                value: value,
-                                dataset: 'our',
-                                reason: `${assignmentReason}_skipped_already_exists`,
-                                existingValue: ourDataMap.get(dateStr).value
-                            });
-                        }
-                    }
-                });
-                
-                // Debug: Check for dates that appear in both datasets with same values
-                const sameValueDates = [];
-                ourDataMap.forEach((ourEntry, dateStr) => {
-                    if (ahrefsDataMap.has(dateStr)) {
-                        const ourValue = ourEntry.value;
-                        const ahrefsValue = ahrefsDataMap.get(dateStr);
-                        if (ourValue === ahrefsValue && ourValue !== null && ourValue !== undefined) {
-                            sameValueDates.push({ date: dateStr, value: ourValue });
-                        }
-                    }
-                });
-                
-                console.log('🔍 DEBUG: Data assignment', {
-                    totalColumnsProcessed: assignmentLog.length,
-                    ourDataMapSize: ourDataMap.size,
-                    ahrefsDataMapSize: ahrefsDataMap.size,
-                    datesInBoth: Array.from(ourDataMap.keys()).filter(d => ahrefsDataMap.has(d)).length,
-                    sameValueDates: sameValueDates.length,
-                    sampleSameValues: sameValueDates.slice(0, 10),
-                    sampleAssignments: assignmentLog.filter(a => a.date.includes('Jul 17 2025') || a.date.includes('Dec 24 2025')).slice(0, 10)
-                });
-                
-                // Build arrays from maps, matching dates
-                // First, get all unique dates from both maps
-                const allDatesSet = new Set();
-                ourDataMap.forEach((data, dateStr) => allDatesSet.add(dateStr));
-                ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-                
-                // Convert to array and sort chronologically
-                const allDates = Array.from(allDatesSet);
-                allDates.sort((a, b) => {
-                    const parseDateForSort = (dateStr) => {
+                    dateColumns.forEach((header, idx) => {
+                        if (!header || header.trim() === '') return;
+                        
+                        const suffixMatch = header.match(/_(\d+)$/);
+                        const hasSuffix = suffixMatch !== null;
+                        const headerForDate = hasSuffix ? header.replace(/_(\d+)$/, '') : header;
+                        const dateStr = parseDate(headerForDate);
+                        if (!dateStr || dateStr === '') return;
+                        
                         const parts = dateStr.split(' ');
-                        if (parts.length !== 3) return new Date(0);
+                        if (parts.length !== 3) return;
+                        
                         const [month, day, year] = parts;
                         const dateObj = new Date(`${month} ${day}, ${year}`);
-                        return isNaN(dateObj.getTime()) ? new Date(0) : dateObj;
-                    };
-                    return parseDateForSort(a) - parseDateForSort(b);
+                        if (isNaN(dateObj.getTime())) return;
+                        
+                        const value = parseNumber(row[header]);
+                        
+                        // Only use first occurrence (our data), skip duplicates
+                        let isOurData = !hasSuffix;
+                        if (!hasSuffix && splitPoint > 0 && idx >= splitPoint) {
+                            const entry = seenDates.get(dateStr);
+                            if (entry && entry.secondIndex !== -1 && idx >= entry.secondIndex) {
+                                isOurData = false;
+                            }
+                        }
+                        
+                        if (isOurData && !ourDataMap.has(dateStr)) {
+                            ourDataMap.set(dateStr, value);
+                        }
+                    });
+                    
+                    // Sort dates chronologically
+                    const sortedDates = Array.from(ourDataMap.keys()).sort((a, b) => {
+                        const parseD = (s) => {
+                            const p = s.split(' ');
+                            return new Date(`${p[0]} ${p[1]}, ${p[2]}`);
+                        };
+                        return parseD(a) - parseD(b);
+                    });
+                    
+                    const sortedOurData = sortedDates.map(d => ourDataMap.get(d));
+                    
+                    trafficByDomain[domain] = { dates: sortedDates, ourData: sortedOurData };
                 });
                 
-                // Build sorted arrays
-                const sortedDates = [];
-                const sortedOurData = [];
-                const sortedAhrefsData = [];
-                
-                allDates.forEach(dateStr => {
-                    sortedDates.push(dateStr);
-                    const ourDataEntry = ourDataMap.get(dateStr);
-                    sortedOurData.push(ourDataEntry ? ourDataEntry.value : null);
-                    sortedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
-                });
-                
-                // Debug logging - final summary
-                const jul17Idx = sortedDates.findIndex(d => d.includes('Jul 17 2025'));
-                const dec24Idx = sortedDates.findIndex(d => d.includes('Dec 24 2025'));
-                
-                console.log('✅ Traffic data loaded - FINAL SUMMARY', {
-                    totalDates: sortedDates.length,
-                    ourDataPoints: sortedOurData.filter(v => v !== null && v !== undefined).length,
-                    ahrefsDataPoints: sortedAhrefsData.filter(v => v !== null && v !== undefined).length,
-                    ourDataMapSize: ourDataMap.size,
-                    ahrefsDataMapSize: ahrefsDataMap.size,
-                    firstDate: sortedDates[0],
-                    lastDate: sortedDates[sortedDates.length - 1],
-                    jul17Data: jul17Idx >= 0 ? {
-                        date: sortedDates[jul17Idx],
-                        ourValue: sortedOurData[jul17Idx],
-                        ahrefsValue: sortedAhrefsData[jul17Idx],
-                        match: sortedOurData[jul17Idx] === sortedAhrefsData[jul17Idx]
-                    } : 'not found',
-                    dec24Data: dec24Idx >= 0 ? {
-                        date: sortedDates[dec24Idx],
-                        ourValue: sortedOurData[dec24Idx],
-                        ahrefsValue: sortedAhrefsData[dec24Idx],
-                        match: sortedOurData[dec24Idx] === sortedAhrefsData[dec24Idx]
-                    } : 'not found',
-                    sampleOurData: sortedOurData.slice(0, 10),
-                    sampleAhrefsData: sortedAhrefsData.slice(0, 10),
-                    ourDataNonZero: sortedOurData.filter(v => v !== null && v !== undefined && v > 0).length,
-                    ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length
-                });
-                
-                // Note: ahrefsData will be empty here - it comes from separate CSV
-                // Return empty array for ahrefsData, it will be filled from Ahrefs CSV
-                return { dates: sortedDates, ourData: sortedOurData, ahrefsData: [] };
+                console.log('✅ Traffic data loaded for domains:', Object.keys(trafficByDomain).map(d => `${d}: ${trafficByDomain[d].dates.length} dates`));
+                return trafficByDomain;
             } catch (error) {
                 console.error('Error loading traffic CSV:', error);
                 throw error;
@@ -1210,106 +996,70 @@
                     setTimeout(() => reject(new Error('CSV loading timeout')), 5000)
                 );
                 
-                const [revenueData, trafficData, ahrefsDataMap] = await Promise.race([
+                const [revenueByDomain, trafficByDomain, ahrefsByDomain] = await Promise.race([
                     Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV()]),
                     timeoutPromise
                 ]);
                 
-                // Merge data from all CSVs - use union of all dates
-                // Get all unique dates from all datasets (revenue, traffic, ahrefs)
-                const allDatesSet = new Set();
-                
-                // Add revenue dates (monthly, need to convert to daily)
-                // Revenue data is monthly, so we'll add the first day of each month
-                Object.keys(revenueData).forEach(monthKey => {
-                    // monthKey format: "Jan2022" (no space) or "Jan 2022" (with space)
-                    // Try to parse both formats
-                    let month, year;
-                    
-                    // Try format "Jan2022" (no space)
-                    const noSpaceMatch = monthKey.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$/);
-                    if (noSpaceMatch) {
-                        [, month, year] = noSpaceMatch;
-                    } else {
-                        // Try format "Jan 2022" (with space)
-                        const parts = monthKey.split(' ');
-                        if (parts.length === 2) {
-                            [month, year] = parts;
-                        } else {
-                            return; // Skip if can't parse
-                        }
-                    }
-                    
-                    // Add first day of month
-                    const dateStr = `${month} 1 ${year}`;
-                    allDatesSet.add(dateStr);
-                });
-                
-                // Add traffic dates
-                trafficData.dates.forEach(d => allDatesSet.add(d));
-                
-                // Add Ahrefs dates
-                ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-                
-                // Sort all dates chronologically
-                const allDates = Array.from(allDatesSet);
-                allDates.sort((a, b) => {
-                    const parseDateForSort = (dateStr) => {
-                        const parts = dateStr.split(' ');
-                        if (parts.length !== 3) return new Date(0);
-                        const [month, day, year] = parts;
-                        const dateObj = new Date(`${month} ${day}, ${year}`);
-                        return isNaN(dateObj.getTime()) ? new Date(0) : dateObj;
-                    };
-                    return parseDateForSort(a) - parseDateForSort(b);
-                });
-                
-                // Build arrays for all dates
-                const mergedDates = [];
-                const mergedOurData = [];
-                const mergedAhrefsData = [];
-                
-                // Create maps for quick lookup
-                const ourDataMap = new Map();
-                trafficData.dates.forEach((date, idx) => {
-                    ourDataMap.set(date, trafficData.ourData[idx]);
-                });
-                
-                allDates.forEach(dateStr => {
-                    mergedDates.push(dateStr);
-                    mergedOurData.push(ourDataMap.get(dateStr) || null);
-                    mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
-                });
-                
-                // Note: Revenue data is monthly and will be mapped to daily dates in generateMonthlyRevenue()
-                // The revenue mapping happens later in createChart() function
-                
-                // Get rank from CSV (should be 9 for lyncconf.com, but we'll use 1 for display)
-                const rank = 1;
-                
-                domains = {
-                    "lyncconf.com": {
-                        rank: rank,
-                        dates: mergedDates,
-                        ourData: mergedOurData,
-                        ahrefsData: mergedAhrefsData, // Use Ahrefs data from separate CSV
-                        monthlyRevenue: revenueData
-                    }
+                // Helper to sort dates
+                const parseDateForSort = (dateStr) => {
+                    const parts = dateStr.split(' ');
+                    if (parts.length !== 3) return new Date(0);
+                    const [month, day, year] = parts;
+                    return new Date(`${month} ${day}, ${year}`);
                 };
                 
-                console.log('✅ Data merged:', {
-                    totalDates: mergedDates.length,
-                    ourDataPoints: mergedOurData.filter(v => v !== null).length,
-                    ahrefsDataPoints: mergedAhrefsData.filter(v => v !== null).length,
-                    ahrefsFromCSV: ahrefsDataMap.size,
-                    revenueMonths: Object.keys(revenueData).length,
-                    firstDate: mergedDates[0],
-                    lastDate: mergedDates[mergedDates.length - 1],
-                    first10Dates: mergedDates.slice(0, 10),
-                    datesWithBothData: mergedDates.filter((d, i) => 
-                        mergedOurData[i] !== null && mergedAhrefsData[i] !== null
-                    ).length
+                // Build domains object for all target domains
+                domains = {};
+                
+                TARGET_DOMAINS.forEach((domain, idx) => {
+                    const trafficData = trafficByDomain[domain] || { dates: [], ourData: [] };
+                    const ahrefsDataMap = ahrefsByDomain[domain] || new Map();
+                    const revenueData = revenueByDomain[domain] || {};
+                    
+                    // Merge all dates from traffic and ahrefs
+                    const allDatesSet = new Set();
+                    trafficData.dates.forEach(d => allDatesSet.add(d));
+                    ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+                    
+                    // Add revenue dates
+                    Object.keys(revenueData).forEach(monthKey => {
+                        const noSpaceMatch = monthKey.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$/);
+                        if (noSpaceMatch) {
+                            const [, month, year] = noSpaceMatch;
+                            allDatesSet.add(`${month} 1 ${year}`);
+                        }
+                    });
+                    
+                    // Sort dates
+                    const allDates = Array.from(allDatesSet).sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+                    
+                    // Build arrays
+                    const ourDataMap = new Map();
+                    trafficData.dates.forEach((date, i) => ourDataMap.set(date, trafficData.ourData[i]));
+                    
+                    const mergedDates = [];
+                    const mergedOurData = [];
+                    const mergedAhrefsData = [];
+                    
+                    allDates.forEach(dateStr => {
+                        mergedDates.push(dateStr);
+                        mergedOurData.push(ourDataMap.get(dateStr) || null);
+                        mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
+                    });
+                    
+                    domains[domain] = {
+                        rank: idx + 1,
+                        dates: mergedDates,
+                        ourData: mergedOurData,
+                        ahrefsData: mergedAhrefsData,
+                        monthlyRevenue: revenueData
+                    };
                 });
+                
+                console.log('✅ Data merged for all domains:', Object.keys(domains).map(d => 
+                    `${d}: ${domains[d].dates.length} dates, ${domains[d].ourData.filter(v => v !== null).length} traffic pts`
+                ));
                 
                 loadingEl.style.display = 'none';
                 initializeDashboard(domains);
