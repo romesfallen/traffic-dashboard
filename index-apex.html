@@ -686,8 +686,8 @@
                 }
                 
                 const headers = parsed.meta.fields || [];
-                // Skip first 5 columns: empty, Website, Ahrefs Links, Link Working, Type
-                const dateColumns = headers.slice(5);
+                // Skip first 6 columns: empty, Website, Ahrefs Links, Link Working, Type, "Original \nType"
+                const dateColumns = headers.slice(6);
                 
                 // No date filtering - show all available data from CSV
                 // (Previously filtered to June 4 2025 - Jan 13 2026, now showing all)
