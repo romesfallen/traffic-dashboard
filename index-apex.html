@@ -997,7 +997,9 @@
                     ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length
                 });
                 
-                return { dates: sortedDates, ourData: sortedOurData, ahrefsData: sortedAhrefsData };
+                // Note: ahrefsData will be empty here - it comes from separate CSV
+                // Return empty array for ahrefsData, it will be filled from Ahrefs CSV
+                return { dates: sortedDates, ourData: sortedOurData, ahrefsData: [] };
             } catch (error) {
                 console.error('Error loading traffic CSV:', error);
                 throw error;
@@ -1055,10 +1057,16 @@
                     setTimeout(() => reject(new Error('CSV loading timeout')), 5000)
                 );
                 
-                const [revenueData, trafficData] = await Promise.race([
-                    Promise.all([loadRevenueCSV(), loadTrafficCSV()]),
+                const [revenueData, trafficData, ahrefsDataMap] = await Promise.race([
+                    Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV()]),
                     timeoutPromise
                 ]);
+                
+                // Merge Ahrefs data from separate CSV with traffic data
+                // Match dates and fill in Ahrefs values
+                const mergedAhrefsData = trafficData.dates.map(dateStr => {
+                    return ahrefsDataMap.get(dateStr) || null;
+                });
                 
                 // Get rank from CSV (should be 9 for lyncconf.com, but we'll use 1 for display)
                 const rank = 1;
@@ -1068,10 +1076,17 @@
                         rank: rank,
                         dates: trafficData.dates,
                         ourData: trafficData.ourData,
-                        ahrefsData: trafficData.ahrefsData,
+                        ahrefsData: mergedAhrefsData, // Use Ahrefs data from separate CSV
                         monthlyRevenue: revenueData
                     }
                 };
+                
+                console.log('✅ Data merged:', {
+                    totalDates: trafficData.dates.length,
+                    ourDataPoints: trafficData.ourData.filter(v => v !== null).length,
+                    ahrefsDataPoints: mergedAhrefsData.filter(v => v !== null).length,
+                    ahrefsFromCSV: ahrefsDataMap.size
+                });
                 
                 loadingEl.style.display = 'none';
                 initializeDashboard(domains);
