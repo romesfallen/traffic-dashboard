@@ -396,6 +396,16 @@
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             const revenueData = revenueResult.revenue;
             const xCategories = revenueResult.categories;
+            
+            // Debug logging
+            console.log('Chart data:', {
+                ourDataLength: ourProcessed.real.length,
+                ahrefsDataLength: ahrefsProcessed.real.length,
+                revenueDataLength: revenueData.length,
+                ourDataSample: ourProcessed.real.slice(0, 5),
+                ahrefsDataSample: ahrefsProcessed.real.slice(0, 5),
+                revenueSample: revenueData.slice(0, 5)
+            });
 
             const options = {
                 series: [{
@@ -447,9 +457,10 @@
                     categories: xCategories,
                     labels: {
                         style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
-                        rotate: 0,
-                        trim: false,
-                        hideOverlappingLabels: false
+                        rotate: -45,
+                        trim: true,
+                        hideOverlappingLabels: true,
+                        maxHeight: 60
                     },
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
@@ -460,7 +471,7 @@
                     tooltip: { enabled: false }
                 },
                 yaxis: [{
-                    seriesName: 'Our Data',
+                    seriesName: ['Our Data', 'Ahrefs'],
                     title: {
                         text: 'Traffic',
                         style: { color: '#333333', fontSize: '12px' }
@@ -468,10 +479,8 @@
                     labels: {
                         style: { colors: '#333333' },
                         formatter: val => val ? val.toLocaleString() : ''
-                    }
-                }, {
-                    seriesName: 'Ahrefs',
-                    show: false
+                    },
+                    min: 0
                 }, {
                     seriesName: 'Revenue',
                     opposite: true,
@@ -483,8 +492,8 @@
                         style: { colors: '#10b981' },
                         formatter: val => val ? '$' + val.toLocaleString() : ''
                     },
-                    min: 0,
-                    max: 1000
+                    min: 0
+                    // Removed max: 1000 to allow auto-scaling
                 }],
                 grid: {
                     borderColor: '#e8e8e8',
@@ -776,6 +785,18 @@
                     const ourDataEntry = ourDataMap.get(dateStr);
                     sortedOurData.push(ourDataEntry ? ourDataEntry.value : null);
                     sortedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
+                });
+                
+                // Debug logging
+                console.log('Traffic data loaded:', {
+                    totalDates: sortedDates.length,
+                    ourDataPoints: sortedOurData.filter(v => v !== null && v !== undefined).length,
+                    ahrefsDataPoints: sortedAhrefsData.filter(v => v !== null && v !== undefined).length,
+                    splitPoint: splitPoint,
+                    firstDate: sortedDates[0],
+                    lastDate: sortedDates[sortedDates.length - 1],
+                    sampleOurData: sortedOurData.slice(0, 5),
+                    sampleAhrefsData: sortedAhrefsData.slice(0, 5)
                 });
                 
                 return { dates: sortedDates, ourData: sortedOurData, ahrefsData: sortedAhrefsData };
