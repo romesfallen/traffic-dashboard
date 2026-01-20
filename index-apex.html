@@ -1062,10 +1062,40 @@
                     timeoutPromise
                 ]);
                 
-                // Merge Ahrefs data from separate CSV with traffic data
-                // Match dates and fill in Ahrefs values
-                const mergedAhrefsData = trafficData.dates.map(dateStr => {
-                    return ahrefsDataMap.get(dateStr) || null;
+                // Merge data from both CSVs - use union of all dates
+                // Get all unique dates from both datasets
+                const allDatesSet = new Set();
+                trafficData.dates.forEach(d => allDatesSet.add(d));
+                ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+                
+                // Sort all dates chronologically
+                const allDates = Array.from(allDatesSet);
+                allDates.sort((a, b) => {
+                    const parseDateForSort = (dateStr) => {
+                        const parts = dateStr.split(' ');
+                        if (parts.length !== 3) return new Date(0);
+                        const [month, day, year] = parts;
+                        const dateObj = new Date(`${month} ${day}, ${year}`);
+                        return isNaN(dateObj.getTime()) ? new Date(0) : dateObj;
+                    };
+                    return parseDateForSort(a) - parseDateForSort(b);
+                });
+                
+                // Build arrays for all dates
+                const mergedDates = [];
+                const mergedOurData = [];
+                const mergedAhrefsData = [];
+                
+                // Create maps for quick lookup
+                const ourDataMap = new Map();
+                trafficData.dates.forEach((date, idx) => {
+                    ourDataMap.set(date, trafficData.ourData[idx]);
+                });
+                
+                allDates.forEach(dateStr => {
+                    mergedDates.push(dateStr);
+                    mergedOurData.push(ourDataMap.get(dateStr) || null);
+                    mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
                 });
                 
                 // Get rank from CSV (should be 9 for lyncconf.com, but we'll use 1 for display)
@@ -1074,18 +1104,23 @@
                 domains = {
                     "lyncconf.com": {
                         rank: rank,
-                        dates: trafficData.dates,
-                        ourData: trafficData.ourData,
+                        dates: mergedDates,
+                        ourData: mergedOurData,
                         ahrefsData: mergedAhrefsData, // Use Ahrefs data from separate CSV
                         monthlyRevenue: revenueData
                     }
                 };
                 
                 console.log('✅ Data merged:', {
-                    totalDates: trafficData.dates.length,
-                    ourDataPoints: trafficData.ourData.filter(v => v !== null).length,
+                    totalDates: mergedDates.length,
+                    ourDataPoints: mergedOurData.filter(v => v !== null).length,
                     ahrefsDataPoints: mergedAhrefsData.filter(v => v !== null).length,
-                    ahrefsFromCSV: ahrefsDataMap.size
+                    ahrefsFromCSV: ahrefsDataMap.size,
+                    firstDate: mergedDates[0],
+                    lastDate: mergedDates[mergedDates.length - 1],
+                    datesWithBothData: mergedDates.filter((d, i) => 
+                        mergedOurData[i] !== null && mergedAhrefsData[i] !== null
+                    ).length
                 });
                 
                 loadingEl.style.display = 'none';
