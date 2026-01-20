@@ -172,6 +172,7 @@
         .legend-dot.our-data { background: linear-gradient(135deg, #f97316, #fb923c); }
         .legend-dot.ahrefs { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
         .legend-dot.revenue { background: linear-gradient(135deg, #10b981, #34d399); }
+        .legend-dot.dr { background: linear-gradient(135deg, #a855f7, #c084fc); }
 
         #chart-container {
             min-height: 400px;
@@ -246,6 +247,10 @@
         <div class="legend-item">
             <div class="legend-dot revenue"></div>
             <span>Revenue</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot dr"></div>
+            <span>DR</span>
         </div>
     </div>
 
@@ -552,6 +557,7 @@
 
             const ourProcessed = interpolateData(filtered.ourData);
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
+            const drProcessed = interpolateData(filtered.drData || []);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -571,6 +577,7 @@
             
             const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
+            const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
             
             // Calculate max revenue for "bottom-third" axis scaling
@@ -593,6 +600,10 @@
                     name: 'Revenue',
                     type: 'area',
                     data: revenuePoints
+                }, {
+                    name: 'DR',
+                    type: 'line',
+                    data: drDataPoints
                 }],
                 chart: {
                     type: 'line',
@@ -606,14 +617,15 @@
                     },
                     stacked: false
                 },
-                colors: ['#f97316', '#3b82f6', '#10b981'],
+                colors: ['#f97316', '#3b82f6', '#10b981', '#a855f7'],
                 fill: {
-                    type: ['solid', 'solid', 'solid'],
-                    opacity: [0, 0, 0.25]
+                    type: ['solid', 'solid', 'solid', 'solid'],
+                    opacity: [0, 0, 0.25, 0]
                 },
                 stroke: {
-                    curve: ['smooth', 'smooth', 'stepline'],
-                    width: [2, 2, 0]
+                    curve: ['smooth', 'smooth', 'stepline', 'smooth'],
+                    width: [2, 2, 0, 2],
+                    dashArray: [0, 0, 0, 5] // DR is dotted line
                 },
                 markers: {
                     size: 0,
@@ -644,37 +656,75 @@
                     },
                     tooltip: { enabled: true, format: 'dd MMM yyyy' }
                 },
-                yaxis: [{
-                    seriesName: ['Our Data', 'Ahrefs'],
-                    title: {
-                        text: 'Traffic',
-                        style: { color: '#333333', fontSize: '12px' }
+                yaxis: [
+                    // [0] Our Data - Left Axis (Primary Traffic)
+                    {
+                        seriesName: 'Our Data',
+                        title: {
+                            text: 'Traffic',
+                            style: { color: '#333333', fontSize: '12px' }
+                        },
+                        labels: {
+                            style: { colors: '#333333' },
+                            formatter: val => val ? val.toLocaleString() : ''
+                        },
+                        min: 0
                     },
-                    labels: {
-                        style: { colors: '#333333' },
-                        formatter: val => val ? val.toLocaleString() : ''
+                    // [1] Ahrefs - Left Axis (Linked to Our Data axis)
+                    {
+                        seriesName: 'Ahrefs',
+                        show: false, // Hide duplicate axis, shares scale with Our Data
+                        labels: {
+                            style: { colors: '#333333' },
+                            formatter: val => val ? val.toLocaleString() : ''
+                        },
+                        min: 0
                     },
-                    min: 0
-                }, {
-                    seriesName: 'Revenue',
-                    opposite: true,
-                    title: {
-                        text: 'Revenue ($)',
-                        style: { color: '#10b981', fontSize: '12px' }
+                    // [2] Revenue - Right Axis A (Bottom-third logic)
+                    {
+                        seriesName: 'Revenue',
+                        opposite: true,
+                        title: {
+                            text: 'Revenue ($)',
+                            style: { color: '#10b981', fontSize: '12px' }
+                        },
+                        labels: {
+                            style: { colors: '#10b981' },
+                            formatter: val => val ? '$' + val.toLocaleString() : ''
+                        },
+                        min: 0,
+                        max: revenueAxisMax // Bottom-third logic: max = maxRevenue * 3
                     },
-                    labels: {
-                        style: { colors: '#10b981' },
-                        formatter: val => val ? '$' + val.toLocaleString() : ''
-                    },
-                    min: 0,
-                    max: revenueAxisMax // Bottom-third logic: max = maxRevenue * 3
-                }],
+                    // [3] DR - Right Axis B (Offset, 0-100 scale)
+                    {
+                        seriesName: 'DR',
+                        opposite: true,
+                        title: {
+                            text: 'DR',
+                            style: { color: '#a855f7', fontSize: '12px' },
+                            offsetX: -10
+                        },
+                        labels: {
+                            style: { colors: '#a855f7' },
+                            formatter: val => val ? val.toFixed(0) : '',
+                            offsetX: -10
+                        },
+                        min: 0,
+                        max: 100,
+                        tickAmount: 5,
+                        axisBorder: {
+                            show: true,
+                            color: '#a855f7',
+                            offsetX: -5
+                        }
+                    }
+                ],
                 grid: {
                     borderColor: '#e8e8e8',
                     strokeDashArray: 0,
                     padding: {
                         left: 20,
-                        right: 20,
+                        right: 40, // Extra space for DR axis
                         bottom: 15
                     }
                 },
@@ -694,8 +744,8 @@
                         enabled: false
                     },
                     custom: function({ series, seriesIndex, dataPointIndex, w }) {
-                        const colors = ['#f97316', '#3b82f6', '#10b981'];
-                        const names = ['Our Data', 'Ahrefs', 'Revenue'];
+                        const colors = ['#f97316', '#3b82f6', '#10b981', '#a855f7'];
+                        const names = ['Our Data', 'Ahrefs', 'Revenue', 'DR'];
                         
                         // Get the x value (timestamp) from the HOVERED series
                         const hoveredSeriesData = w.config.series[seriesIndex].data;
@@ -714,14 +764,14 @@
                         let html = '<div class="apexcharts-tooltip-custom" style="padding: 10px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">';
                         html += '<div style="font-weight: 600; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #eee; color: #333;">' + dateStr + '</div>';
                         
-                        // Loop through all 3 series and find matching data by timestamp
-                        for (let i = 0; i < 3; i++) {
+                        // Loop through all 4 series and find matching data by timestamp
+                        for (let i = 0; i < 4; i++) {
                             const seriesData = w.config.series[i].data;
                             let value = null;
                             
                             // Find the closest point by timestamp
                             let closestDiff = Infinity;
-                            const maxDiff = i === 2 ? 20 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 20 days for revenue, 1 day for traffic
+                            const maxDiff = i === 2 ? 20 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 20 days for revenue, 1 day for others
                             
                             for (let j = 0; j < seriesData.length; j++) {
                                 const point = seriesData[j];
@@ -739,13 +789,20 @@
                             if (value !== null && value !== undefined) {
                                 if (i === 2) {
                                     displayValue = '$' + value.toLocaleString();
+                                } else if (i === 3) {
+                                    displayValue = value.toFixed(0);
                                 } else if (value !== 0) {
                                     displayValue = value.toLocaleString() + ' visits';
                                 }
                             }
                             
-                            // Skip revenue only if no data found (null), but show $0
+                            // Skip revenue if no data found (null)
                             if (i === 2 && value === null) {
+                                continue;
+                            }
+                            
+                            // Skip DR if no data found
+                            if (i === 3 && value === null) {
                                 continue;
                             }
                             
