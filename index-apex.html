@@ -778,28 +778,31 @@
                     const value = parseNumber(lyncconfRow[header]);
                     
                     // Determine which dataset:
-                    // 1. If header has suffix _2 or higher, it's ahrefsData
-                    // 2. If header has suffix _1 or no suffix AND we're before split point, it's ourData
+                    // PapaParse adds _1 to the SECOND occurrence of duplicate column names
+                    // So: no suffix = first occurrence (ourData), _1 suffix = second occurrence (ahrefsData)
+                    // 1. If header has ANY suffix (_1, _2, etc.), it's ahrefsData (second+ occurrence)
+                    // 2. If header has no suffix AND we're before split point, it's ourData
                     // 3. If header has no suffix AND we're at/after split point, check if this date was seen before
                     let isAhrefsData = false;
                     let assignmentReason = '';
                     
-                    if (suffixNum > 1) {
-                        // Explicit _2, _3, etc. suffix = ahrefsData
+                    if (hasSuffix) {
+                        // ANY suffix (_1, _2, etc.) means this is a duplicate column = ahrefsData
                         isAhrefsData = true;
-                        assignmentReason = `suffix_${suffixNum}`;
+                        assignmentReason = `suffix_${suffixNum}_duplicate`;
                     } else if (splitPoint > 0 && idx >= splitPoint) {
-                        // We're in the second section (after split point)
+                        // We're in the second section (after split point) but no suffix
                         // Check if this date was already seen (duplicate)
                         const entry = seenDates.get(dateStr);
                         if (entry && entry.secondIndex !== -1 && idx >= entry.secondIndex) {
                             isAhrefsData = true;
-                            assignmentReason = `split_point_duplicate`;
+                            assignmentReason = `split_point_duplicate_no_suffix`;
                         } else {
-                            assignmentReason = `split_point_new_date`;
+                            assignmentReason = `split_point_new_date_no_suffix`;
                         }
                     } else {
-                        assignmentReason = `first_section`;
+                        // No suffix and before split point = first occurrence = ourData
+                        assignmentReason = `first_section_no_suffix`;
                     }
                     
                     if (isAhrefsData) {
