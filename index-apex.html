@@ -456,11 +456,38 @@
                     type: 'category',
                     categories: xCategories,
                     labels: {
-                        style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
+                        style: { colors: '#333333', fontSize: '10px', fontWeight: 500 },
                         rotate: -45,
                         trim: true,
                         hideOverlappingLabels: true,
-                        maxHeight: 60
+                        maxHeight: 80,
+                        showDuplicates: false,
+                        formatter: function(value, timestamp, opts) {
+                            // Show only month labels for better readability
+                            const date = new Date(value);
+                            if (isNaN(date.getTime())) {
+                                // Try parsing as "Jan 1 2024" format
+                                const parts = String(value).split(' ');
+                                if (parts.length === 3) {
+                                    const [month, day, year] = parts;
+                                    const dateObj = new Date(`${month} ${day}, ${year}`);
+                                    if (!isNaN(dateObj.getTime())) {
+                                        // Show only first of month or every 3 months
+                                        if (parseInt(day) === 1) {
+                                            return month + ' ' + year;
+                                        }
+                                        return '';
+                                    }
+                                }
+                                return value;
+                            }
+                            // Show only first of month
+                            if (date.getDate() === 1) {
+                                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                return monthNames[date.getMonth()] + ' ' + date.getFullYear();
+                            }
+                            return '';
+                        }
                     },
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
