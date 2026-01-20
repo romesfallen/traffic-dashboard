@@ -395,8 +395,8 @@
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             const revenueData = revenueResult.revenue;
-            // Use actual dates as categories for proper x-axis labels
-            const xCategories = filtered.dates;
+            // Use revenue-generated categories (mid-month positioned labels)
+            const xCategories = revenueResult.categories;
             
             // Debug logging
             console.log('Chart data:', {
@@ -436,14 +436,8 @@
                 },
                 plotOptions: {
                     bar: {
-                        columnWidth: '50%',
+                        columnWidth: xCategories.length > 365 ? '95%' : xCategories.length > 180 ? '90%' : '80%',
                         distributed: false
-                    },
-                    column: {
-                        columnWidth: '50%',
-                        dataLabels: {
-                            enabled: false
-                        }
                     }
                 },
                 colors: ['#f97316', '#3b82f6', '#10b981'],
@@ -470,51 +464,43 @@
                     categories: xCategories,
                     labels: {
                         style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
-                        rotate: -45,
-                        rotateAlways: true,
-                        trim: false,
-                        hideOverlappingLabels: false,
-                        maxHeight: 80,
-                        offsetY: 0,
+                        rotate: 0,
+                        rotateAlways: false,
+                        hideOverlappingLabels: true,
+                        minHeight: 40,
                         formatter: function(value, timestamp, opts) {
-                            // Parse the date string (format: "Jan 1 2024")
-                            const parts = String(value).split(' ');
-                            if (parts.length !== 3) return ''; // Hide if can't parse
+                            // Categories are mostly ' ' (space) with "Jun 2025" at mid-month
+                            const trimmed = String(value).trim();
+                            if (!trimmed) return '';
                             
-                            const [month, day, year] = parts;
-                            const dayNum = parseInt(day);
+                            // Parse "Jun 2025" format
+                            const parts = trimmed.split(' ');
+                            if (parts.length !== 2) return '';
                             
-                            // Calculate total data points to determine label frequency
-                            const totalDays = xCategories.length;
-                            const totalMonths = Math.ceil(totalDays / 30);
-                            
-                            // Only show labels on the 1st of the month
-                            if (dayNum !== 1) return '';
-                            
-                            // Determine which months to show based on data range
+                            const [month, year] = parts;
                             const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
                             if (monthIndex === -1) return '';
                             
-                            if (totalMonths <= 6) {
-                                // Up to 6 months: show every month
-                                return month + ' ' + year;
-                            } else if (totalMonths <= 12) {
-                                // 6-12 months: show every month
+                            // Calculate total months to determine label frequency
+                            const totalMonths = Math.ceil(xCategories.length / 30);
+                            
+                            // Filter labels based on data range to prevent overcrowding
+                            if (totalMonths <= 12) {
+                                // Up to 1 year: show every month
                                 return month + ' ' + year;
                             } else if (totalMonths <= 24) {
                                 // 1-2 years: show every other month
                                 if (monthIndex % 2 === 0) return month + ' ' + year;
                             } else if (totalMonths <= 36) {
-                                // 2-3 years: show quarterly (Jan, Apr, Jul, Oct)
+                                // 2-3 years: show quarterly
                                 if (monthIndex % 3 === 0) return month + ' ' + year;
                             } else {
-                                // More than 3 years: show every 6 months (Jan, Jul)
-                                if (monthIndex === 0 || monthIndex === 6) return month + ' ' + year;
+                                // 3+ years: show every 4 months
+                                if (monthIndex % 4 === 0) return month + ' ' + year;
                             }
                             return '';
                         }
                     },
-                    tickAmount: 8, // Limit ticks for clean display with full labels
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
                     crosshairs: {
