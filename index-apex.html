@@ -1069,14 +1069,27 @@
                 // Add revenue dates (monthly, need to convert to daily)
                 // Revenue data is monthly, so we'll add the first day of each month
                 Object.keys(revenueData).forEach(monthKey => {
-                    // monthKey format: "Jan 2022"
-                    const parts = monthKey.split(' ');
-                    if (parts.length === 2) {
-                        const [month, year] = parts;
-                        // Add first day of month
-                        const dateStr = `${month} 1 ${year}`;
-                        allDatesSet.add(dateStr);
+                    // monthKey format: "Jan2022" (no space) or "Jan 2022" (with space)
+                    // Try to parse both formats
+                    let month, year;
+                    
+                    // Try format "Jan2022" (no space)
+                    const noSpaceMatch = monthKey.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$/);
+                    if (noSpaceMatch) {
+                        [, month, year] = noSpaceMatch;
+                    } else {
+                        // Try format "Jan 2022" (with space)
+                        const parts = monthKey.split(' ');
+                        if (parts.length === 2) {
+                            [month, year] = parts;
+                        } else {
+                            return; // Skip if can't parse
+                        }
                     }
+                    
+                    // Add first day of month
+                    const dateStr = `${month} 1 ${year}`;
+                    allDatesSet.add(dateStr);
                 });
                 
                 // Add traffic dates
@@ -1136,8 +1149,10 @@
                     ourDataPoints: mergedOurData.filter(v => v !== null).length,
                     ahrefsDataPoints: mergedAhrefsData.filter(v => v !== null).length,
                     ahrefsFromCSV: ahrefsDataMap.size,
+                    revenueMonths: Object.keys(revenueData).length,
                     firstDate: mergedDates[0],
                     lastDate: mergedDates[mergedDates.length - 1],
+                    first10Dates: mergedDates.slice(0, 10),
                     datesWithBothData: mergedDates.filter((d, i) => 
                         mergedOurData[i] !== null && mergedAhrefsData[i] !== null
                     ).length
