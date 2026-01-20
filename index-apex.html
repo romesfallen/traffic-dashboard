@@ -471,9 +471,11 @@
                     labels: {
                         style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
                         rotate: -45,
-                        rotateAlways: false,
-                        hideOverlappingLabels: true,
-                        maxHeight: 120,
+                        rotateAlways: true,
+                        trim: false,
+                        hideOverlappingLabels: false,
+                        maxHeight: 80,
+                        offsetY: 0,
                         formatter: function(value, timestamp, opts) {
                             // Parse the date string (format: "Jan 1 2024")
                             const parts = String(value).split(' ');
@@ -512,7 +514,7 @@
                             return '';
                         }
                     },
-                    tickAmount: 12, // Limit to ~12 ticks max for clean display
+                    tickAmount: 8, // Limit ticks for clean display with full labels
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
                     crosshairs: {
@@ -551,7 +553,8 @@
                     strokeDashArray: 0,
                     padding: {
                         left: 10,
-                        right: 30
+                        right: 30,
+                        bottom: 15
                     }
                 },
                 legend: {
