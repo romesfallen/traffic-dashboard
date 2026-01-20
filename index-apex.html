@@ -673,7 +673,8 @@
                 const text = await response.text();
                 const parsed = Papa.parse(text, { 
                     header: true,
-                    skipEmptyLines: false
+                    skipEmptyLines: false,
+                    transformHeader: (header) => header.trim() // Clean headers
                 });
                 
                 // Find lyncconf.com row
@@ -725,9 +726,11 @@
                     const value = parseNumber(lyncconfRow[header]);
                     
                     // Determine which dataset based on _1/_2 suffix
+                    // PapaParse adds _1 to first occurrence and _2 to second occurrence of duplicate column names
                     // If header ends with _2 (or _N where N > 1), it's ahrefsData
                     // Otherwise (ends with _1 or no suffix), it's ourData
-                    const isAhrefsData = header.match(/_\d+$/) && !header.endsWith('_1');
+                    const suffixMatch = header.match(/_(\d+)$/);
+                    const isAhrefsData = suffixMatch && parseInt(suffixMatch[1]) > 1;
                     
                     if (isAhrefsData) {
                         // This is ahrefsData - use the dateStr as key (without _2 suffix)
@@ -787,7 +790,9 @@
                     sampleOurData: sortedOurData.slice(0, 10),
                     sampleAhrefsData: sortedAhrefsData.slice(0, 10),
                     ourDataNonZero: sortedOurData.filter(v => v !== null && v !== undefined && v > 0).length,
-                    ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length
+                    ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length,
+                    sampleHeaders: dateColumns.slice(0, 5),
+                    sampleHeadersWithSuffix: dateColumns.filter(h => h && h.match(/_\d+$/)).slice(0, 5)
                 });
                 
                 return { dates: sortedDates, ourData: sortedOurData, ahrefsData: sortedAhrefsData };
