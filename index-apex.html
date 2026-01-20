@@ -634,27 +634,71 @@
                     enabled: true,
                     shared: true,
                     intersect: false,
-                    x: {
-                        format: 'dd MMM yyyy'
-                    },
-                    y: {
-                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
-                            // DEBUG: Log what tooltip receives
-                            console.log('🎯 TOOLTIP FORMATTER:', {
-                                seriesIndex,
-                                dataPointIndex,
-                                value,
-                                seriesName: w.config.series[seriesIndex]?.name,
-                                allSeriesLengths: w.config.series.map(s => s.data.length)
-                            });
+                    custom: function({ series, seriesIndex, dataPointIndex, w }) {
+                        // Get all series data at this dataPointIndex
+                        const colors = ['#f97316', '#3b82f6', '#10b981'];
+                        const names = ['Our Data', 'Ahrefs', 'Revenue'];
+                        
+                        // Get the x value (date) from the first series
+                        const xValue = w.config.series[0].data[dataPointIndex]?.x;
+                        const date = xValue ? new Date(xValue) : null;
+                        const dateStr = date ? date.toLocaleDateString('en-GB', { 
+                            day: 'numeric', 
+                            month: 'short', 
+                            year: 'numeric' 
+                        }) : '';
+                        
+                        let html = '<div class="apexcharts-tooltip-custom" style="padding: 10px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">';
+                        html += '<div style="font-weight: 600; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #eee; color: #333;">' + dateStr + '</div>';
+                        
+                        // Loop through all 3 series
+                        for (let i = 0; i < 3; i++) {
+                            const seriesData = w.config.series[i].data;
+                            const point = seriesData[dataPointIndex];
+                            let value = point ? point.y : null;
                             
-                            if (value === null || value === undefined) return 'N/A';
-                            if (seriesIndex === 2) {
-                                if (value === 0) return null; // Hide revenue gaps
-                                return '$' + value.toLocaleString();
+                            // For Revenue (series 2), find closest point by timestamp if needed
+                            if (i === 2 && xValue) {
+                                // Revenue has different timestamps, find closest
+                                let closestValue = null;
+                                let closestDiff = Infinity;
+                                for (let j = 0; j < seriesData.length; j++) {
+                                    const rp = seriesData[j];
+                                    if (rp && rp.y > 0) {
+                                        const diff = Math.abs(rp.x - xValue);
+                                        if (diff < closestDiff && diff < 20 * 24 * 60 * 60 * 1000) { // within 20 days
+                                            closestDiff = diff;
+                                            closestValue = rp.y;
+                                        }
+                                    }
+                                }
+                                value = closestValue;
                             }
-                            return value.toLocaleString() + ' visits';
+                            
+                            // Format value
+                            let displayValue = '—';
+                            if (value !== null && value !== undefined && value !== 0) {
+                                if (i === 2) {
+                                    displayValue = '$' + value.toLocaleString();
+                                } else {
+                                    displayValue = value.toLocaleString() + ' visits';
+                                }
+                            }
+                            
+                            // Skip if no value for revenue
+                            if (i === 2 && (value === null || value === 0)) {
+                                continue;
+                            }
+                            
+                            html += '<div style="display: flex; align-items: center; padding: 4px 0;">';
+                            html += '<span style="width: 10px; height: 10px; border-radius: 50%; background: ' + colors[i] + '; margin-right: 8px;"></span>';
+                            html += '<span style="color: #666; min-width: 70px;">' + names[i] + ':</span>';
+                            html += '<span style="font-weight: 600; color: #333; margin-left: auto;">' + displayValue + '</span>';
+                            html += '</div>';
                         }
+                        
+                        html += '</div>';
+                        return html;
                     }
                 },
                 dataLabels: { enabled: false }
