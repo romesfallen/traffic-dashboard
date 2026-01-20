@@ -418,7 +418,7 @@
                     data: ahrefsProcessed.real
                 }, {
                     name: 'Revenue',
-                    type: 'area',
+                    type: 'column',
                     data: revenueData
                 }],
                 chart: {
@@ -432,6 +432,18 @@
                         speed: 800
                     },
                     stacked: false
+                },
+                plotOptions: {
+                    bar: {
+                        columnWidth: '50%',
+                        distributed: false
+                    },
+                    column: {
+                        columnWidth: '50%',
+                        dataLabels: {
+                            enabled: false
+                        }
+                    }
                 },
                 colors: ['#f97316', '#3b82f6', '#10b981'],
                 fill: {
@@ -465,34 +477,36 @@
                         formatter: function(value, timestamp, opts) {
                             // Parse the date string (format: "Jan 1 2024")
                             const parts = String(value).split(' ');
-                            if (parts.length !== 3) return '';
+                            if (parts.length !== 3) return value; // Return original if can't parse
                             
                             const [month, day, year] = parts;
                             const dayNum = parseInt(day);
-                            const yearNum = parseInt(year);
                             
-                            // Only show labels for:
-                            // 1. First of each quarter (Jan 1, Apr 1, Jul 1, Oct 1)
-                            // 2. Or if there are fewer than 24 months, show first of every month
-                            const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
+                            // Count total months in dataset
+                            const totalMonths = xCategories.length > 0 ? 
+                                Math.ceil(xCategories.length / 30) : 48; // Rough estimate
                             
-                            if (dayNum === 1) {
-                                // Count total months in dataset
-                                const totalMonths = xCategories.length > 0 ? 
-                                    Math.ceil(xCategories.length / 30) : 48; // Rough estimate
-                                
-                                if (totalMonths <= 24) {
-                                    // Show every month if less than 2 years
+                            // Show labels more frequently based on data range
+                            if (totalMonths <= 12) {
+                                // Less than 1 year: show first of every month
+                                if (dayNum === 1) return month + ' ' + year;
+                            } else if (totalMonths <= 24) {
+                                // 1-2 years: show first of every month
+                                if (dayNum === 1) return month + ' ' + year;
+                            } else if (totalMonths <= 48) {
+                                // 2-4 years: show quarterly (Jan, Apr, Jul, Oct on 1st)
+                                const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
+                                if (dayNum === 1 && monthIndex !== -1 && monthIndex % 3 === 0) {
                                     return month + ' ' + year;
-                                } else {
-                                    // Show only quarters (Jan, Apr, Jul, Oct)
-                                    if (monthIndex % 3 === 0) {
-                                        return month + ' ' + year;
-                                    }
-                                    return '';
+                                }
+                            } else {
+                                // More than 4 years: show every 6 months (Jan, Jul on 1st)
+                                const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
+                                if (dayNum === 1 && (monthIndex === 0 || monthIndex === 6)) {
+                                    return month + ' ' + year;
                                 }
                             }
-                            return '';
+                            return ''; // Hide label for other dates
                         }
                     },
                     tickAmount: undefined, // Let ApexCharts auto-calculate
