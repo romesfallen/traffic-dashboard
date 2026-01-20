@@ -697,15 +697,49 @@
                 const ourData = [];
                 const ahrefsData = [];
                 
+                // Track which dates we've seen to detect duplicates
+                const seenDates = new Map(); // dateStr -> { firstIndex, secondIndex }
+                
+                // First pass: identify duplicate dates and their positions
+                dateColumns.forEach((header, idx) => {
+                    if (!header || header.trim() === '') return;
+                    
+                    const dateStr = parseDate(header);
+                    if (!dateStr || dateStr === '') return;
+                    
+                    if (!seenDates.has(dateStr)) {
+                        seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1 });
+                    } else {
+                        const entry = seenDates.get(dateStr);
+                        if (entry.secondIndex === -1) {
+                            entry.secondIndex = idx;
+                        }
+                    }
+                });
+                
+                // Find the split point (where duplicates start appearing)
+                let splitPoint = -1;
+                seenDates.forEach((entry, dateStr) => {
+                    if (entry.secondIndex !== -1 && (splitPoint === -1 || entry.secondIndex < splitPoint)) {
+                        splitPoint = entry.secondIndex;
+                    }
+                });
+                
                 // Build date-to-index maps for both sections
-                // Use _1/_2 suffixes to determine which dataset each column belongs to
                 const ourDataMap = new Map(); // date -> {index, value}
                 const ahrefsDataMap = new Map(); // date -> value
                 
                 dateColumns.forEach((header, idx) => {
                     if (!header || header.trim() === '') return;
                     
-                    const dateStr = parseDate(header);
+                    // Check for PapaParse suffix (_1, _2, etc.)
+                    const suffixMatch = header.match(/_(\d+)$/);
+                    const hasSuffix = suffixMatch !== null;
+                    const suffixNum = hasSuffix ? parseInt(suffixMatch[1]) : 0;
+                    
+                    // Remove suffix for date parsing
+                    const headerForDate = hasSuffix ? header.replace(/_(\d+)$/, '') : header;
+                    const dateStr = parseDate(headerForDate);
                     if (!dateStr || dateStr === '') return;
                     
                     const parts = dateStr.split(' ');
@@ -716,7 +750,7 @@
                     
                     if (isNaN(dateObj.getTime())) {
                         // Skip invalid dates (but don't log _1/_2 suffixes as they're expected)
-                        if (!header.match(/_\d+$/)) {
+                        if (!hasSuffix) {
                             console.warn('Invalid date format:', header, '->', dateStr);
                         }
                         return;
@@ -725,22 +759,31 @@
                     // Include all dates (no filtering) - even if value is null/empty
                     const value = parseNumber(lyncconfRow[header]);
                     
-                    // Determine which dataset based on _1/_2 suffix
-                    // PapaParse adds _1 to first occurrence and _2 to second occurrence of duplicate column names
-                    // If header ends with _2 (or _N where N > 1), it's ahrefsData
-                    // Otherwise (ends with _1 or no suffix), it's ourData
-                    const suffixMatch = header.match(/_(\d+)$/);
-                    const isAhrefsData = suffixMatch && parseInt(suffixMatch[1]) > 1;
+                    // Determine which dataset:
+                    // 1. If header has suffix _2 or higher, it's ahrefsData
+                    // 2. If header has suffix _1 or no suffix AND we're before split point, it's ourData
+                    // 3. If header has no suffix AND we're at/after split point, check if this date was seen before
+                    let isAhrefsData = false;
+                    
+                    if (suffixNum > 1) {
+                        // Explicit _2, _3, etc. suffix = ahrefsData
+                        isAhrefsData = true;
+                    } else if (splitPoint > 0 && idx >= splitPoint) {
+                        // We're in the second section (after split point)
+                        // Check if this date was already seen (duplicate)
+                        const entry = seenDates.get(dateStr);
+                        if (entry && entry.secondIndex !== -1 && idx >= entry.secondIndex) {
+                            isAhrefsData = true;
+                        }
+                    }
                     
                     if (isAhrefsData) {
-                        // This is ahrefsData - use the dateStr as key (without _2 suffix)
-                        // If we already have this date, keep the first value (don't overwrite)
+                        // This is ahrefsData
                         if (!ahrefsDataMap.has(dateStr)) {
                             ahrefsDataMap.set(dateStr, value);
                         }
                     } else {
                         // This is ourData
-                        // If we already have this date, keep the first value (don't overwrite)
                         if (!ourDataMap.has(dateStr)) {
                             ourDataMap.set(dateStr, { index: ourDataMap.size, value: value });
                         }
