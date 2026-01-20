@@ -1,15 +1,12 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "index-apex.html",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
+      "source": "/",
+      "destination": "/index-apex.html"
+    },
     {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "source": "/index-apex.html",
+      "destination": "/index-apex.html"
     }
   ]
 }
