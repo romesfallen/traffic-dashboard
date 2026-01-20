@@ -597,8 +597,8 @@
         }
 
         function parseDate(dateStr) {
-            // Convert "Jun 4 - 2025" to "Jun 4 2025"
-            return dateStr.replace(/\s*-\s*/g, ' ').trim();
+            // Convert "Jun 4 - 2025_1" to "Jun 4 2025" (remove dashes and _1/_2 suffixes)
+            return dateStr.replace(/\s*-\s*/g, ' ').replace(/_\d+$/, '').trim();
         }
 
         function dateInRange(dateStr, startDate, endDate) {
@@ -696,25 +696,38 @@
                 const ourData = [];
                 const ahrefsData = [];
                 
-                // Find split point by looking for where dates repeat
-                // The CSV has dates that repeat - first section is ourData, second is ahrefsData
+                // Find split point by looking for _1 vs _2 suffixes
+                // The CSV uses _1 for ourData and _2 for ahrefsData (or _1 for first occurrence, _1 for second)
+                // Actually, let's check for the pattern: if header ends with _2, it's ahrefsData
                 let splitPoint = -1;
-                const seenDates = new Map(); // Map date string to first occurrence index
                 
                 dateColumns.forEach((header, idx) => {
                     if (!header) return;
-                    const dateStr = parseDate(header);
-                    if (!dateStr || dateStr === '') return;
-                    
-                    if (seenDates.has(dateStr)) {
-                        // Found duplicate date - this is the split point
+                    // Check if this header ends with _2 (or any _N where N > 1), indicating ahrefsData section
+                    if (header.match(/_\d+$/) && !header.endsWith('_1')) {
                         if (splitPoint === -1) {
                             splitPoint = idx;
                         }
-                    } else {
-                        seenDates.set(dateStr, idx);
                     }
                 });
+                
+                // If no _2 pattern found, fall back to duplicate date detection
+                if (splitPoint === -1) {
+                    const seenDates = new Map();
+                    dateColumns.forEach((header, idx) => {
+                        if (!header) return;
+                        const dateStr = parseDate(header);
+                        if (!dateStr || dateStr === '') return;
+                        
+                        if (seenDates.has(dateStr)) {
+                            if (splitPoint === -1) {
+                                splitPoint = idx;
+                            }
+                        } else {
+                            seenDates.set(dateStr, idx);
+                        }
+                    });
+                }
                 
                 // Build date-to-index maps for both sections
                 const ourDataMap = new Map(); // date -> {index, value}
@@ -733,8 +746,10 @@
                     const dateObj = new Date(`${month} ${day}, ${year}`);
                     
                     if (isNaN(dateObj.getTime())) {
-                        // Skip invalid dates but log for debugging
-                        console.warn('Invalid date format:', header, '->', dateStr);
+                        // Skip invalid dates (but don't log _1/_2 suffixes as they're expected)
+                        if (!header.match(/_\d+$/)) {
+                            console.warn('Invalid date format:', header, '->', dateStr);
+                        }
                         return;
                     }
                     
