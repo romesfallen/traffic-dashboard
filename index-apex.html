@@ -708,12 +708,13 @@
                     if (!dateStr || dateStr === '') return;
                     
                     if (!seenDates.has(dateStr)) {
-                        seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1 });
+                        seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1, headers: [header] });
                     } else {
                         const entry = seenDates.get(dateStr);
                         if (entry.secondIndex === -1) {
                             entry.secondIndex = idx;
                         }
+                        entry.headers.push(header);
                     }
                 });
                 
@@ -725,9 +726,26 @@
                     }
                 });
                 
+                console.log('🔍 DEBUG: Duplicate detection', {
+                    totalDateColumns: dateColumns.length,
+                    uniqueDates: seenDates.size,
+                    datesWithDuplicates: Array.from(seenDates.entries()).filter(([_, entry]) => entry.secondIndex !== -1).length,
+                    splitPoint: splitPoint,
+                    sampleDuplicates: Array.from(seenDates.entries())
+                        .filter(([_, entry]) => entry.secondIndex !== -1)
+                        .slice(0, 5)
+                        .map(([dateStr, entry]) => ({
+                            date: dateStr,
+                            firstIdx: entry.firstIndex,
+                            secondIdx: entry.secondIndex,
+                            headers: entry.headers
+                        }))
+                });
+                
                 // Build date-to-index maps for both sections
                 const ourDataMap = new Map(); // date -> {index, value}
                 const ahrefsDataMap = new Map(); // date -> value
+                const assignmentLog = []; // For debugging
                 
                 dateColumns.forEach((header, idx) => {
                     if (!header || header.trim() === '') return;
@@ -764,30 +782,95 @@
                     // 2. If header has suffix _1 or no suffix AND we're before split point, it's ourData
                     // 3. If header has no suffix AND we're at/after split point, check if this date was seen before
                     let isAhrefsData = false;
+                    let assignmentReason = '';
                     
                     if (suffixNum > 1) {
                         // Explicit _2, _3, etc. suffix = ahrefsData
                         isAhrefsData = true;
+                        assignmentReason = `suffix_${suffixNum}`;
                     } else if (splitPoint > 0 && idx >= splitPoint) {
                         // We're in the second section (after split point)
                         // Check if this date was already seen (duplicate)
                         const entry = seenDates.get(dateStr);
                         if (entry && entry.secondIndex !== -1 && idx >= entry.secondIndex) {
                             isAhrefsData = true;
+                            assignmentReason = `split_point_duplicate`;
+                        } else {
+                            assignmentReason = `split_point_new_date`;
                         }
+                    } else {
+                        assignmentReason = `first_section`;
                     }
                     
                     if (isAhrefsData) {
                         // This is ahrefsData
                         if (!ahrefsDataMap.has(dateStr)) {
                             ahrefsDataMap.set(dateStr, value);
+                            assignmentLog.push({
+                                date: dateStr,
+                                header: header,
+                                idx: idx,
+                                value: value,
+                                dataset: 'ahrefs',
+                                reason: assignmentReason
+                            });
+                        } else {
+                            assignmentLog.push({
+                                date: dateStr,
+                                header: header,
+                                idx: idx,
+                                value: value,
+                                dataset: 'ahrefs',
+                                reason: `${assignmentReason}_skipped_already_exists`,
+                                existingValue: ahrefsDataMap.get(dateStr)
+                            });
                         }
                     } else {
                         // This is ourData
                         if (!ourDataMap.has(dateStr)) {
                             ourDataMap.set(dateStr, { index: ourDataMap.size, value: value });
+                            assignmentLog.push({
+                                date: dateStr,
+                                header: header,
+                                idx: idx,
+                                value: value,
+                                dataset: 'our',
+                                reason: assignmentReason
+                            });
+                        } else {
+                            assignmentLog.push({
+                                date: dateStr,
+                                header: header,
+                                idx: idx,
+                                value: value,
+                                dataset: 'our',
+                                reason: `${assignmentReason}_skipped_already_exists`,
+                                existingValue: ourDataMap.get(dateStr).value
+                            });
                         }
                     }
+                });
+                
+                // Debug: Check for dates that appear in both datasets with same values
+                const sameValueDates = [];
+                ourDataMap.forEach((ourEntry, dateStr) => {
+                    if (ahrefsDataMap.has(dateStr)) {
+                        const ourValue = ourEntry.value;
+                        const ahrefsValue = ahrefsDataMap.get(dateStr);
+                        if (ourValue === ahrefsValue && ourValue !== null && ourValue !== undefined) {
+                            sameValueDates.push({ date: dateStr, value: ourValue });
+                        }
+                    }
+                });
+                
+                console.log('🔍 DEBUG: Data assignment', {
+                    totalColumnsProcessed: assignmentLog.length,
+                    ourDataMapSize: ourDataMap.size,
+                    ahrefsDataMapSize: ahrefsDataMap.size,
+                    datesInBoth: Array.from(ourDataMap.keys()).filter(d => ahrefsDataMap.has(d)).length,
+                    sameValueDates: sameValueDates.length,
+                    sampleSameValues: sameValueDates.slice(0, 10),
+                    sampleAssignments: assignmentLog.filter(a => a.date.includes('Jul 17 2025') || a.date.includes('Dec 24 2025')).slice(0, 10)
                 });
                 
                 // Build arrays from maps, matching dates
@@ -821,8 +904,11 @@
                     sortedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
                 });
                 
-                // Debug logging
-                console.log('Traffic data loaded:', {
+                // Debug logging - final summary
+                const jul17Idx = sortedDates.findIndex(d => d.includes('Jul 17 2025'));
+                const dec24Idx = sortedDates.findIndex(d => d.includes('Dec 24 2025'));
+                
+                console.log('✅ Traffic data loaded - FINAL SUMMARY', {
                     totalDates: sortedDates.length,
                     ourDataPoints: sortedOurData.filter(v => v !== null && v !== undefined).length,
                     ahrefsDataPoints: sortedAhrefsData.filter(v => v !== null && v !== undefined).length,
@@ -830,12 +916,22 @@
                     ahrefsDataMapSize: ahrefsDataMap.size,
                     firstDate: sortedDates[0],
                     lastDate: sortedDates[sortedDates.length - 1],
+                    jul17Data: jul17Idx >= 0 ? {
+                        date: sortedDates[jul17Idx],
+                        ourValue: sortedOurData[jul17Idx],
+                        ahrefsValue: sortedAhrefsData[jul17Idx],
+                        match: sortedOurData[jul17Idx] === sortedAhrefsData[jul17Idx]
+                    } : 'not found',
+                    dec24Data: dec24Idx >= 0 ? {
+                        date: sortedDates[dec24Idx],
+                        ourValue: sortedOurData[dec24Idx],
+                        ahrefsValue: sortedAhrefsData[dec24Idx],
+                        match: sortedOurData[dec24Idx] === sortedAhrefsData[dec24Idx]
+                    } : 'not found',
                     sampleOurData: sortedOurData.slice(0, 10),
                     sampleAhrefsData: sortedAhrefsData.slice(0, 10),
                     ourDataNonZero: sortedOurData.filter(v => v !== null && v !== undefined && v > 0).length,
-                    ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length,
-                    sampleHeaders: dateColumns.slice(0, 5),
-                    sampleHeadersWithSuffix: dateColumns.filter(h => h && h.match(/_\d+$/)).slice(0, 5)
+                    ahrefsDataNonZero: sortedAhrefsData.filter(v => v !== null && v !== undefined && v > 0).length
                 });
                 
                 return { dates: sortedDates, ourData: sortedOurData, ahrefsData: sortedAhrefsData };
