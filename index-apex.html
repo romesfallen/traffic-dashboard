@@ -639,44 +639,44 @@
                         enabled: false
                     },
                     custom: function({ series, seriesIndex, dataPointIndex, w }) {
-                        // Get all series data at this dataPointIndex
                         const colors = ['#f97316', '#3b82f6', '#10b981'];
                         const names = ['Our Data', 'Ahrefs', 'Revenue'];
                         
-                        // Get the x value (date) from the first series
-                        const xValue = w.config.series[0].data[dataPointIndex]?.x;
-                        const date = xValue ? new Date(xValue) : null;
-                        const dateStr = date ? date.toLocaleDateString('en-GB', { 
+                        // Get the x value (timestamp) from the HOVERED series
+                        const hoveredSeriesData = w.config.series[seriesIndex].data;
+                        const hoveredPoint = hoveredSeriesData[dataPointIndex];
+                        const xValue = hoveredPoint?.x;
+                        
+                        if (!xValue) return '';
+                        
+                        const date = new Date(xValue);
+                        const dateStr = date.toLocaleDateString('en-GB', { 
                             day: 'numeric', 
                             month: 'short', 
                             year: 'numeric' 
-                        }) : '';
+                        });
                         
                         let html = '<div class="apexcharts-tooltip-custom" style="padding: 10px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">';
                         html += '<div style="font-weight: 600; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #eee; color: #333;">' + dateStr + '</div>';
                         
-                        // Loop through all 3 series
+                        // Loop through all 3 series and find matching data by timestamp
                         for (let i = 0; i < 3; i++) {
                             const seriesData = w.config.series[i].data;
-                            const point = seriesData[dataPointIndex];
-                            let value = point ? point.y : null;
+                            let value = null;
                             
-                            // For Revenue (series 2), find closest point by timestamp if needed
-                            if (i === 2 && xValue) {
-                                // Revenue has different timestamps, find closest
-                                let closestValue = null;
-                                let closestDiff = Infinity;
-                                for (let j = 0; j < seriesData.length; j++) {
-                                    const rp = seriesData[j];
-                                    if (rp && rp.y > 0) {
-                                        const diff = Math.abs(rp.x - xValue);
-                                        if (diff < closestDiff && diff < 20 * 24 * 60 * 60 * 1000) { // within 20 days
-                                            closestDiff = diff;
-                                            closestValue = rp.y;
-                                        }
+                            // Find the closest point by timestamp
+                            let closestDiff = Infinity;
+                            const maxDiff = i === 2 ? 20 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 20 days for revenue, 1 day for traffic
+                            
+                            for (let j = 0; j < seriesData.length; j++) {
+                                const point = seriesData[j];
+                                if (point && point.x !== undefined) {
+                                    const diff = Math.abs(point.x - xValue);
+                                    if (diff < closestDiff && diff <= maxDiff) {
+                                        closestDiff = diff;
+                                        value = point.y;
                                     }
                                 }
-                                value = closestValue;
                             }
                             
                             // Format value
