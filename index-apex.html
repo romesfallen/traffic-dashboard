@@ -710,6 +710,25 @@
 
             const chart = new ApexCharts(document.querySelector('#apex-chart'), options);
             chart.render();
+            
+            // Make tooltip follow cursor on Y axis
+            const chartEl = document.querySelector('#apex-chart');
+            chartEl.addEventListener('mousemove', function(e) {
+                const tooltip = chartEl.querySelector('.apexcharts-tooltip');
+                if (tooltip && tooltip.classList.contains('apexcharts-active')) {
+                    const chartRect = chartEl.getBoundingClientRect();
+                    const mouseY = e.clientY - chartRect.top;
+                    const tooltipHeight = tooltip.offsetHeight;
+                    
+                    // Position tooltip near cursor Y, with some offset
+                    let newTop = mouseY - tooltipHeight / 2;
+                    
+                    // Keep within chart bounds
+                    newTop = Math.max(10, Math.min(newTop, chartRect.height - tooltipHeight - 10));
+                    
+                    tooltip.style.top = newTop + 'px';
+                }
+            });
         }
 
         // Event listener for domain selector (will be set up after data loads)
