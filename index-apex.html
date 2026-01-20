@@ -636,16 +636,16 @@
                             
                             // Format value
                             let displayValue = '—';
-                            if (value !== null && value !== undefined && value !== 0) {
+                            if (value !== null && value !== undefined) {
                                 if (i === 2) {
                                     displayValue = '$' + value.toLocaleString();
-                                } else {
+                                } else if (value !== 0) {
                                     displayValue = value.toLocaleString() + ' visits';
                                 }
                             }
                             
-                            // Skip if no value for revenue
-                            if (i === 2 && (value === null || value === 0)) {
+                            // Skip revenue only if no data found (null), but show $0
+                            if (i === 2 && value === null) {
                                 continue;
                             }
                             
