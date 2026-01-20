@@ -1062,10 +1062,27 @@
                     timeoutPromise
                 ]);
                 
-                // Merge data from both CSVs - use union of all dates
-                // Get all unique dates from both datasets
+                // Merge data from all CSVs - use union of all dates
+                // Get all unique dates from all datasets (revenue, traffic, ahrefs)
                 const allDatesSet = new Set();
+                
+                // Add revenue dates (monthly, need to convert to daily)
+                // Revenue data is monthly, so we'll add the first day of each month
+                Object.keys(revenueData).forEach(monthKey => {
+                    // monthKey format: "Jan 2022"
+                    const parts = monthKey.split(' ');
+                    if (parts.length === 2) {
+                        const [month, year] = parts;
+                        // Add first day of month
+                        const dateStr = `${month} 1 ${year}`;
+                        allDatesSet.add(dateStr);
+                    }
+                });
+                
+                // Add traffic dates
                 trafficData.dates.forEach(d => allDatesSet.add(d));
+                
+                // Add Ahrefs dates
                 ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
                 
                 // Sort all dates chronologically
@@ -1097,6 +1114,9 @@
                     mergedOurData.push(ourDataMap.get(dateStr) || null);
                     mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
                 });
+                
+                // Note: Revenue data is monthly and will be mapped to daily dates in generateMonthlyRevenue()
+                // The revenue mapping happens later in createChart() function
                 
                 // Get rank from CSV (should be 9 for lyncconf.com, but we'll use 1 for display)
                 const rank = 1;
