@@ -293,118 +293,114 @@
             };
         }
 
-        // Generate monthly revenue with dynamic 80% width blocks
-        // Uses actual calendar days, not data point count
+        // Generate monthly revenue with strict normalization and timestamp-based stepped blocks
         function generateMonthlyRevenue(dates, monthlyRevenueData = null) {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
             // Use CSV data if provided, otherwise use default
             const monthRevenue = monthlyRevenueData || {
                 'Jun2025': 100, 'Jul2025': 200, 'Aug2025': 300, 'Sep2025': 400,
                 'Oct2025': 500, 'Nov2025': 600, 'Dec2025': 700, 'Jan2026': 800
             };
             
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            
-            // Helper: Get days in a specific month
-            function getDaysInMonth(year, monthIndex) {
-                return new Date(year, monthIndex + 1, 0).getDate();
-            }
-            
-            // Helper: Parse "Jan 1 2024" to Date object
-            function parseDate(dateStr) {
+            // Helper: Parse "Jan 1 2024" to timestamp
+            function parseDateToTimestamp(dateStr) {
                 const parts = dateStr.split(' ');
                 if (parts.length !== 3) return null;
                 const [month, day, year] = parts;
                 const monthIndex = monthNames.indexOf(month);
                 if (monthIndex === -1) return null;
-                return new Date(parseInt(year), monthIndex, parseInt(day));
+                return new Date(parseInt(year), monthIndex, parseInt(day)).getTime();
             }
             
-            // Helper: Get the 80% cutoff day for a month
-            function get80PercentDay(year, monthIndex) {
-                const daysInMonth = getDaysInMonth(year, monthIndex);
-                return Math.floor(daysInMonth * 0.8);
-            }
+            // STEP 1: Normalize & De-Duplicate by YYYY-MM
+            // Create a Map keyed by YYYY-MM, keeping latest value per month
+            const normalizedMap = new Map();
             
-            // Step A: Build month info map with calendar-based calculations
-            const monthInfo = {};
-            dates.forEach((dateStr, idx) => {
+            // First, extract unique months from dates array
+            dates.forEach(dateStr => {
                 const parts = dateStr.split(' ');
                 if (parts.length !== 3) return;
-                
                 const [month, day, year] = parts;
-                const key = month + year; // e.g., "Jun2025"
-                const dayNum = parseInt(day);
                 const monthIndex = monthNames.indexOf(month);
-                const yearNum = parseInt(year);
+                if (monthIndex === -1) return;
                 
-                if (!monthInfo[key]) {
-                    const cutoffDay = get80PercentDay(yearNum, monthIndex);
-                    const daysInMonth = getDaysInMonth(yearNum, monthIndex);
-                    monthInfo[key] = {
-                        month: month,
-                        year: year,
-                        monthIndex: monthIndex,
-                        yearNum: yearNum,
-                        cutoffDay: cutoffDay, // Day number where 80% ends
-                        daysInMonth: daysInMonth,
-                        firstDataIdx: idx,
-                        lastDataIdx: idx,
-                        midLabelIdx: null // Will calculate after we know all indices
-                    };
-                } else {
-                    monthInfo[key].lastDataIdx = idx;
-                }
+                // Key: YYYY-MM format for sorting
+                const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+                // Revenue key format: "Jun2025"
+                const revenueKey = month + year;
+                const revenueValue = monthRevenue[revenueKey] || 0;
+                
+                // Keep latest value (overwrites if exists)
+                normalizedMap.set(key, {
+                    year: parseInt(year),
+                    monthIndex: monthIndex,
+                    month: month,
+                    revenue: revenueValue
+                });
             });
             
-            // Step B: Generate revenue array and categories
-            const revenue = new Array(dates.length).fill(0);
+            // Sort keys chronologically
+            const sortedKeys = Array.from(normalizedMap.keys()).sort();
+            
+            // STEP 2: Generate Stepped Area Blocks (3 points per month)
+            const revenuePoints = [];
+            
+            sortedKeys.forEach(key => {
+                const info = normalizedMap.get(key);
+                const revenue = info.revenue;
+                
+                // Start Date: 1st of the month
+                const startDate = new Date(info.year, info.monthIndex, 1);
+                
+                // End Date: Start + 25 days
+                const endDate = new Date(info.year, info.monthIndex, 26); // Day 26
+                
+                // Cut Date: Start + 26 days (creates sharp drop)
+                const cutDate = new Date(info.year, info.monthIndex, 27); // Day 27
+                
+                // Push 3 points for stepped area
+                revenuePoints.push({ x: startDate.getTime(), y: revenue });
+                revenuePoints.push({ x: endDate.getTime(), y: revenue });
+                revenuePoints.push({ x: cutDate.getTime(), y: 0 });
+            });
+            
+            // SAFETY CHECK: Sort by timestamp
+            revenuePoints.sort((a, b) => a.x - b.x);
+            
+            // Log for verification
+            console.log('📊 Revenue Data Processed:', {
+                uniqueMonths: sortedKeys.length,
+                totalPoints: revenuePoints.length,
+                expectedPoints: sortedKeys.length * 3,
+                firstMonth: sortedKeys[0],
+                lastMonth: sortedKeys[sortedKeys.length - 1],
+                samplePoints: revenuePoints.slice(0, 6)
+            });
+            
+            // Also generate categories array for x-axis labels (mid-month positioned)
             const categories = new Array(dates.length).fill(' ');
             
-            // Process each date point
+            // Find mid-month indices for labels
+            const monthIndices = {};
             dates.forEach((dateStr, idx) => {
                 const parts = dateStr.split(' ');
                 if (parts.length !== 3) return;
-                
                 const [month, day, year] = parts;
                 const key = month + year;
-                const dayNum = parseInt(day);
-                const info = monthInfo[key];
-                
-                if (!info) return;
-                
-                const revenueValue = monthRevenue[key] || 0;
-                
-                // Dynamic 80% width: Show revenue if day <= 80% cutoff day
-                // This is based on actual calendar days, not data point count
-                if (dayNum <= info.cutoffDay) {
-                    revenue[idx] = revenueValue;
+                if (!monthIndices[key]) {
+                    monthIndices[key] = { firstIdx: idx, lastIdx: idx, month, year };
+                } else {
+                    monthIndices[key].lastIdx = idx;
                 }
-                // Days after cutoffDay stay at 0 (creates the gap)
             });
             
-            // Calculate mid-point for labels (center of the 80% block visually)
-            Object.entries(monthInfo).forEach(([key, info]) => {
-                // Find the index closest to mid-month (around day 12-15)
-                const targetDay = Math.floor(info.cutoffDay / 2); // Middle of the 80% block
-                let bestIdx = info.firstDataIdx;
-                let bestDiff = Infinity;
-                
-                for (let i = info.firstDataIdx; i <= info.lastDataIdx; i++) {
-                    const parts = dates[i].split(' ');
-                    if (parts.length !== 3) continue;
-                    const dayNum = parseInt(parts[1]);
-                    const diff = Math.abs(dayNum - targetDay);
-                    if (diff < bestDiff) {
-                        bestDiff = diff;
-                        bestIdx = i;
-                    }
-                }
-                
-                // Set label at mid-point of the 80% block
-                categories[bestIdx] = info.month + ' ' + info.year;
+            Object.entries(monthIndices).forEach(([key, info]) => {
+                const midIdx = Math.floor((info.firstIdx + info.lastIdx) / 2);
+                categories[midIdx] = info.month + ' ' + info.year;
             });
             
-            return { revenue, categories };
+            return { revenuePoints, categories };
         }
 
         // Calculate change percentage for filtered data
@@ -464,33 +460,49 @@
             const ourProcessed = interpolateData(filtered.ourData);
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
-            const revenueData = revenueResult.revenue;
-            // Use revenue-generated categories (mid-month positioned labels)
-            const xCategories = revenueResult.categories;
+            
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            // Convert traffic data to timestamp-based {x, y} format
+            function convertToTimestampData(dates, values) {
+                return dates.map((dateStr, idx) => {
+                    const parts = dateStr.split(' ');
+                    if (parts.length !== 3) return null;
+                    const [month, day, year] = parts;
+                    const monthIndex = monthNames.indexOf(month);
+                    if (monthIndex === -1) return null;
+                    const timestamp = new Date(parseInt(year), monthIndex, parseInt(day)).getTime();
+                    return { x: timestamp, y: values[idx] };
+                }).filter(p => p !== null);
+            }
+            
+            const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
+            const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
+            const revenuePoints = revenueResult.revenuePoints;
             
             // Debug logging
             console.log('Chart data:', {
-                ourDataLength: ourProcessed.real.length,
-                ahrefsDataLength: ahrefsProcessed.real.length,
-                revenueDataLength: revenueData.length,
-                ourDataSample: ourProcessed.real.slice(0, 5),
-                ahrefsDataSample: ahrefsProcessed.real.slice(0, 5),
-                revenueSample: revenueData.slice(0, 5)
+                ourDataLength: ourDataPoints.length,
+                ahrefsDataLength: ahrefsDataPoints.length,
+                revenueDataLength: revenuePoints.length,
+                ourDataSample: ourDataPoints.slice(0, 3),
+                ahrefsDataSample: ahrefsDataPoints.slice(0, 3),
+                revenueSample: revenuePoints.slice(0, 6)
             });
 
             const options = {
                 series: [{
                     name: 'Our Data',
                     type: 'area',
-                    data: ourProcessed.real
+                    data: ourDataPoints
                 }, {
                     name: 'Ahrefs',
                     type: 'area',
-                    data: ahrefsProcessed.real
+                    data: ahrefsDataPoints
                 }, {
                     name: 'Revenue',
-                    type: 'column',
-                    data: revenueData
+                    type: 'area',
+                    data: revenuePoints
                 }],
                 chart: {
                     type: 'line',
@@ -504,71 +516,39 @@
                     },
                     stacked: false
                 },
-                plotOptions: {
-                    bar: {
-                        columnWidth: xCategories.length > 365 ? '95%' : xCategories.length > 180 ? '90%' : '80%',
-                        distributed: false
-                    }
-                },
                 colors: ['#f97316', '#3b82f6', '#10b981'],
                 fill: {
                     type: ['gradient', 'gradient', 'solid'],
                     gradient: {
                         shadeIntensity: 1,
-                        opacityFrom: [0.5, 0.5, 1],
-                        opacityTo: [0.1, 0.1, 1],
+                        opacityFrom: [0.4, 0.4, 0.6],
+                        opacityTo: [0.05, 0.05, 0.6],
                         stops: [0, 90, 100]
                     },
-                    opacity: [1, 1, 0.5]
+                    opacity: [1, 1, 0.6]
                 },
                 stroke: {
                     curve: ['smooth', 'smooth', 'stepline'],
-                    width: [2, 2, 0]
+                    width: [2, 2, 1]
                 },
                 markers: {
                     size: 0,
                     hover: { size: 4 }
                 },
                 xaxis: {
-                    type: 'category',
-                    categories: xCategories,
+                    type: 'datetime',
                     labels: {
                         style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
                         rotate: 0,
                         rotateAlways: false,
                         hideOverlappingLabels: true,
-                        minHeight: 40,
-                        formatter: function(value, timestamp, opts) {
-                            // Categories are mostly ' ' (space) with "Jun 2025" at mid-month
-                            const trimmed = String(value).trim();
-                            if (!trimmed) return '';
-                            
-                            // Parse "Jun 2025" format
-                            const parts = trimmed.split(' ');
-                            if (parts.length !== 2) return '';
-                            
-                            const [month, year] = parts;
-                            const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
-                            if (monthIndex === -1) return '';
-                            
-                            // Calculate total months to determine label frequency
-                            const totalMonths = Math.ceil(xCategories.length / 30);
-                            
-                            // Filter labels based on data range to prevent overcrowding
-                            if (totalMonths <= 12) {
-                                // Up to 1 year: show every month
-                                return month + ' ' + year;
-                            } else if (totalMonths <= 24) {
-                                // 1-2 years: show every other month
-                                if (monthIndex % 2 === 0) return month + ' ' + year;
-                            } else if (totalMonths <= 36) {
-                                // 2-3 years: show quarterly
-                                if (monthIndex % 3 === 0) return month + ' ' + year;
-                            } else {
-                                // 3+ years: show every 4 months
-                                if (monthIndex % 4 === 0) return month + ' ' + year;
-                            }
-                            return '';
+                        datetimeUTC: false,
+                        format: 'MMM yyyy',
+                        datetimeFormatter: {
+                            year: 'yyyy',
+                            month: 'MMM yyyy',
+                            day: 'dd MMM',
+                            hour: 'HH:mm'
                         }
                     },
                     axisBorder: { color: '#cccccc' },
@@ -577,7 +557,7 @@
                         show: true,
                         stroke: { color: '#999999', width: 1, dashArray: 3 }
                     },
-                    tooltip: { enabled: false }
+                    tooltip: { enabled: true, format: 'dd MMM yyyy' }
                 },
                 yaxis: [{
                     seriesName: ['Our Data', 'Ahrefs'],
@@ -625,54 +605,19 @@
                     shared: true,
                     intersect: false,
                     followCursor: true,
-                    custom: function({ series, seriesIndex, dataPointIndex, w }) {
-                        // Get the date for the header
-                        const date = filtered.dates[dataPointIndex];
-                        let dateStr = '';
-                        if (date) {
-                            const parts = date.split(' ');
-                            dateStr = parts[1] + ' ' + parts[0] + ' ' + parts[2];
+                    x: {
+                        format: 'dd MMM yyyy'
+                    },
+                    y: {
+                        formatter: function(value, { series, seriesIndex, dataPointIndex, w }) {
+                            if (value === null || value === undefined) return '';
+                            if (seriesIndex === 2) {
+                                // Revenue
+                                if (value === 0) return ''; // Skip gaps
+                                return '$' + value.toLocaleString();
+                            }
+                            return value.toLocaleString() + ' visits';
                         }
-                        
-                        // Get collapsed (hidden) series indices
-                        const collapsed = w.globals.collapsedSeriesIndices || [];
-                        
-                        // Series config
-                        const seriesConfig = [
-                            { name: 'Our Data', color: '#f97316', suffix: ' visits' },
-                            { name: 'Ahrefs', color: '#3b82f6', suffix: ' visits' },
-                            { name: 'Revenue', color: '#10b981', prefix: '$', suffix: '' }
-                        ];
-                        
-                        // Build tooltip HTML with consistent padding
-                        let html = '<div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); font-family: Inter, sans-serif; min-width: 140px;">';
-                        html += '<div style="font-weight: 600; color: #333; margin-bottom: 6px; font-size: 12px;">' + dateStr + '</div>';
-                        
-                        // Add each visible series
-                        let hasContent = false;
-                        for (let i = 0; i < series.length; i++) {
-                            // Skip if series is collapsed/hidden
-                            if (collapsed.includes(i)) continue;
-                            
-                            const val = series[i][dataPointIndex];
-                            // Skip if value is null/undefined or 0 for revenue gaps
-                            if (val === null || val === undefined) continue;
-                            if (i === 2 && val === 0) continue; // Skip revenue gaps
-                            
-                            const config = seriesConfig[i];
-                            const formattedVal = (config.prefix || '') + val.toLocaleString() + (config.suffix || '');
-                            
-                            html += '<div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">';
-                            html += '<span style="width: 8px; height: 8px; border-radius: 50%; background: ' + config.color + '; flex-shrink: 0;"></span>';
-                            html += '<span style="color: #666; font-size: 11px;">' + config.name + ':</span>';
-                            html += '<span style="font-weight: 600; color: #333; font-size: 11px;">' + formattedVal + '</span>';
-                            html += '</div>';
-                            hasContent = true;
-                        }
-                        
-                        html += '</div>';
-                        
-                        return hasContent ? html : '';
                     }
                 },
                 dataLabels: { enabled: false }
