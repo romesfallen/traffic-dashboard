@@ -634,6 +634,10 @@
                     enabled: true,
                     shared: true,
                     intersect: false,
+                    followCursor: true,
+                    fixed: {
+                        enabled: false
+                    },
                     custom: function({ series, seriesIndex, dataPointIndex, w }) {
                         // Get all series data at this dataPointIndex
                         const colors = ['#f97316', '#3b82f6', '#10b981'];
