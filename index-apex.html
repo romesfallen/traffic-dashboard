@@ -770,7 +770,8 @@
                                 const [, month, year] = monthMatch;
                                 const key = month + year;
                                 const value = parseCurrency(row[header]);
-                                if (value > 0) {
+                                // Include all values including $0 (but not empty/dash)
+                                if (value >= 0 && row[header] && row[header] !== '-') {
                                     monthlyRevenue[key] = value;
                                 }
                             }
