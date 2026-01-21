@@ -940,9 +940,10 @@
                 }
             }
             
-            // Show dropdown on focus
+            // Show dropdown on focus - select all text and show full list
             input.addEventListener('focus', function() {
-                renderDropdown(this.value);
+                this.select(); // Select all text so typing replaces it
+                renderDropdown(''); // Show all domains, not filtered by current value
                 dropdownList.classList.add('open');
             });
             
