@@ -359,54 +359,53 @@
             return { real, estimated, isEstimated };
         }
 
-        // Filter data by date range
-        function filterByDateRange(data, days) {
-            if (days === 'all') {
-                return {
-                    dates: data.dates,
-                    ourData: data.ourData,
-                    ahrefsData: data.ahrefsData,
-                    drData: data.drData || []
-                };
+        // Calculate x-axis range for initial zoom (returns min/max timestamps)
+        // Returns null for 'all' to show full range
+        function getDateRangeBounds(data, days) {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            // Helper to parse date string to timestamp
+            function parseDateStr(dateStr) {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return null;
+                const [month, day, year] = parts;
+                const monthIndex = monthNames.indexOf(month);
+                if (monthIndex === -1) return null;
+                return new Date(parseInt(year), monthIndex, parseInt(day)).getTime();
             }
+            
+            if (days === 'all' || !data.dates || data.dates.length === 0) {
+                return { min: undefined, max: undefined };
+            }
+            
+            // Get the last date's timestamp for max bound
+            const lastDate = data.dates[data.dates.length - 1];
+            const maxTimestamp = parseDateStr(lastDate);
             
             // Special case: From December 2024
             if (days === 'dec2024') {
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const startDate = new Date(2024, 11, 1); // Dec 1, 2024
-                
-                // Find the first index where date >= Dec 1, 2024
-                let startIdx = 0;
-                for (let i = 0; i < data.dates.length; i++) {
-                    const parts = data.dates[i].split(' ');
-                    if (parts.length === 3) {
-                        const [month, day, year] = parts;
-                        const monthIndex = monthNames.indexOf(month);
-                        const dateObj = new Date(parseInt(year), monthIndex, parseInt(day));
-                        if (dateObj >= startDate) {
-                            startIdx = i;
-                            break;
-                        }
-                    }
-                }
-                
-                return {
-                    dates: data.dates.slice(startIdx),
-                    ourData: data.ourData.slice(startIdx),
-                    ahrefsData: data.ahrefsData.slice(startIdx),
-                    drData: (data.drData || []).slice(startIdx)
-                };
+                return { min: startDate.getTime(), max: maxTimestamp };
             }
             
+            // For numeric days (7, 30, 90, etc.), calculate start from end
             const numDays = parseInt(days);
-            const totalPoints = data.dates.length;
-            const startIdx = Math.max(0, totalPoints - numDays);
+            if (isNaN(numDays) || !maxTimestamp) {
+                return { min: undefined, max: undefined };
+            }
             
+            const minTimestamp = maxTimestamp - (numDays * 24 * 60 * 60 * 1000);
+            return { min: minTimestamp, max: maxTimestamp };
+        }
+        
+        // Filter data by date range (kept for backwards compatibility but returns all data)
+        function filterByDateRange(data, days) {
+            // Always return ALL data - zoom range is controlled by xaxis min/max
             return {
-                dates: data.dates.slice(startIdx),
-                ourData: data.ourData.slice(startIdx),
-                ahrefsData: data.ahrefsData.slice(startIdx),
-                drData: (data.drData || []).slice(startIdx)
+                dates: data.dates,
+                ourData: data.ourData,
+                ahrefsData: data.ahrefsData,
+                drData: data.drData || []
             };
         }
 
@@ -592,6 +591,9 @@
             const drProcessed = interpolateData(filtered.drData || []);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             
+            // Get x-axis bounds for initial zoom (allows zooming out beyond this range)
+            const xAxisBounds = getDateRangeBounds(data, dateRange);
+            
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             
             // Convert traffic data to timestamp-based {x, y} format
@@ -672,7 +674,22 @@
                     type: 'line',
                     height: 480,
                     background: 'transparent',
-                    toolbar: { show: true, tools: { download: true, zoom: true, pan: true } },
+                    toolbar: { 
+                        show: true, 
+                        tools: { 
+                            download: true, 
+                            zoom: true, 
+                            zoomin: true,
+                            zoomout: true,
+                            pan: true,
+                            reset: true // Home icon to reset to initial zoom
+                        }
+                    },
+                    zoom: {
+                        enabled: true,
+                        type: 'x', // Allow zooming on x-axis
+                        autoScaleYaxis: true // Auto-adjust y-axis when zooming
+                    },
                     animations: {
                         enabled: true,
                         easing: 'easeinout',
@@ -701,6 +718,8 @@
                 },
                 xaxis: {
                     type: 'datetime',
+                    min: xAxisBounds.min, // Initial zoom start (undefined = auto)
+                    max: xAxisBounds.max, // Initial zoom end (undefined = auto)
                     labels: {
                         style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
                         rotate: 0,
