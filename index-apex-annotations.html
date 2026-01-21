@@ -231,6 +231,46 @@
             margin-bottom: 24px;
             flex-wrap: wrap;
         }
+
+        /* REVENUE LABEL CHANGE: Toggle switch styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #333333;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: #cccccc;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-switch.active {
+            background: #10b981;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(18px);
+        }
     </style>
 </head>
 <body>
@@ -272,6 +312,11 @@
         <select id="domainSelect">
             <option value="">Select Domain</option>
         </select>
+        <!-- REVENUE LABEL CHANGE: Toggle for revenue labels -->
+        <div class="toggle-container">
+            <span>Revenue Labels</span>
+            <div class="toggle-switch active" id="revenueLabelToggle"></div>
+        </div>
     </div>
 
     <div id="charts"></div>
@@ -290,6 +335,11 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script>
         let domains = {};
+        
+        // REVENUE LABEL CHANGE: Track toggle state and current chart info for re-render
+        let showRevenueLabels = true;
+        let currentDomain = null;
+        let currentDateRange = 'dec2024';
         
         // Fallback hardcoded data (used if CSV loading fails or for file:// protocol)
         const fallbackData = {
@@ -586,6 +636,10 @@
         }
 
         function createChart(domain, data, dateRange = 'dec2024') {
+            // REVENUE LABEL CHANGE: Store current state for toggle re-render
+            currentDomain = domain;
+            currentDateRange = dateRange;
+            
             const chartsDiv = document.getElementById('charts');
             chartsDiv.innerHTML = '';
 
@@ -649,8 +703,8 @@
             // Render DR Stat Card with Sparkline
             renderDRStatCard(data.drData || [], filtered.dates);
 
-            // REVENUE LABEL CHANGE: Build point annotations from revenue data
-            const pointAnnotations = revenueResult.revenueAnnotations.map(ann => ({
+            // REVENUE LABEL CHANGE: Build point annotations from revenue data (conditionally based on toggle)
+            const pointAnnotations = showRevenueLabels ? revenueResult.revenueAnnotations.map(ann => ({
                 x: ann.x,
                 y: ann.y,
                 yAxisIndex: 2, // Revenue y-axis
@@ -678,7 +732,7 @@
                     offsetY: 25, // Push label down toward bottom of bar
                     offsetX: 0
                 }
-            }));
+            })) : [];
 
             const options = {
                 series: [{
@@ -947,6 +1001,20 @@
             select.addEventListener('change', function() {
                 if (this.value && domains[this.value]) {
                     createChart(this.value, domains[this.value]);
+                }
+            });
+        }
+
+        // REVENUE LABEL CHANGE: Setup toggle event listener
+        function setupRevenueToggle() {
+            const toggle = document.getElementById('revenueLabelToggle');
+            toggle.addEventListener('click', function() {
+                showRevenueLabels = !showRevenueLabels;
+                this.classList.toggle('active', showRevenueLabels);
+                
+                // Re-render chart if one is displayed
+                if (currentDomain && domains[currentDomain]) {
+                    createChart(currentDomain, domains[currentDomain], currentDateRange);
                 }
             });
         }
@@ -1267,8 +1335,9 @@
                 select.appendChild(opt);
             });
             
-            // Setup event listener
+            // Setup event listeners
             setupDomainSelector();
+            setupRevenueToggle(); // REVENUE LABEL CHANGE
             
             // Auto-select first domain
             if (Object.keys(domains).length > 0) {
