@@ -164,34 +164,6 @@
             min-height: 400px;
         }
 
-        /* DR Stat Card Styles */
-        .dr-stat-card {
-            background: #ffffff;
-            border: 1px solid #e5e5e5;
-            border-radius: 16px;
-            padding: 20px 24px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 140px;
-        }
-
-        .dr-stat-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #666666;
-            margin-bottom: 4px;
-        }
-
-        .dr-stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #a855f7;
-            line-height: 1;
-        }
-
         .header-stats {
             display: flex;
             justify-content: center;
@@ -249,13 +221,9 @@
         <div class="version-badge">Annotations Approach</div>
     </div>
 
+    <!-- REVENUE LABEL CHANGE: Toggle for revenue labels -->
     <div class="header-stats">
-        <div class="dr-stat-card" id="drStatCard" style="display: none;">
-            <div class="dr-stat-label">Domain Rating</div>
-            <div class="dr-stat-value" id="drValue">--</div>
-        </div>
-        <!-- REVENUE LABEL CHANGE: Toggle next to DR card -->
-        <div class="toggle-container" style="align-self: center;">
+        <div class="toggle-container">
             <span>Revenue Labels</span>
             <div class="toggle-switch active" id="revenueLabelToggle"></div>
         </div>
@@ -530,24 +498,6 @@
             return (change >= 0 ? '+' : '') + change + '%';
         }
 
-        function renderDRStatCard(drData) {
-            const card = document.getElementById('drStatCard');
-            const valueEl = document.getElementById('drValue');
-            
-            // Filter out null values and get valid DR data
-            const validDR = drData.filter(v => v !== null && v !== undefined);
-            
-            if (validDR.length === 0) {
-                card.style.display = 'none';
-                return;
-            }
-            
-            // Show card and set latest value
-            card.style.display = 'flex';
-            const latestDR = validDR[validDR.length - 1];
-            valueEl.textContent = latestDR;
-        }
-
         function createChart(domain, data, dateRange = 'dec2024') {
             // REVENUE LABEL CHANGE: Destroy previous chart if exists
             if (currentChart) {
@@ -615,9 +565,6 @@
             const maxRevenue = Math.max(...revenuePoints.map(p => p.y || 0), 1);
             const revenueAxisMax = maxRevenue * 3;
             
-            // Render DR Stat Card
-            renderDRStatCard(data.drData || []);
-
             // REVENUE LABEL CHANGE: Build point annotations and store globally for toggle
             currentAnnotations = revenueResult.revenueAnnotations.map(ann => ({
                 x: ann.x,
