@@ -654,11 +654,11 @@
 
             const options = {
                 series: [{
-                    name: 'Our Data',
+                    name: 'Internal Monthly Traffic',
                     type: 'area',
                     data: ourDataPoints
                 }, {
-                    name: 'Ahrefs',
+                    name: 'Ahrefs Monthly Traffic',
                     type: 'area',
                     data: ahrefsDataPoints
                 }, {
@@ -744,9 +744,9 @@
                     tooltip: { enabled: true, format: 'dd MMM yyyy' }
                 },
                 yaxis: [
-                    // [0] Our Data - Left Axis (Primary Traffic)
+                    // [0] Internal Monthly Traffic - Left Axis (Primary Traffic)
                     {
-                        seriesName: 'Our Data',
+                        seriesName: 'Internal Monthly Traffic',
                         title: {
                             text: 'Traffic',
                             style: { color: '#333333', fontSize: '12px' }
@@ -757,9 +757,9 @@
                         },
                         min: 0
                     },
-                    // [1] Ahrefs - Left Axis (Linked to Our Data axis)
+                    // [1] Ahrefs Monthly Traffic - Left Axis (Linked to Internal Monthly Traffic axis)
                     {
-                        seriesName: 'Ahrefs',
+                        seriesName: 'Ahrefs Monthly Traffic',
                         show: false, // Hide duplicate axis, shares scale with Our Data
                         labels: {
                             style: { colors: '#333333' },
@@ -832,7 +832,7 @@
                     },
                     custom: function({ series, seriesIndex, dataPointIndex, w }) {
                         const colors = ['#f97316', '#3b82f6', '#10b981', '#a855f7'];
-                        const names = ['Our Data', 'Ahrefs', 'Revenue', 'DR'];
+                        const names = ['Internal Monthly Traffic', 'Ahrefs Monthly Traffic', 'Revenue', 'DR'];
                         
                         // Get the x value (timestamp) from the HOVERED series
                         const hoveredSeriesData = w.config.series[seriesIndex].data;
