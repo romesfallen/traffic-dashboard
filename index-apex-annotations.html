@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Dashboard - Annotations Example</title>
+    <title>Traffic Dashboard - Premium</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -36,18 +36,6 @@
             font-size: 14px;
         }
 
-        /* REVENUE LABEL CHANGE: Badge to show which version this is */
-        .version-badge {
-            display: inline-block;
-            background: #3b82f6;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
         .controls {
             display: flex;
             gap: 16px;
@@ -55,7 +43,14 @@
             flex-wrap: wrap;
         }
 
-        select {
+        /* Searchable dropdown styles */
+        .search-dropdown {
+            position: relative;
+            min-width: 280px;
+        }
+
+        .search-dropdown input {
+            width: 100%;
             background: #ffffff;
             border: 1px solid #cccccc;
             color: #333333;
@@ -63,20 +58,77 @@
             border-radius: 12px;
             font-size: 14px;
             font-family: 'Inter', sans-serif;
-            cursor: pointer;
+            cursor: text;
             transition: all 0.2s ease;
-            min-width: 200px;
         }
 
-        select:hover {
+        .search-dropdown input:hover {
             border-color: #f97316;
-            background: #ffffff;
         }
 
-        select:focus {
+        .search-dropdown input:focus {
             outline: none;
             border-color: #f97316;
             box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        }
+
+        .search-dropdown input::placeholder {
+            color: #999999;
+        }
+
+        .dropdown-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #cccccc;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .dropdown-list.open {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333333;
+            transition: background 0.15s ease;
+        }
+
+        .dropdown-item:hover {
+            background: #f5f5f5;
+        }
+
+        .dropdown-item.selected {
+            background: #fff7ed;
+            color: #f97316;
+            font-weight: 500;
+        }
+
+        .dropdown-item .rank {
+            color: #999999;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .no-results {
+            padding: 12px 16px;
+            color: #999999;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .dropdown-item.highlighted {
+            background: #f5f5f5;
         }
 
         .card {
@@ -217,8 +269,6 @@
     <div class="header">
         <h1>Traffic Comparison Dashboard</h1>
         <p>Our Data vs Ahrefs — All Available Data</p>
-        <!-- REVENUE LABEL CHANGE: Version indicator -->
-        <div class="version-badge">Annotations Approach</div>
     </div>
 
     <!-- REVENUE LABEL CHANGE: Toggle for revenue labels -->
@@ -230,9 +280,10 @@
     </div>
 
     <div class="controls">
-        <select id="domainSelect">
-            <option value="">Select Domain</option>
-        </select>
+        <div class="search-dropdown" id="domainDropdown">
+            <input type="text" id="domainSearch" placeholder="Search domains..." autocomplete="off">
+            <div class="dropdown-list" id="dropdownList"></div>
+        </div>
     </div>
 
     <div id="charts"></div>
@@ -863,12 +914,94 @@
             });
         }
 
-        // Event listener for domain selector (will be set up after data loads)
+        // Searchable dropdown functionality
+        let selectedDomain = null;
+        
         function setupDomainSelector() {
-            const select = document.getElementById('domainSelect');
-            select.addEventListener('change', function() {
-                if (this.value && domains[this.value]) {
-                    createChart(this.value, domains[this.value]);
+            const input = document.getElementById('domainSearch');
+            const dropdownList = document.getElementById('dropdownList');
+            
+            // Build dropdown items
+            function renderDropdown(filter = '') {
+                const filterLower = filter.toLowerCase();
+                const filtered = Object.keys(domains).filter(domain => 
+                    domain.toLowerCase().includes(filterLower)
+                );
+                
+                if (filtered.length === 0) {
+                    dropdownList.innerHTML = '<div class="no-results">No domains found</div>';
+                } else {
+                    dropdownList.innerHTML = filtered.map(domain => {
+                        const isSelected = domain === selectedDomain;
+                        return `<div class="dropdown-item${isSelected ? ' selected' : ''}" data-domain="${domain}">
+                            <span class="rank">${domains[domain].rank}.</span>${domain}
+                        </div>`;
+                    }).join('');
+                }
+            }
+            
+            // Show dropdown on focus
+            input.addEventListener('focus', function() {
+                renderDropdown(this.value);
+                dropdownList.classList.add('open');
+            });
+            
+            // Filter on input
+            input.addEventListener('input', function() {
+                renderDropdown(this.value);
+                dropdownList.classList.add('open');
+            });
+            
+            // Handle item click
+            dropdownList.addEventListener('click', function(e) {
+                const item = e.target.closest('.dropdown-item');
+                if (item) {
+                    const domain = item.dataset.domain;
+                    selectedDomain = domain;
+                    input.value = domain;
+                    dropdownList.classList.remove('open');
+                    
+                    if (domains[domain]) {
+                        createChart(domain, domains[domain]);
+                    }
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-dropdown')) {
+                    dropdownList.classList.remove('open');
+                }
+            });
+            
+            // Keyboard navigation
+            input.addEventListener('keydown', function(e) {
+                const items = dropdownList.querySelectorAll('.dropdown-item');
+                const currentIndex = Array.from(items).findIndex(item => item.classList.contains('highlighted'));
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    items.forEach(item => item.classList.remove('highlighted'));
+                    const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                    items[nextIndex]?.classList.add('highlighted');
+                    items[nextIndex]?.scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    items.forEach(item => item.classList.remove('highlighted'));
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                    items[prevIndex]?.classList.add('highlighted');
+                    items[prevIndex]?.scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const highlighted = dropdownList.querySelector('.dropdown-item.highlighted');
+                    if (highlighted) {
+                        highlighted.click();
+                    } else if (items.length > 0) {
+                        items[0].click();
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdownList.classList.remove('open');
+                    input.blur();
                 }
             });
         }
@@ -923,18 +1056,108 @@
             return dateObj >= start && dateObj <= end;
         }
 
-        // List of domains to load
+        // List of domains to load (Top 100)
         const TARGET_DOMAINS = [
-            'lyncconf.com',
-            'betterthisworld.com',
-            'etruesports.com',
-            'activepropertycare.com',
-            'seattlesportsonline.com',
-            'healthsciencesforum.com',
-            'famousparenting.com',
-            'simplyseven.net',
             'decoratoradvice.com',
-            'rapidhomedirect.com'
+            'traveltweaks.com',
+            'famousparenting.com',
+            'etruesports.com',
+            'betterthisworld.com',
+            'lookwhatmomfound.com',
+            'activepropertycare.com',
+            'redandwhitemagz.com',
+            'lyncconf.com',
+            'playmyworld.com',
+            'mygreenbucks.net',
+            'disquantified.org',
+            'whatutalkingboutwillis.com',
+            'arcyart.com',
+            'sportsfanfare.com',
+            'thegamearchives.com',
+            'freelogopng.com',
+            'avstarnews.com',
+            'digitalnewsalerts.com',
+            'mywirelesscoupons.com',
+            'healthsciencesforum.com',
+            'oneframework.net',
+            'entretech.org',
+            'thinkofgames.com',
+            'harmonicode.com',
+            'conversationswithbianca.com',
+            'pushyourdesign.com',
+            'alternativeway.net',
+            'etherions.com',
+            'letsbuildup.org',
+            'mucicallydown.com',
+            'electronmagazine.com',
+            'onthisveryspot.com',
+            'musikcalldown.com',
+            'undergrowthgames.com',
+            'thunderonthegulf.com',
+            'nothing2hide.net',
+            'feedbuzzard.com',
+            'thestripesblog.com',
+            'wealthybyte.com',
+            'smartsatta.com',
+            'waptirick.com',
+            'kdarchitects.net',
+            'beaconsoft.net',
+            'hearthstats.net',
+            'crypticstreet.com',
+            'reactcheck.com',
+            'musikcalidown.com',
+            'gamificationsummit.com',
+            'myfavouriteplaces.org',
+            'geekgadget.net',
+            'fintechasia.net',
+            'luxuryinteriors.org',
+            'greenheal.net',
+            'livingpristine.com',
+            'thehake.com',
+            'icaiorg.net',
+            'flyarchitecture.net',
+            'springhillmedgroup.com',
+            'revolvertech.com',
+            'logicalshout.com',
+            'thehometrotters.com',
+            'voicesofconservation.org',
+            'turbogeek.org',
+            'gfxmaker.com',
+            'drhomey.com',
+            'filmyzillah.com',
+            'sentback.org',
+            'leopardtheme.com',
+            'webtosociety.com',
+            'w88w88hanoi.com',
+            'bageltechnews.com',
+            'bitnation-blog.com',
+            'fameblogs.net',
+            'g15tools.com',
+            'designmode24.com',
+            'dhilisatta.com',
+            'defstartup.org',
+            'tubitymusic.com',
+            'cloudysocial.com',
+            'theblockchainbrief.com',
+            'moneysideoflife.com',
+            'playdedeus.com',
+            'anwire.org',
+            'thechannelrace.org',
+            'theboringmagazine.com',
+            'embedtree.com',
+            'metsuiteorg.com',
+            'eyexcon.com',
+            'aliensync.com',
+            'conversationswithgreg.com',
+            'pondershort.com',
+            'formotorbikes.com',
+            'myinteriorpalace.com',
+            'sportsblitzzone.com',
+            'prositesite.com',
+            'javaobjects.net',
+            'socceragency.net',
+            'proxcroxy.com',
+            'silicon-insider.com'
         ];
 
         async function loadRevenueCSV() {
@@ -1197,24 +1420,16 @@
         function initializeDashboard(data) {
             domains = data;
             
-            // Populate dropdown
-            const select = document.getElementById('domainSelect');
-            select.innerHTML = '<option value="">Select Domain</option>';
-            Object.keys(domains).forEach(domain => {
-                const opt = document.createElement('option');
-                opt.value = domain;
-                opt.textContent = `${domains[domain].rank}. ${domain}`;
-                select.appendChild(opt);
-            });
-            
             // Setup event listeners
             setupDomainSelector();
             setupRevenueToggle(); // REVENUE LABEL CHANGE
             
             // Auto-select first domain
             if (Object.keys(domains).length > 0) {
-                select.value = Object.keys(domains)[0];
-                createChart(Object.keys(domains)[0], domains[Object.keys(domains)[0]]);
+                const firstDomain = Object.keys(domains)[0];
+                selectedDomain = firstDomain;
+                document.getElementById('domainSearch').value = firstDomain;
+                createChart(firstDomain, domains[firstDomain]);
             }
         }
 

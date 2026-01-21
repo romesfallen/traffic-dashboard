@@ -43,7 +43,14 @@
             flex-wrap: wrap;
         }
 
-        select {
+        /* Searchable dropdown styles */
+        .search-dropdown {
+            position: relative;
+            min-width: 280px;
+        }
+
+        .search-dropdown input {
+            width: 100%;
             background: #ffffff;
             border: 1px solid #cccccc;
             color: #333333;
@@ -51,20 +58,77 @@
             border-radius: 12px;
             font-size: 14px;
             font-family: 'Inter', sans-serif;
-            cursor: pointer;
+            cursor: text;
             transition: all 0.2s ease;
-            min-width: 200px;
         }
 
-        select:hover {
+        .search-dropdown input:hover {
             border-color: #f97316;
-            background: #ffffff;
         }
 
-        select:focus {
+        .search-dropdown input:focus {
             outline: none;
             border-color: #f97316;
             box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        }
+
+        .search-dropdown input::placeholder {
+            color: #999999;
+        }
+
+        .dropdown-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #cccccc;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .dropdown-list.open {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333333;
+            transition: background 0.15s ease;
+        }
+
+        .dropdown-item:hover {
+            background: #f5f5f5;
+        }
+
+        .dropdown-item.selected {
+            background: #fff7ed;
+            color: #f97316;
+            font-weight: 500;
+        }
+
+        .dropdown-item .rank {
+            color: #999999;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .no-results {
+            padding: 12px 16px;
+            color: #999999;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .dropdown-item.highlighted {
+            background: #f5f5f5;
         }
 
         .card {
@@ -148,68 +212,8 @@
             border-color: #f97316;
         }
 
-        .legend {
-            display: flex;
-            gap: 24px;
-            justify-content: center;
-            margin-bottom: 24px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #333333;
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .legend-dot.our-data { background: linear-gradient(135deg, #f97316, #fb923c); }
-        .legend-dot.ahrefs { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
-        .legend-dot.revenue { background: linear-gradient(135deg, #10b981, #34d399); }
-        .legend-dot.dr { background: linear-gradient(135deg, #a855f7, #c084fc); }
-
         #chart-container {
             min-height: 400px;
-        }
-
-        /* DR Stat Card Styles */
-        .dr-stat-card {
-            background: #ffffff;
-            border: 1px solid #e5e5e5;
-            border-radius: 16px;
-            padding: 20px 24px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 140px;
-        }
-
-        .dr-stat-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #666666;
-            margin-bottom: 4px;
-        }
-
-        .dr-stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #a855f7;
-            line-height: 1;
-            margin-bottom: 8px;
-        }
-
-        .dr-sparkline {
-            width: 100px;
-            height: 30px;
         }
 
         .header-stats {
@@ -219,6 +223,46 @@
             margin-bottom: 24px;
             flex-wrap: wrap;
         }
+
+        /* REVENUE LABEL CHANGE: Toggle switch styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #333333;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: #cccccc;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-switch.active {
+            background: #10b981;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(18px);
+        }
     </style>
 </head>
 <body>
@@ -227,37 +271,19 @@
         <p>Our Data vs Ahrefs — All Available Data</p>
     </div>
 
+    <!-- REVENUE LABEL CHANGE: Toggle for revenue labels -->
     <div class="header-stats">
-        <div class="dr-stat-card" id="drStatCard" style="display: none;">
-            <div class="dr-stat-label">Domain Rating</div>
-            <div class="dr-stat-value" id="drValue">--</div>
-            <div class="dr-sparkline" id="drSparkline"></div>
-        </div>
-    </div>
-
-    <div class="legend">
-        <div class="legend-item">
-            <div class="legend-dot our-data"></div>
-            <span>Our Data</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot ahrefs"></div>
-            <span>Ahrefs</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot revenue"></div>
-            <span>Revenue</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot dr"></div>
-            <span>DR</span>
+        <div class="toggle-container">
+            <span>Revenue Labels</span>
+            <div class="toggle-switch active" id="revenueLabelToggle"></div>
         </div>
     </div>
 
     <div class="controls">
-        <select id="domainSelect">
-            <option value="">Select Domain</option>
-        </select>
+        <div class="search-dropdown" id="domainDropdown">
+            <input type="text" id="domainSearch" placeholder="Search domains..." autocomplete="off">
+            <div class="dropdown-list" id="dropdownList"></div>
+        </div>
     </div>
 
     <div id="charts"></div>
@@ -276,6 +302,11 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script>
         let domains = {};
+        
+        // REVENUE LABEL CHANGE: Track toggle state, chart instance, and annotations for dynamic update
+        let showRevenueLabels = true;
+        let currentChart = null;
+        let currentAnnotations = [];
         
         // Fallback hardcoded data (used if CSV loading fails or for file:// protocol)
         const fallbackData = {
@@ -379,6 +410,7 @@
             };
         }
 
+        // REVENUE LABEL CHANGE: Modified to also return annotation data for labels
         // Generate monthly revenue with strict normalization and timestamp-based stepped blocks
         function generateMonthlyRevenue(dates, monthlyRevenueData = null) {
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -432,6 +464,9 @@
             // STEP 2: Generate Stepped Area Blocks (3 points per month)
             const revenuePoints = [];
             
+            // REVENUE LABEL CHANGE: Also build annotations array for point annotations
+            const revenueAnnotations = [];
+            
             sortedKeys.forEach(key => {
                 const info = normalizedMap.get(key);
                 const revenue = info.revenue;
@@ -449,6 +484,19 @@
                 revenuePoints.push({ x: startDate.getTime(), y: revenue });
                 revenuePoints.push({ x: endDate.getTime(), y: revenue });
                 revenuePoints.push({ x: cutDate.getTime(), y: 0 });
+                
+                // REVENUE LABEL CHANGE: Create point annotation at center of bar (day 13)
+                // Only add annotation if revenue > 0
+                if (revenue > 0) {
+                    const midDate = new Date(info.year, info.monthIndex, 13);
+                    revenueAnnotations.push({
+                        x: midDate.getTime(),
+                        y: revenue,
+                        label: '$' + revenue.toLocaleString(),
+                        month: info.month,
+                        year: info.year
+                    });
+                }
             });
             
             // SAFETY CHECK: Sort by timestamp
@@ -461,7 +509,8 @@
                 expectedPoints: sortedKeys.length * 3,
                 firstMonth: sortedKeys[0],
                 lastMonth: sortedKeys[sortedKeys.length - 1],
-                samplePoints: revenuePoints.slice(0, 6)
+                samplePoints: revenuePoints.slice(0, 6),
+                annotations: revenueAnnotations.length // REVENUE LABEL CHANGE
             });
             
             // Also generate categories array for x-axis labels (mid-month positioned)
@@ -486,7 +535,8 @@
                 categories[midIdx] = info.month + ' ' + info.year;
             });
             
-            return { revenuePoints, categories };
+            // REVENUE LABEL CHANGE: Return annotations array as well
+            return { revenuePoints, categories, revenueAnnotations };
         }
 
         // Calculate change percentage for filtered data
@@ -499,60 +549,13 @@
             return (change >= 0 ? '+' : '') + change + '%';
         }
 
-        // DR Sparkline chart instance (to destroy on re-render)
-        let drSparklineChart = null;
-        
-        function renderDRStatCard(drData, dates) {
-            const card = document.getElementById('drStatCard');
-            const valueEl = document.getElementById('drValue');
-            const sparklineEl = document.getElementById('drSparkline');
-            
-            // Filter out null values and get valid DR data
-            const validDR = drData.filter(v => v !== null && v !== undefined);
-            
-            if (validDR.length === 0) {
-                card.style.display = 'none';
-                return;
-            }
-            
-            // Show card and set latest value
-            card.style.display = 'flex';
-            const latestDR = validDR[validDR.length - 1];
-            valueEl.textContent = latestDR;
-            
-            // Destroy previous sparkline if exists
-            if (drSparklineChart) {
-                drSparklineChart.destroy();
-                drSparklineChart = null;
-            }
-            
-            // Create sparkline data (use last 90 data points max for cleaner sparkline)
-            const sparklineData = validDR.slice(-90);
-            
-            const sparklineOptions = {
-                series: [{
-                    data: sparklineData
-                }],
-                chart: {
-                    type: 'line',
-                    width: 100,
-                    height: 30,
-                    sparkline: { enabled: true },
-                    animations: { enabled: false }
-                },
-                stroke: {
-                    curve: 'smooth',
-                    width: 2
-                },
-                colors: ['#a855f7'],
-                tooltip: { enabled: false }
-            };
-            
-            drSparklineChart = new ApexCharts(sparklineEl, sparklineOptions);
-            drSparklineChart.render();
-        }
-
         function createChart(domain, data, dateRange = 'dec2024') {
+            // REVENUE LABEL CHANGE: Destroy previous chart if exists
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+            
             const chartsDiv = document.getElementById('charts');
             chartsDiv.innerHTML = '';
 
@@ -613,8 +616,39 @@
             const maxRevenue = Math.max(...revenuePoints.map(p => p.y || 0), 1);
             const revenueAxisMax = maxRevenue * 3;
             
-            // Render DR Stat Card with Sparkline
-            renderDRStatCard(data.drData || [], filtered.dates);
+            // REVENUE LABEL CHANGE: Build point annotations and store globally for toggle
+            currentAnnotations = revenueResult.revenueAnnotations.map(ann => ({
+                x: ann.x,
+                y: ann.y,
+                yAxisIndex: 2, // Revenue y-axis
+                seriesIndex: 2, // Revenue series
+                marker: {
+                    size: 0 // Hide the marker dot
+                },
+                label: {
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    text: ann.label,
+                    style: {
+                        background: 'transparent',
+                        color: '#047857', // Dark green for visibility
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        fontFamily: 'Inter, sans-serif',
+                        padding: {
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            bottom: 0
+                        }
+                    },
+                    offsetY: 25, // Push label down toward bottom of bar
+                    offsetX: 0
+                }
+            }));
+            
+            // Use annotations based on current toggle state
+            const pointAnnotations = showRevenueLabels ? currentAnnotations : [];
 
             const options = {
                 series: [{
@@ -645,6 +679,10 @@
                         speed: 800
                     },
                     stacked: false
+                },
+                // REVENUE LABEL CHANGE: Add annotations section
+                annotations: {
+                    points: pointAnnotations
                 },
                 colors: ['#f97316', '#3b82f6', '#10b981', '#a855f7'],
                 fill: {
@@ -853,6 +891,9 @@
             const chart = new ApexCharts(document.querySelector('#apex-chart'), options);
             chart.render();
             
+            // REVENUE LABEL CHANGE: Store chart instance for dynamic updates
+            currentChart = chart;
+            
             // Make tooltip follow cursor on Y axis
             const chartEl = document.querySelector('#apex-chart');
             chartEl.addEventListener('mousemove', function(e) {
@@ -873,12 +914,112 @@
             });
         }
 
-        // Event listener for domain selector (will be set up after data loads)
+        // Searchable dropdown functionality
+        let selectedDomain = null;
+        
         function setupDomainSelector() {
-            const select = document.getElementById('domainSelect');
-            select.addEventListener('change', function() {
-                if (this.value && domains[this.value]) {
-                    createChart(this.value, domains[this.value]);
+            const input = document.getElementById('domainSearch');
+            const dropdownList = document.getElementById('dropdownList');
+            
+            // Build dropdown items
+            function renderDropdown(filter = '') {
+                const filterLower = filter.toLowerCase();
+                const filtered = Object.keys(domains).filter(domain => 
+                    domain.toLowerCase().includes(filterLower)
+                );
+                
+                if (filtered.length === 0) {
+                    dropdownList.innerHTML = '<div class="no-results">No domains found</div>';
+                } else {
+                    dropdownList.innerHTML = filtered.map(domain => {
+                        const isSelected = domain === selectedDomain;
+                        return `<div class="dropdown-item${isSelected ? ' selected' : ''}" data-domain="${domain}">
+                            <span class="rank">${domains[domain].rank}.</span>${domain}
+                        </div>`;
+                    }).join('');
+                }
+            }
+            
+            // Show dropdown on focus
+            input.addEventListener('focus', function() {
+                renderDropdown(this.value);
+                dropdownList.classList.add('open');
+            });
+            
+            // Filter on input
+            input.addEventListener('input', function() {
+                renderDropdown(this.value);
+                dropdownList.classList.add('open');
+            });
+            
+            // Handle item click
+            dropdownList.addEventListener('click', function(e) {
+                const item = e.target.closest('.dropdown-item');
+                if (item) {
+                    const domain = item.dataset.domain;
+                    selectedDomain = domain;
+                    input.value = domain;
+                    dropdownList.classList.remove('open');
+                    
+                    if (domains[domain]) {
+                        createChart(domain, domains[domain]);
+                    }
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-dropdown')) {
+                    dropdownList.classList.remove('open');
+                }
+            });
+            
+            // Keyboard navigation
+            input.addEventListener('keydown', function(e) {
+                const items = dropdownList.querySelectorAll('.dropdown-item');
+                const currentIndex = Array.from(items).findIndex(item => item.classList.contains('highlighted'));
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    items.forEach(item => item.classList.remove('highlighted'));
+                    const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                    items[nextIndex]?.classList.add('highlighted');
+                    items[nextIndex]?.scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    items.forEach(item => item.classList.remove('highlighted'));
+                    const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                    items[prevIndex]?.classList.add('highlighted');
+                    items[prevIndex]?.scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const highlighted = dropdownList.querySelector('.dropdown-item.highlighted');
+                    if (highlighted) {
+                        highlighted.click();
+                    } else if (items.length > 0) {
+                        items[0].click();
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdownList.classList.remove('open');
+                    input.blur();
+                }
+            });
+        }
+
+        // REVENUE LABEL CHANGE: Setup toggle event listener with dynamic update (no re-render)
+        function setupRevenueToggle() {
+            const toggle = document.getElementById('revenueLabelToggle');
+            toggle.addEventListener('click', function() {
+                showRevenueLabels = !showRevenueLabels;
+                this.classList.toggle('active', showRevenueLabels);
+                
+                // Update chart annotations dynamically without full re-render
+                if (currentChart) {
+                    currentChart.updateOptions({
+                        annotations: {
+                            points: showRevenueLabels ? currentAnnotations : []
+                        }
+                    }, false, false); // redrawPaths=false, animate=false for instant toggle
                 }
             });
         }
@@ -915,18 +1056,108 @@
             return dateObj >= start && dateObj <= end;
         }
 
-        // List of domains to load
+        // List of domains to load (Top 100)
         const TARGET_DOMAINS = [
-            'lyncconf.com',
-            'betterthisworld.com',
-            'etruesports.com',
-            'activepropertycare.com',
-            'seattlesportsonline.com',
-            'healthsciencesforum.com',
-            'famousparenting.com',
-            'simplyseven.net',
             'decoratoradvice.com',
-            'rapidhomedirect.com'
+            'traveltweaks.com',
+            'famousparenting.com',
+            'etruesports.com',
+            'betterthisworld.com',
+            'lookwhatmomfound.com',
+            'activepropertycare.com',
+            'redandwhitemagz.com',
+            'lyncconf.com',
+            'playmyworld.com',
+            'mygreenbucks.net',
+            'disquantified.org',
+            'whatutalkingboutwillis.com',
+            'arcyart.com',
+            'sportsfanfare.com',
+            'thegamearchives.com',
+            'freelogopng.com',
+            'avstarnews.com',
+            'digitalnewsalerts.com',
+            'mywirelesscoupons.com',
+            'healthsciencesforum.com',
+            'oneframework.net',
+            'entretech.org',
+            'thinkofgames.com',
+            'harmonicode.com',
+            'conversationswithbianca.com',
+            'pushyourdesign.com',
+            'alternativeway.net',
+            'etherions.com',
+            'letsbuildup.org',
+            'mucicallydown.com',
+            'electronmagazine.com',
+            'onthisveryspot.com',
+            'musikcalldown.com',
+            'undergrowthgames.com',
+            'thunderonthegulf.com',
+            'nothing2hide.net',
+            'feedbuzzard.com',
+            'thestripesblog.com',
+            'wealthybyte.com',
+            'smartsatta.com',
+            'waptirick.com',
+            'kdarchitects.net',
+            'beaconsoft.net',
+            'hearthstats.net',
+            'crypticstreet.com',
+            'reactcheck.com',
+            'musikcalidown.com',
+            'gamificationsummit.com',
+            'myfavouriteplaces.org',
+            'geekgadget.net',
+            'fintechasia.net',
+            'luxuryinteriors.org',
+            'greenheal.net',
+            'livingpristine.com',
+            'thehake.com',
+            'icaiorg.net',
+            'flyarchitecture.net',
+            'springhillmedgroup.com',
+            'revolvertech.com',
+            'logicalshout.com',
+            'thehometrotters.com',
+            'voicesofconservation.org',
+            'turbogeek.org',
+            'gfxmaker.com',
+            'drhomey.com',
+            'filmyzillah.com',
+            'sentback.org',
+            'leopardtheme.com',
+            'webtosociety.com',
+            'w88w88hanoi.com',
+            'bageltechnews.com',
+            'bitnation-blog.com',
+            'fameblogs.net',
+            'g15tools.com',
+            'designmode24.com',
+            'dhilisatta.com',
+            'defstartup.org',
+            'tubitymusic.com',
+            'cloudysocial.com',
+            'theblockchainbrief.com',
+            'moneysideoflife.com',
+            'playdedeus.com',
+            'anwire.org',
+            'thechannelrace.org',
+            'theboringmagazine.com',
+            'embedtree.com',
+            'metsuiteorg.com',
+            'eyexcon.com',
+            'aliensync.com',
+            'conversationswithgreg.com',
+            'pondershort.com',
+            'formotorbikes.com',
+            'myinteriorpalace.com',
+            'sportsblitzzone.com',
+            'prositesite.com',
+            'javaobjects.net',
+            'socceragency.net',
+            'proxcroxy.com',
+            'silicon-insider.com'
         ];
 
         async function loadRevenueCSV() {
@@ -1189,23 +1420,16 @@
         function initializeDashboard(data) {
             domains = data;
             
-            // Populate dropdown
-            const select = document.getElementById('domainSelect');
-            select.innerHTML = '<option value="">Select Domain</option>';
-            Object.keys(domains).forEach(domain => {
-                const opt = document.createElement('option');
-                opt.value = domain;
-                opt.textContent = `${domains[domain].rank}. ${domain}`;
-                select.appendChild(opt);
-            });
-            
-            // Setup event listener
+            // Setup event listeners
             setupDomainSelector();
+            setupRevenueToggle(); // REVENUE LABEL CHANGE
             
             // Auto-select first domain
             if (Object.keys(domains).length > 0) {
-                select.value = Object.keys(domains)[0];
-                createChart(Object.keys(domains)[0], domains[Object.keys(domains)[0]]);
+                const firstDomain = Object.keys(domains)[0];
+                selectedDomain = firstDomain;
+                document.getElementById('domainSearch').value = firstDomain;
+                createChart(firstDomain, domains[firstDomain]);
             }
         }
 
