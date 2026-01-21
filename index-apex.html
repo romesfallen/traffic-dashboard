@@ -339,6 +339,34 @@
                 };
             }
             
+            // Special case: From December 2024
+            if (days === 'dec2024') {
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const startDate = new Date(2024, 11, 1); // Dec 1, 2024
+                
+                // Find the first index where date >= Dec 1, 2024
+                let startIdx = 0;
+                for (let i = 0; i < data.dates.length; i++) {
+                    const parts = data.dates[i].split(' ');
+                    if (parts.length === 3) {
+                        const [month, day, year] = parts;
+                        const monthIndex = monthNames.indexOf(month);
+                        const dateObj = new Date(parseInt(year), monthIndex, parseInt(day));
+                        if (dateObj >= startDate) {
+                            startIdx = i;
+                            break;
+                        }
+                    }
+                }
+                
+                return {
+                    dates: data.dates.slice(startIdx),
+                    ourData: data.ourData.slice(startIdx),
+                    ahrefsData: data.ahrefsData.slice(startIdx),
+                    drData: (data.drData || []).slice(startIdx)
+                };
+            }
+            
             const numDays = parseInt(days);
             const totalPoints = data.dates.length;
             const startIdx = Math.max(0, totalPoints - numDays);
@@ -524,7 +552,7 @@
             drSparklineChart.render();
         }
 
-        function createChart(domain, data, dateRange = 'all') {
+        function createChart(domain, data, dateRange = 'dec2024') {
             const chartsDiv = document.getElementById('charts');
             chartsDiv.innerHTML = '';
 
@@ -544,6 +572,7 @@
                         <option value="90" ${dateRange === '90' ? 'selected' : ''}>Last 3 months</option>
                         <option value="180" ${dateRange === '180' ? 'selected' : ''}>Last 6 months</option>
                         <option value="365" ${dateRange === '365' ? 'selected' : ''}>Last year</option>
+                        <option value="dec2024" ${dateRange === 'dec2024' ? 'selected' : ''}>From Dec 2024</option>
                         <option value="all" ${dateRange === 'all' ? 'selected' : ''}>All time</option>
                     </select>
                 </div>
