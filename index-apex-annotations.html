@@ -232,14 +232,44 @@
             flex-wrap: wrap;
         }
 
-        /* REVENUE LABEL CHANGE: Toggle styled like legend item */
-        .legend-toggle {
-            transition: opacity 0.2s ease;
-            user-select: none;
+        /* REVENUE LABEL CHANGE: Toggle switch styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #333333;
         }
 
-        .legend-toggle.inactive {
-            opacity: 0.35;
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: #cccccc;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-switch.active {
+            background: #10b981;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(18px);
         }
     </style>
 </head>
@@ -276,10 +306,10 @@
             <div class="legend-dot dr"></div>
             <span>DR</span>
         </div>
-        <!-- REVENUE LABEL CHANGE: Toggle styled like legend item -->
-        <div class="legend-item legend-toggle" id="revenueLabelToggle" style="cursor: pointer; opacity: 1;">
-            <div class="legend-dot" style="background: linear-gradient(135deg, #047857, #10b981); font-size: 8px; display: flex; align-items: center; justify-content: center; color: white;">$</div>
-            <span>Labels</span>
+        <!-- REVENUE LABEL CHANGE: Slider toggle for revenue labels -->
+        <div class="toggle-container" style="margin-left: 16px;">
+            <span>Revenue Labels</span>
+            <div class="toggle-switch active" id="revenueLabelToggle"></div>
         </div>
     </div>
 
@@ -988,7 +1018,7 @@
             const toggle = document.getElementById('revenueLabelToggle');
             toggle.addEventListener('click', function() {
                 showRevenueLabels = !showRevenueLabels;
-                this.classList.toggle('inactive', !showRevenueLabels);
+                this.classList.toggle('active', showRevenueLabels);
                 
                 // Update chart annotations dynamically without full re-render
                 if (currentChart) {
