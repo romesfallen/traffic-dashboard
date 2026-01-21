@@ -232,44 +232,14 @@
             flex-wrap: wrap;
         }
 
-        /* REVENUE LABEL CHANGE: Toggle switch styles */
-        .toggle-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #333333;
+        /* REVENUE LABEL CHANGE: Toggle styled like legend item */
+        .legend-toggle {
+            transition: opacity 0.2s ease;
+            user-select: none;
         }
 
-        .toggle-switch {
-            position: relative;
-            width: 40px;
-            height: 22px;
-            background: #cccccc;
-            border-radius: 11px;
-            cursor: pointer;
-            transition: background 0.2s ease;
-        }
-
-        .toggle-switch.active {
-            background: #10b981;
-        }
-
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 18px;
-            height: 18px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        }
-
-        .toggle-switch.active::after {
-            transform: translateX(18px);
+        .legend-toggle.inactive {
+            opacity: 0.35;
         }
     </style>
 </head>
@@ -306,17 +276,17 @@
             <div class="legend-dot dr"></div>
             <span>DR</span>
         </div>
+        <!-- REVENUE LABEL CHANGE: Toggle styled like legend item -->
+        <div class="legend-item legend-toggle" id="revenueLabelToggle" style="cursor: pointer; opacity: 1;">
+            <div class="legend-dot" style="background: linear-gradient(135deg, #047857, #10b981); font-size: 8px; display: flex; align-items: center; justify-content: center; color: white;">$</div>
+            <span>Labels</span>
+        </div>
     </div>
 
     <div class="controls">
         <select id="domainSelect">
             <option value="">Select Domain</option>
         </select>
-        <!-- REVENUE LABEL CHANGE: Toggle for revenue labels -->
-        <div class="toggle-container">
-            <span>Revenue Labels</span>
-            <div class="toggle-switch active" id="revenueLabelToggle"></div>
-        </div>
     </div>
 
     <div id="charts"></div>
@@ -336,10 +306,10 @@
     <script>
         let domains = {};
         
-        // REVENUE LABEL CHANGE: Track toggle state and current chart info for re-render
+        // REVENUE LABEL CHANGE: Track toggle state, chart instance, and annotations for dynamic update
         let showRevenueLabels = true;
-        let currentDomain = null;
-        let currentDateRange = 'dec2024';
+        let currentChart = null;
+        let currentAnnotations = [];
         
         // Fallback hardcoded data (used if CSV loading fails or for file:// protocol)
         const fallbackData = {
@@ -636,9 +606,11 @@
         }
 
         function createChart(domain, data, dateRange = 'dec2024') {
-            // REVENUE LABEL CHANGE: Store current state for toggle re-render
-            currentDomain = domain;
-            currentDateRange = dateRange;
+            // REVENUE LABEL CHANGE: Destroy previous chart if exists
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
             
             const chartsDiv = document.getElementById('charts');
             chartsDiv.innerHTML = '';
@@ -703,8 +675,8 @@
             // Render DR Stat Card with Sparkline
             renderDRStatCard(data.drData || [], filtered.dates);
 
-            // REVENUE LABEL CHANGE: Build point annotations from revenue data (conditionally based on toggle)
-            const pointAnnotations = showRevenueLabels ? revenueResult.revenueAnnotations.map(ann => ({
+            // REVENUE LABEL CHANGE: Build point annotations and store globally for toggle
+            currentAnnotations = revenueResult.revenueAnnotations.map(ann => ({
                 x: ann.x,
                 y: ann.y,
                 yAxisIndex: 2, // Revenue y-axis
@@ -732,7 +704,10 @@
                     offsetY: 25, // Push label down toward bottom of bar
                     offsetX: 0
                 }
-            })) : [];
+            }));
+            
+            // Use annotations based on current toggle state
+            const pointAnnotations = showRevenueLabels ? currentAnnotations : [];
 
             const options = {
                 series: [{
@@ -975,6 +950,9 @@
             const chart = new ApexCharts(document.querySelector('#apex-chart'), options);
             chart.render();
             
+            // REVENUE LABEL CHANGE: Store chart instance for dynamic updates
+            currentChart = chart;
+            
             // Make tooltip follow cursor on Y axis
             const chartEl = document.querySelector('#apex-chart');
             chartEl.addEventListener('mousemove', function(e) {
@@ -1005,16 +983,20 @@
             });
         }
 
-        // REVENUE LABEL CHANGE: Setup toggle event listener
+        // REVENUE LABEL CHANGE: Setup toggle event listener with dynamic update (no re-render)
         function setupRevenueToggle() {
             const toggle = document.getElementById('revenueLabelToggle');
             toggle.addEventListener('click', function() {
                 showRevenueLabels = !showRevenueLabels;
-                this.classList.toggle('active', showRevenueLabels);
+                this.classList.toggle('inactive', !showRevenueLabels);
                 
-                // Re-render chart if one is displayed
-                if (currentDomain && domains[currentDomain]) {
-                    createChart(currentDomain, domains[currentDomain], currentDateRange);
+                // Update chart annotations dynamically without full re-render
+                if (currentChart) {
+                    currentChart.updateOptions({
+                        annotations: {
+                            points: showRevenueLabels ? currentAnnotations : []
+                        }
+                    }, false, false); // redrawPaths=false, animate=false for instant toggle
                 }
             });
         }
