@@ -171,6 +171,11 @@
             text-decoration: underline;
         }
 
+        .domain-cell .no-graph {
+            color: #999999;
+            cursor: default;
+        }
+
         .revenue-cell {
             font-weight: 600;
             color: #333333;
@@ -266,6 +271,7 @@
     <script>
         let revenueData = {};
         let agentNicheMap = {};
+        let trafficDomains = new Set();
         let currentPeriod = 'lifetime';
 
         function parseCurrency(value) {
@@ -306,6 +312,34 @@
             } catch (error) {
                 console.warn('Warning loading Agent & Niche CSV:', error);
                 return {};
+            }
+        }
+
+        async function loadTrafficDomainsCSV() {
+            try {
+                const response = await fetch('traffic-data.csv');
+                if (!response.ok) throw new Error('Failed to load traffic CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                const domains = new Set();
+                
+                parsed.data.forEach(row => {
+                    const domain = row.Website;
+                    if (domain && domain.trim() !== '') {
+                        domains.add(domain.toLowerCase());
+                    }
+                });
+                
+                console.log('✅ Traffic domains loaded:', domains.size, 'domains');
+                return domains;
+            } catch (error) {
+                console.warn('Warning loading traffic CSV:', error);
+                return new Set();
             }
         }
 
@@ -399,12 +433,16 @@
                 const pct = total > 0 ? (item[period] / total * 100).toFixed(2) : 0;
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 const agent = info.agent || 'Unknown';
+                const hasGraphData = trafficDomains.has(item.domain.toLowerCase());
+                
+                const domainHtml = hasGraphData 
+                    ? `<a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>`
+                    : `<span class="no-graph">${item.domain}</span>`;
+                
                 return `
                     <tr>
                         <td class="rank-cell">#${idx + 1}</td>
-                        <td class="domain-cell">
-                            <a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>
-                        </td>
+                        <td class="domain-cell">${domainHtml}</td>
                         <td class="agent-cell">
                             <a href="agent.html?agent=${encodeURIComponent(agent)}">${agent}</a>
                         </td>
@@ -428,12 +466,14 @@
 
         async function init() {
             try {
-                const [revenue, agentNiche] = await Promise.all([
+                const [revenue, agentNiche, trafficData] = await Promise.all([
                     loadRevenueCSV(),
-                    loadAgentNicheCSV()
+                    loadAgentNicheCSV(),
+                    loadTrafficDomainsCSV()
                 ]);
                 revenueData = revenue;
                 agentNicheMap = agentNiche;
+                trafficDomains = trafficData;
                 setupTabs();
                 renderLeaderboard('lifetime');
             } catch (error) {

@@ -247,6 +247,11 @@
             text-decoration: underline;
         }
 
+        .domain-cell .no-graph {
+            color: #999999;
+            cursor: default;
+        }
+
         .agent-cell a {
             color: #3b82f6;
             text-decoration: none;
@@ -367,6 +372,7 @@
     <script>
         let allData = [];
         let agentNicheMap = {};
+        let trafficDomains = new Set();
         let currentNiche = '';
         let allNiches = []; // { niche: string, count: number }
         let currentPeriod = 'lifetime';
@@ -426,6 +432,33 @@
                 .sort((a, b) => b.count - a.count); // Sort by count descending
             
             return dataByDomain;
+        }
+
+        async function loadTrafficDomainsCSV() {
+            try {
+                const response = await fetch('traffic-data.csv');
+                if (!response.ok) throw new Error('Failed to load traffic CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                const domains = new Set();
+                
+                parsed.data.forEach(row => {
+                    const domain = row.Website;
+                    if (domain && domain.trim() !== '') {
+                        domains.add(domain.toLowerCase());
+                    }
+                });
+                
+                return domains;
+            } catch (error) {
+                console.warn('Warning loading traffic CSV:', error);
+                return new Set();
+            }
         }
 
         async function loadRevenueCSV() {
@@ -656,6 +689,12 @@
                 const pct = nicheTotal > 0 ? (item[currentPeriod] / nicheTotal * 100).toFixed(2) : 0;
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 const agent = info.agent || 'Unknown';
+                const hasGraphData = trafficDomains.has(item.domain.toLowerCase());
+                
+                // Build domain cell
+                const domainHtml = hasGraphData 
+                    ? `<a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>`
+                    : `<span class="no-graph">${item.domain}</span>`;
                 
                 // Build niche cell content (only shown when "All Niches" is selected)
                 let nicheCellHtml = '';
@@ -674,9 +713,7 @@
                 return `
                     <tr>
                         <td class="rank-cell">#${idx + 1}</td>
-                        <td class="domain-cell">
-                            <a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>
-                        </td>
+                        <td class="domain-cell">${domainHtml}</td>
                         ${nicheCellHtml}
                         <td class="agent-cell">
                             <a href="agent.html?agent=${encodeURIComponent(agent)}">${agent}</a>
@@ -695,13 +732,15 @@
                 currentNiche = urlParams.get('niche') || '';
                 
                 // Load data
-                const [agentNiche, revenue] = await Promise.all([
+                const [agentNiche, revenue, trafficData] = await Promise.all([
                     loadAgentNicheCSV(),
-                    loadRevenueCSV()
+                    loadRevenueCSV(),
+                    loadTrafficDomainsCSV()
                 ]);
                 
                 agentNicheMap = agentNiche;
                 allData = revenue;
+                trafficDomains = trafficData;
                 
                 // If no niche specified, default to "All Niches"
                 if (!currentNiche) {
