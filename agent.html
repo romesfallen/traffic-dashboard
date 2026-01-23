@@ -26,7 +26,7 @@
         .header h1 {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -47,7 +47,7 @@
 
         .nav-link {
             display: inline-block;
-            color: #f97316;
+            color: #3b82f6;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
@@ -73,7 +73,7 @@
         }
 
         .user-bar .sign-out {
-            color: #f97316;
+            color: #3b82f6;
             text-decoration: none;
             font-weight: 500;
         }
@@ -86,7 +86,7 @@
             display: flex;
             justify-content: center;
             gap: 8px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
         }
 
@@ -104,13 +104,44 @@
         }
 
         .agent-btn:hover {
-            border-color: #f97316;
-            color: #f97316;
+            border-color: #3b82f6;
+            color: #3b82f6;
         }
 
         .agent-btn.active {
-            background: #f97316;
-            border-color: #f97316;
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e5e5;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            color: #666666;
+        }
+
+        .tab-btn:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .tab-btn.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
             color: white;
         }
 
@@ -160,7 +191,7 @@
 
         .rank-cell {
             font-weight: 700;
-            color: #f97316;
+            color: #3b82f6;
             font-size: 16px;
         }
 
@@ -174,7 +205,7 @@
         }
 
         .domain-cell a:hover {
-            color: #f97316;
+            color: #3b82f6;
             text-decoration: underline;
         }
 
@@ -249,9 +280,15 @@
         <!-- Agent buttons will be inserted here -->
     </div>
 
+    <div class="tabs">
+        <button class="tab-btn active" data-period="lifetime">Lifetime</button>
+        <button class="tab-btn" data-period="last3Month">Last 3 Months</button>
+        <button class="tab-btn" data-period="currentMonth">Current Month</button>
+    </div>
+
     <div class="card">
         <div class="portfolio-total">
-            <div class="label">Agent Portfolio Total (Lifetime)</div>
+            <div class="label" id="portfolioLabel">Agent Portfolio Total (Lifetime)</div>
             <div class="value" id="portfolioTotal">$0</div>
         </div>
         <div class="table-container">
@@ -279,7 +316,14 @@
         let allData = [];
         let agentNicheMap = {};
         let currentAgent = '';
+        let currentPeriod = 'lifetime';
         const allAgents = [];
+
+        const periodLabels = {
+            lifetime: 'Lifetime',
+            last3Month: 'Last 3 Months',
+            currentMonth: 'Current Month'
+        };
 
         function parseCurrency(value) {
             if (!value || value === '' || value === '-') return 0;
@@ -334,6 +378,8 @@
             });
             
             const headers = parsed.meta.fields || [];
+            const currentMonth = 'Jan 2026';
+            const last3Months = ['Nov 2025', 'Dec 2025', 'Jan 2026'];
             const domainData = [];
             
             parsed.data.forEach(row => {
@@ -345,18 +391,30 @@
                 }
                 
                 let lifetimeTotal = 0;
+                let last3MonthTotal = 0;
+                let currentMonthTotal = 0;
                 
                 headers.forEach(header => {
                     const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
                     if (monthMatch) {
-                        lifetimeTotal += parseCurrency(row[header]);
+                        const value = parseCurrency(row[header]);
+                        lifetimeTotal += value;
+                        
+                        if (last3Months.includes(header)) {
+                            last3MonthTotal += value;
+                        }
+                        if (header === currentMonth) {
+                            currentMonthTotal = value;
+                        }
                     }
                 });
                 
                 if (lifetimeTotal > 0.01) {
                     domainData.push({
                         domain: domain,
-                        lifetime: lifetimeTotal
+                        lifetime: lifetimeTotal,
+                        last3Month: last3MonthTotal,
+                        currentMonth: currentMonthTotal
                     });
                 }
             });
@@ -366,7 +424,14 @@
 
         function renderAgentButtons() {
             const container = document.getElementById('agentSelector');
-            container.innerHTML = allAgents.map(agent => {
+            
+            // Add "Unknown" option for sites without agents
+            const agentsWithUnknown = [...allAgents];
+            if (!agentsWithUnknown.includes('Unknown')) {
+                agentsWithUnknown.push('Unknown');
+            }
+            
+            container.innerHTML = agentsWithUnknown.map(agent => {
                 const isActive = agent === currentAgent ? 'active' : '';
                 return `<button class="agent-btn ${isActive}" data-agent="${agent}">${agent}</button>`;
             }).join('');
@@ -384,34 +449,55 @@
             });
         }
 
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPeriod = this.dataset.period;
+                    renderTable();
+                });
+            });
+        }
+
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             const totalEl = document.getElementById('portfolioTotal');
+            const labelEl = document.getElementById('portfolioLabel');
             const subtitleEl = document.getElementById('subtitle');
             
             // Filter sites by current agent
             const agentSites = allData.filter(item => {
                 const info = agentNicheMap[item.domain.toLowerCase()];
+                if (currentAgent === 'Unknown') {
+                    // Show sites without agent assignment
+                    return !info || !info.agent || info.agent === '';
+                }
                 return info && info.agent === currentAgent;
             });
             
-            // Sort by lifetime revenue (descending)
-            agentSites.sort((a, b) => b.lifetime - a.lifetime);
+            // Filter to sites with revenue > 0.01 for selected period
+            const filteredSites = agentSites.filter(item => item[currentPeriod] > 0.01);
             
-            // Calculate agent's total
-            const agentTotal = agentSites.reduce((sum, item) => sum + item.lifetime, 0);
+            // Sort by selected period revenue (descending)
+            filteredSites.sort((a, b) => b[currentPeriod] - a[currentPeriod]);
+            
+            // Calculate agent's total for this period
+            const agentTotal = filteredSites.reduce((sum, item) => sum + item[currentPeriod], 0);
             
             totalEl.textContent = formatCurrency(agentTotal);
-            subtitleEl.textContent = `${currentAgent}'s Sites — ${agentSites.length} sites`;
+            labelEl.textContent = `Agent Portfolio Total (${periodLabels[currentPeriod]})`;
+            subtitleEl.textContent = `${currentAgent}'s Sites — ${filteredSites.length} sites`;
             document.title = `Sites by ${currentAgent}`;
             
-            if (agentSites.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">No sites found for this agent.</td></tr>';
+            if (filteredSites.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No sites found for this agent in this period.</td></tr>';
                 return;
             }
             
-            tbody.innerHTML = agentSites.map((item, idx) => {
-                const pct = agentTotal > 0 ? (item.lifetime / agentTotal * 100).toFixed(2) : 0;
+            tbody.innerHTML = filteredSites.map((item, idx) => {
+                const pct = agentTotal > 0 ? (item[currentPeriod] / agentTotal * 100).toFixed(2) : 0;
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 
                 // Build niche links
@@ -433,7 +519,7 @@
                             <a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>
                         </td>
                         <td class="niche-cell">${nicheHtml}</td>
-                        <td class="revenue-cell">${formatCurrency(item.lifetime)}</td>
+                        <td class="revenue-cell">${formatCurrency(item[currentPeriod])}</td>
                         <td class="pct-cell">${pct}%</td>
                     </tr>
                 `;
@@ -462,6 +548,7 @@
                 }
                 
                 renderAgentButtons();
+                setupTabs();
                 renderTable();
             } catch (error) {
                 console.error('Error loading data:', error);
