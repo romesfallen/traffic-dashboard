@@ -226,6 +226,20 @@
             text-decoration: underline;
         }
 
+        .niche-cell {
+            color: #666666;
+            font-size: 13px;
+        }
+
+        .niche-cell a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .niche-cell a:hover {
+            text-decoration: underline;
+        }
+
         .revenue-cell {
             font-weight: 600;
             color: #333333;
@@ -297,6 +311,7 @@
                     <tr>
                         <th>Rank</th>
                         <th>Domain</th>
+                        <th id="nicheHeader" style="display: none;">Niche</th>
                         <th>Agent</th>
                         <th>Revenue</th>
                         <th>% of Portfolio</th>
@@ -304,7 +319,7 @@
                 </thead>
                 <tbody id="tableBody">
                     <tr>
-                        <td colspan="5" class="loading">Loading data...</td>
+                        <td colspan="6" class="loading">Loading data...</td>
                     </tr>
                 </tbody>
             </table>
@@ -420,16 +435,31 @@
                     item.niche.toLowerCase().includes(filterLower)
                 );
                 
-                if (filtered.length === 0) {
+                // Check if "All Niches" matches filter
+                const showAllNiches = 'all niches'.includes(filterLower) || filter === '';
+                
+                let html = '';
+                
+                // Add "All Niches" option at top if it matches filter
+                if (showAllNiches) {
+                    const isSelected = currentNiche === 'All Niches' ? 'selected' : '';
+                    html += `<div class="niche-option ${isSelected}" data-niche="All Niches" style="border-bottom: 1px solid #eee;">
+                        <strong>All Niches</strong>
+                        <span class="niche-count">${allData.length} sites</span>
+                    </div>`;
+                }
+                
+                if (filtered.length === 0 && !showAllNiches) {
                     dropdown.innerHTML = '<div class="niche-option" style="color: #999; cursor: default;">No niches found</div>';
                 } else {
-                    dropdown.innerHTML = filtered.map(item => {
+                    html += filtered.map(item => {
                         const isSelected = item.niche === currentNiche ? 'selected' : '';
                         return `<div class="niche-option ${isSelected}" data-niche="${item.niche}">
                             ${item.niche}
                             <span class="niche-count">${item.count} sites</span>
                         </div>`;
                     }).join('');
+                    dropdown.innerHTML = html;
                 }
             }
             
@@ -498,17 +528,30 @@
             const totalEl = document.getElementById('portfolioTotal');
             const subtitleEl = document.getElementById('subtitle');
             const searchInput = document.getElementById('nicheSearch');
+            const nicheHeader = document.getElementById('nicheHeader');
             
             // Update search input
             searchInput.value = currentNiche;
             
-            // Filter sites that have this niche (check each niche in comma-separated list)
-            const nicheSites = allData.filter(item => {
-                const info = agentNicheMap[item.domain.toLowerCase()];
-                if (!info || !info.niche) return false;
-                const niches = info.niche.split(',').map(n => n.trim());
-                return niches.includes(currentNiche);
-            });
+            // Check if showing all niches
+            const isAllNiches = currentNiche === 'All Niches';
+            
+            // Show/hide niche column header
+            nicheHeader.style.display = isAllNiches ? '' : 'none';
+            
+            let nicheSites;
+            if (isAllNiches) {
+                // Show all sites
+                nicheSites = [...allData];
+            } else {
+                // Filter sites that have this niche (check each niche in comma-separated list)
+                nicheSites = allData.filter(item => {
+                    const info = agentNicheMap[item.domain.toLowerCase()];
+                    if (!info || !info.niche) return false;
+                    const niches = info.niche.split(',').map(n => n.trim());
+                    return niches.includes(currentNiche);
+                });
+            }
             
             // Sort by lifetime revenue (descending)
             nicheSites.sort((a, b) => b.lifetime - a.lifetime);
@@ -517,11 +560,18 @@
             const nicheTotal = nicheSites.reduce((sum, item) => sum + item.lifetime, 0);
             
             totalEl.textContent = formatCurrency(nicheTotal);
-            subtitleEl.textContent = `"${currentNiche}" — ${nicheSites.length} sites`;
-            document.title = `Sites in ${currentNiche}`;
+            if (isAllNiches) {
+                subtitleEl.textContent = `All Niches — ${nicheSites.length} sites`;
+                document.title = 'All Niches';
+            } else {
+                subtitleEl.textContent = `"${currentNiche}" — ${nicheSites.length} sites`;
+                document.title = `Sites in ${currentNiche}`;
+            }
+            
+            const colSpan = isAllNiches ? 6 : 5;
             
             if (nicheSites.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">No sites found in this niche.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="loading">No sites found.</td></tr>`;
                 return;
             }
             
@@ -530,12 +580,27 @@
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 const agent = info.agent || 'Unknown';
                 
+                // Build niche cell content (only shown when "All Niches" is selected)
+                let nicheCellHtml = '';
+                if (isAllNiches) {
+                    if (info.niche) {
+                        const niches = info.niche.split(',').map(n => n.trim()).filter(n => n);
+                        nicheCellHtml = `<td class="niche-cell">${niches.map((niche, i) => {
+                            const sep = i < niches.length - 1 ? ', ' : '';
+                            return `<a href="niche.html?niche=${encodeURIComponent(niche)}">${niche}</a>${sep}`;
+                        }).join('')}</td>`;
+                    } else {
+                        nicheCellHtml = '<td class="niche-cell"><span style="color: #999;">—</span></td>';
+                    }
+                }
+                
                 return `
                     <tr>
                         <td class="rank-cell">#${idx + 1}</td>
                         <td class="domain-cell">
                             <a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>
                         </td>
+                        ${nicheCellHtml}
                         <td class="agent-cell">
                             <a href="agent.html?agent=${encodeURIComponent(agent)}">${agent}</a>
                         </td>
@@ -561,9 +626,9 @@
                 agentNicheMap = agentNiche;
                 allData = revenue;
                 
-                // If no niche specified, default to most popular one
-                if (!currentNiche && allNiches.length > 0) {
-                    currentNiche = allNiches[0].niche;
+                // If no niche specified, default to "All Niches"
+                if (!currentNiche) {
+                    currentNiche = 'All Niches';
                     history.replaceState({}, '', `niche.html?niche=${encodeURIComponent(currentNiche)}`);
                 }
                 
