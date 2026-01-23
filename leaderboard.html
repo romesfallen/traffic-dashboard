@@ -51,6 +51,41 @@
             text-decoration: underline;
         }
 
+        /* User info and sign out */
+        .user-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #1f2937;
+            color: white;
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 16px;
+            font-size: 13px;
+            z-index: 1000;
+        }
+
+        .user-bar .user-email {
+            color: #d1d5db;
+        }
+
+        .user-bar .sign-out {
+            color: #f97316;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .user-bar .sign-out:hover {
+            text-decoration: underline;
+        }
+
+        body {
+            padding-top: 56px !important;
+        }
+
         .tabs {
             display: flex;
             justify-content: center;
@@ -186,6 +221,10 @@
     </style>
 </head>
 <body>
+    <div class="user-bar" id="userBar" style="display: none;">
+        <span class="user-email" id="userEmail"></span>
+        <a href="/api/auth/logout" class="sign-out">Sign Out</a>
+    </div>
     <div class="header">
         <h1>Revenue Leaderboard</h1>
         <p>All Sites with Revenue > $0.01 — <span id="siteCount">Loading...</span></p>
@@ -366,6 +405,21 @@
         }
 
         init();
+
+        // Load user info for header bar
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+                if (data.authenticated && data.email) {
+                    document.getElementById('userEmail').textContent = data.email;
+                    document.getElementById('userBar').style.display = 'flex';
+                }
+            } catch (error) {
+                console.log('User info not available');
+            }
+        }
+        loadUserInfo();
     </script>
 </body>
 </html>

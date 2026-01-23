@@ -40,6 +40,13 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Meta robots tags (noindex, nofollow, noarchive, nosnippet) on all pages
 - [x] X-Robots-Tag HTTP header via vercel.json
 
+### Authentication (Google OAuth)
+- [x] Edge middleware protects all routes
+- [x] Google OAuth login with email allowlist
+- [x] 24-hour session cookies (HttpOnly, Secure)
+- [x] User bar showing logged-in email with Sign Out button
+- [x] Access denied page for non-approved emails
+
 ### Main Dashboard (index-apex.html)
 - [x] ApexCharts line/area chart with traffic data
 - [x] Dual traffic series: Internal Monthly Traffic vs Ahrefs Monthly Traffic
@@ -164,7 +171,14 @@ traffic-dashboard/
 ├── leaderboard.html         # Revenue leaderboard page
 ├── index.html               # Legacy Chart.js version (deprecated)
 ├── index-apex-annotations.html  # Experimental annotations version
-├── vercel.json              # Vercel deployment config + X-Robots-Tag header
+├── middleware.js            # Edge middleware for auth protection
+├── api/
+│   └── auth/
+│       ├── login.js         # Redirects to Google OAuth
+│       ├── callback.js      # Handles OAuth callback, validates email
+│       ├── logout.js        # Clears session cookie
+│       └── me.js            # Returns current user info
+├── vercel.json              # Vercel deployment config + headers
 ├── robots.txt               # Blocks search engine crawlers
 ├── .cursorrules             # This file - KEEP UPDATED
 ├── .gitignore               # Git ignore rules
@@ -217,6 +231,19 @@ python3 -m http.server 8000
 # Open http://localhost:8000/index-apex.html
 ```
 Note: Opening HTML directly via `file://` won't load CSVs (browser security). Use local server.
+Note: Auth only works in production (Vercel). Local dev bypasses auth.
+
+### Manage allowed users
+Update `ALLOWED_EMAILS` env var in Vercel dashboard (comma-separated list).
+No redeploy needed - changes take effect immediately.
+
+### Required Vercel Environment Variables
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_CLIENT_ID` | From Google Cloud Console OAuth credentials |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth credentials |
+| `SESSION_SECRET` | Random 32+ char string for signing cookies |
+| `ALLOWED_EMAILS` | Comma-separated list of approved emails |
 
 ---
 
@@ -255,6 +282,7 @@ Note: Opening HTML directly via `file://` won't load CSVs (browser security). Us
 | Jan 21, 2026 | Revenue % precision | Changed to 2 decimal places |
 | Jan 23, 2026 | Enhanced .cursorrules | Full lessons learned from git history |
 | Jan 23, 2026 | Search engine blocking | robots.txt, meta tags, X-Robots-Tag header |
+| Jan 23, 2026 | Google OAuth auth | Edge middleware, email allowlist, 24hr sessions |
 
 ---
 
