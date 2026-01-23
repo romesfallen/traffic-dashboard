@@ -829,9 +829,12 @@
             const revenueAxisMax = maxRevenue * 3;
             
             // REVENUE LABEL CHANGE: Build point annotations and store globally for toggle
+            // Use uniform Y position for all labels so they appear at same height near bottom of bars
+            const labelYPosition = maxRevenue * 0.15; // Position all labels low, just above the x-axis
+            
             currentAnnotations = revenueResult.revenueAnnotations.map(ann => ({
                 x: ann.x,
-                y: ann.y,
+                y: labelYPosition, // Fixed uniform height for all labels
                 yAxisIndex: 2, // Revenue y-axis
                 seriesIndex: 2, // Revenue series
                 marker: {
@@ -854,7 +857,7 @@
                             bottom: 0
                         }
                     },
-                    offsetY: 25, // Push label down toward bottom of bar
+                    offsetY: 0, // No additional offset needed with fixed position
                     offsetX: 0
                 }
             }));
