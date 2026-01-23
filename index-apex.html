@@ -1727,11 +1727,11 @@
                     const currentMonthVal = revenueRankings.values.currentMonth[domain] || 0;
                     
                     const lifetimePct = revenueRankings.totals.lifetime > 0 
-                        ? (lifetimeVal / revenueRankings.totals.lifetime * 100).toFixed(1) : 0;
+                        ? (lifetimeVal / revenueRankings.totals.lifetime * 100).toFixed(2) : 0;
                     const last3MonthPct = revenueRankings.totals.last3Month > 0 
-                        ? (last3MonthVal / revenueRankings.totals.last3Month * 100).toFixed(1) : 0;
+                        ? (last3MonthVal / revenueRankings.totals.last3Month * 100).toFixed(2) : 0;
                     const currentMonthPct = revenueRankings.totals.currentMonth > 0 
-                        ? (currentMonthVal / revenueRankings.totals.currentMonth * 100).toFixed(1) : 0;
+                        ? (currentMonthVal / revenueRankings.totals.currentMonth * 100).toFixed(2) : 0;
                     
                     domains[domain] = {
                         rank: idx + 1,
