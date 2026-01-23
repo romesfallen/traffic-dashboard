@@ -86,6 +86,113 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 
 ---
 
+## CSV Format Specifications
+
+> **CRITICAL:** If updating CSVs, maintain these exact formats. The dashboard will break if column names or structure changes.
+
+### 1. traffic-data.csv (Internal Traffic)
+
+**Format:** Wide format with dates as columns
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| (empty) | Row number (auto-generated) | `1` |
+| Website | Domain name | `decoratoradvice.com` |
+| Ahrefs Links | Link to Ahrefs for this domain | `https://app.ahrefs.com/...` |
+| Link Working | Status field (optional) | - |
+| Type | Category type | `Sales` |
+| Original Type | Original category (optional) | - |
+| `Mon D - YYYY` | Traffic value for that date | `16495` or `"54,316"` |
+
+**Date column format:** `Mon D - YYYY` (e.g., `Jul 1 - 2024`, `Jan 15 - 2025`)
+
+**Traffic values:** Can be plain numbers (`16495`) or comma-formatted strings (`"54,316"`)
+
+**Example row:**
+```
+1,decoratoradvice.com,https://app.ahrefs.com/...,Sales,,,,11209,16495,16572,...
+```
+
+### 2. revenue-history.csv (Monthly Revenue)
+
+**Format:** Wide format with months as columns
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| (header row 1) | Snapshot date | `1/19/26` |
+| Purchase Price | Cost to acquire | `$1,500.00` |
+| Live Date | When site went live | `Jan 2022 or earlier` |
+| Website | Domain name | `betterthisworld.com` |
+| Niche | Site category/niche | `General, Health, Business` |
+| `Mon YYYY` | Revenue for that month | `$375.00` or `-` |
+| Total | Lifetime revenue sum | `$610,244.64` |
+| Count | Number of months with revenue | `49` |
+
+**Month column format:** `Mon YYYY` (e.g., `Jan 2022`, `Dec 2025`)
+
+**Revenue values:** 
+- Dollar amounts with `$` and commas: `$1,500.00`, `$10,954.50`
+- `-` for no data/not applicable
+- Empty for no revenue that month
+
+**Example row:**
+```
+Bought - Mohit,"$1,500.00",Jan 2022 or earlier,betterthisworld.com,"General, Health, Business",$375.00,$630.00,...,$610,244.64,49
+```
+
+### 3. ahrefs_organic_traffic_results.csv (Ahrefs Traffic)
+
+**Format:** Long/tidy format (one row per domain per date)
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| domain | Domain name | `lyncconf.com` |
+| date | ISO 8601 date | `2024-01-01T00:00:00Z` |
+| organic_traffic | Traffic value (integer) | `2024` |
+
+**Date format:** ISO 8601 with timezone: `YYYY-MM-DDTHH:MM:SSZ`
+
+**Example rows:**
+```
+domain,date,organic_traffic
+lyncconf.com,2024-01-01T00:00:00Z,2024
+lyncconf.com,2024-01-02T00:00:00Z,1980
+```
+
+### 4. DR History.csv (Domain Rating)
+
+**Format:** Wide format with dates as columns (same structure as traffic-data.csv)
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| (empty) | Row number | `1` |
+| Website | Domain name | `decoratoradvice.com` |
+| `Mon D - YYYY` | DR value for that date (0-100) | `57`, `72`, or empty |
+
+**Date column format:** `Mon D - YYYY` (e.g., `Jul 1 - 2024`)
+
+**DR values:** Numbers 0-100, or empty for no data
+
+**Example row:**
+```
+1,decoratoradvice.com,57,,72,72,56,71,71,71,...
+```
+
+### Adding New Data
+
+**To add new dates:**
+1. For traffic-data.csv and DR History.csv: Add new date column to the right
+2. For revenue-history.csv: Add new month column to the right (before Total/Count)
+3. For ahrefs_organic_traffic_results.csv: Append new rows at the bottom
+
+**Common issues:**
+- Ensure domain names match exactly across all files (case-sensitive)
+- Don't change column order for existing columns
+- Keep date formats consistent within each file
+- Revenue must include `$` symbol and commas for thousands
+
+---
+
 ## Tech Stack
 
 | Component | Technology |
@@ -162,6 +269,20 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 ### Traffic Band Analysis (from earlier analysis)
 - **Site-level bands (overall average per site)**: Doesn't show direct traffic→revenue relationship
 - **WINNER: Month-level bands (each site-month is separate)**: Shows "when a site has X traffic in a given month, how much revenue does it typically make?"
+
+### Revenue Label Positioning
+- **Position at actual revenue value (y: ann.y)**: Low revenue months had labels below x-axis
+- **Fixed pixel offset (offsetY: 25)**: Inconsistent positioning at different revenue scales
+- **WINNER: Uniform Y position (maxRevenue * 0.025)**: All labels at same height near bottom of bars
+
+### X-Axis Month Labels
+- **Default datetime axis labels**: Position at tick marks (1st of month), not centered on revenue bars
+- **offsetX pixel nudge**: Only works at one zoom level, breaks at others
+- **WINNER: Xaxis annotations at day 13**: Centered on revenue bars (days 1-25), consistent at all zoom levels
+
+### January Highlighting
+- **Orange color + bold + larger font**: Too visually heavy
+- **WINNER: Bold font only**: Subtle but clear year boundary marker
 
 ---
 
@@ -249,16 +370,70 @@ No redeploy needed - changes take effect immediately.
 
 ---
 
+## Troubleshooting Guide
+
+> Quick fixes for common issues. Copy-paste these into Cursor if you need help.
+
+### Dashboard won't load / blank page
+**Symptoms:** White screen, nothing displays
+**Causes & Fixes:**
+1. **Check browser console** (F12 → Console tab) for red errors
+2. **CSV file missing or renamed** - Ensure all 4 CSVs exist with exact names
+3. **CSV parsing error** - Check for malformed rows (unbalanced quotes, wrong comma count)
+4. **CDN down** - ApexCharts or PapaParse CDN unavailable (rare). Replace CDN URLs in HTML.
+
+### Chart shows "No data" or empty
+**Symptoms:** Chart renders but no lines/bars
+**Fixes:**
+1. Domain name in dropdown doesn't match CSV exactly (case-sensitive!)
+2. Date columns changed format - must be `Mon D - YYYY` for traffic/DR
+3. All traffic values are empty/null for that domain
+
+### Authentication not working
+**Symptoms:** Redirects to login forever, "Access Denied" for valid emails
+**Fixes:**
+1. Check Vercel Environment Variables are set correctly
+2. `ALLOWED_EMAILS` must be comma-separated, no spaces: `user1@gmail.com,user2@gmail.com`
+3. Google OAuth credentials expired - regenerate in Google Cloud Console
+4. Session cookie issues - clear browser cookies, try incognito
+
+### Revenue not showing for a domain
+**Symptoms:** Domain appears but revenue bubbles show $0
+**Fixes:**
+1. Domain name in revenue-history.csv must match traffic-data.csv exactly
+2. Revenue values must include `$` symbol
+3. Check the domain row exists in revenue-history.csv
+
+### Vercel deployment failed
+**Symptoms:** Push succeeded but site shows old version or errors
+**Fixes:**
+1. Check Vercel dashboard for build errors
+2. Verify all files committed (`git status` shows clean)
+3. Check vercel.json syntax is valid JSON
+
+### Local development not loading CSVs
+**Symptoms:** Works on Vercel but not locally
+**Fix:** Must use local server, not `file://` protocol:
+```bash
+cd traffic-dashboard
+python3 -m http.server 8000
+# Open http://localhost:8000/index-apex.html
+```
+
+---
+
 ## Pending / Future Features
 
-- [ ] Export chart as PNG/PDF
-- [ ] Custom date range picker
-- [ ] Multi-domain comparison view
-- [ ] Data table view toggle
-- [ ] Dark mode toggle
-- [ ] Mobile-optimized layout
-- [ ] Algorithm update annotations
-- [ ] Real-time API integration
+### High Priority
+- [ ] **Automated daily data updates** - Currently manual CSV updates. Options discussed:
+  - **Option A: Airtable backend** - Store data in Airtable, dashboard fetches via Airtable API. Pros: easy to edit, no code to update data. Cons: API rate limits, potential cost at scale.
+  - **Option B: S3 + scheduled task** - CSVs stored in S3 bucket, scheduled Lambda/script updates them daily, dashboard fetches from S3. Pros: scalable, cheap. Cons: more setup, need AWS account.
+  - **Option C: GitHub Actions** - Scheduled workflow commits updated CSVs to repo daily. Pros: no extra services. Cons: need script to generate/fetch new data.
+  - **Decision needed:** Where does the source data come from? (Google Sheets? Database? API?)
+- [ ] **Staged CSV loading** - Load top 100 revenue domains first for fast initial render, then load rest in background. Options: (A) pre-split CSVs, (B) streaming parse, (C) sort CSVs by revenue rank + preview mode
+- [ ] **Sales manager assignment** - Add "Sales Manager" column to revenue-history.csv (e.g., "Rina", "Jack", etc.)
+- [ ] **Sales manager filter view** - Filter dashboard/leaderboard to show only sites owned by a specific sales manager. Could be dropdown filter or separate page like leaderboard
+
 
 ---
 
@@ -285,7 +460,10 @@ No redeploy needed - changes take effect immediately.
 | Jan 23, 2026 | Enhanced .cursorrules | Full lessons learned from git history |
 | Jan 23, 2026 | Search engine blocking | robots.txt, meta tags, X-Robots-Tag header |
 | Jan 23, 2026 | Google OAuth auth | Serverless API + client-side check, email allowlist, 24hr sessions |
+| Jan 23, 2026 | Revenue label positioning | Fixed uniform height near x-axis (was varying with bar height) |
+| Jan 23, 2026 | Centered month labels | Xaxis annotations at day 13 of each month, replacing auto datetime labels |
+| Jan 23, 2026 | January label highlighting | Bold font weight for Jan labels to mark year boundaries |
 
 ---
 
-*Last updated: January 23, 2026*
+*Last updated: January 23, 2026 - Revenue label and month label centering improvements*
