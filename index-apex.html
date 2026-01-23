@@ -234,6 +234,42 @@
             color: #333333;
         }
 
+        /* View selector toggle group */
+        .view-toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #333333;
+        }
+
+        .view-toggle-group span {
+            margin-right: 4px;
+        }
+
+        .view-btn {
+            background: #f5f5f5;
+            border: 1px solid #e5e5e5;
+            color: #666666;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .view-btn:hover {
+            border-color: #f97316;
+            color: #f97316;
+        }
+
+        .view-btn.active {
+            background: #f97316;
+            border-color: #f97316;
+            color: #ffffff;
+        }
+
         .toggle-switch {
             position: relative;
             width: 40px;
@@ -352,6 +388,12 @@
             <span>Revenue Labels</span>
             <div class="toggle-switch active" id="revenueLabelToggle"></div>
         </div>
+        <div class="view-toggle-group">
+            <span>Traffic View:</span>
+            <button class="view-btn active" data-view="monthly" id="viewMonthly">Monthly</button>
+            <button class="view-btn" data-view="average" id="viewAverage">Average</button>
+            <button class="view-btn" data-view="both" id="viewBoth">Both</button>
+        </div>
     </div>
 
     <div class="controls">
@@ -384,6 +426,11 @@
         let currentChart = null;
         let currentAnnotations = [];
         
+        // VIEW TOGGLE: Track current view mode (monthly, average, both)
+        let currentView = 'monthly';
+        let currentDomainData = null;
+        let currentDomainName = null;
+        
         // Fallback hardcoded data (used if CSV loading fails or for file:// protocol)
         const fallbackData = {
             "lyncconf.com": {
@@ -392,6 +439,8 @@
                 "ourData": [21181, 12214, 14683, 14853, 14853, 15828, 16243, 15436, 14741, 14591, 14727, 13648, 13652, 13630, 12950, 12785, 12250, 12168, 12758, 14113, 13908, 14377, 15564, 15544, 31400, 18697, 17470, 17697, 17702, 17436, 17045, null, null, null, 16256, 15751, 16753, 16786, 18064, 18444, 18560, 18826, 18574, 17890, null, 17453, 17140, 17515, 17472, 17966, 17692, 17796, 17788, 17691, 17966, 18013, 17807, 18917, 18062, 19593, 19893, 19857, 20241, 21025, 20957, 20979, 20757, 21519, 21324, 21689, 21238, 22351, 22236, 22078, 22354, 22372, 22572, 22134, 25845, 25669, 25275, 25641, 25896, 27240, 26132, 25311, 27678, 26710, 22632, 22060, 21772, 20044, 19439, 20014, 20337, 20468, 22754, 22839, 22863, 22027, 23249, 23045, 20593, 20627, 19835, 19944, 20549, 22075, 22146, 21869, 22935, 22359, 21876, 21857, 22162, 21277, 20967, 20787, 21752, 21080, 21134, 35709, 34312, 39097, 38726, 38991, 38769, 38588, 38377, 42276, 41954, 41584, 42779, 42335, 41994, 41333, 41222, 41196, 41253, 41331, 40501, 40914, 39037, 36227, 35709, 36243, 37719, 37708, 37206, 37153, 36398, 35574, 34636, 34273, 33938, 33092, 33291, 37877, 37846, 40497, 41423, 37901, 37756, 34484, 32813, 32759, 31730, 31411, 31133, 35860, 35727, 35466, 35534, 33597, 33725, 33969, 33876, 33239, 29435, 29435, 29435, 29499, 29318, 29332, 29060, 29056, 33879, 32360, 31831, 32154, 31830, 32360, 32273, 30332, 26822, 25631, 25645, 27155, 26979, 27054, 28928, 28757, 29755, 29266, 29757, 29253, 29255, 33132, 33346, 33206, 33196, 31908, 31758, 31450, 31720, 31528, 31688, 33221],
                 "ahrefsData": [17528, 17527, 17186, 17523, 18024, 17792, 17977, 17593, 17404, 17257, 17189, 17204, 17218, 17231, 16822, 16528, 16154, 16641, 16946, 17137, 17012, 17271, 18026, 17927, 18299, 17851, 17701, 17802, 17731, 17337, 16765, 16442, 15874, 15386, 15074, 14772, 14817, 14566, 14575, 14401, 14444, 14705, 14532, 14530, 14220, 14379, 14276, 14016, 13828, 14019, 14058, 14039, 14200, 14291, 14674, 15683, 16767, 16973, 16861, 16951, 17571, 17970, 17935, 18359, 18498, 17629, 18192, 18461, 18206, 18342, 18807, 18556, 18453, 18828, 18855, 18331, 18499, 18902, 19215, 19260, 18655, 18479, 19183, 26261, 27209, 31515, 32057, 37858, 39789, 41136, 43910, 43490, 44102, 44949, 49039, 53254, 54810, 55483, 55860, 59064, 59505, 60087, 59502, 59714, 61523, 62437, 66084, 66295, 65929, 66803, 67012, 66667, 65457, 65294, 77416, 78362, 80187, 82054, 82102, 83507, 85663, 85012, 84857, 87302, 86783, 90198, 89738, 89679, 89303, 89287, 88653, 89210, 89792, 89049, 89206, 89521, 89308, 89491, 89589, 89437, 90023, 87930, 87415, 87761, 87824, 83780, 80815, 81108, 81137, 80606, 78352, 76677, 75936, 74946, 75697, 75902, 72775, 72194, 71603, 72297, 63810, 64307, 62909, 61219, 59119, 59079, 59178, 58832, 58824, 58272, 58092, 57793, 56335, 55104, 54808, 54797, 52267, 49815, 49815, 49815, 49804, 49030, 47758, 47372, 47377, 47392, 44775, 43091, 44252, 43685, 44094, 44010, 41503, 39458, 37858, 37163, 37451, 37281, 37832, 37197, 37162, 36846, 35246, 34897, 34439, 34555, 34444, 34729, 34686, 34582, 33974, 33946, 33551, 33270, 33193, 33178, 33322, 33180],
                 "drData": [67, 67, 67, 68, 68, 69, 70, 71, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 71, 72, 72, 72, 71, 71, 71, 71, 71, 71, 72, 72, 72, 72, 72, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 70, 70, 70, 70, 70, 70, 70, 70, 70, 69, 70, 70, 70, 69, 69, 69, 69, 69, 69, 68, 68, 68, 68, 68, 68, 68, 70, 70, 70, 70, 70, 70, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71],
+                "internalAvgData": [],
+                "ahrefsAvgData": [],
                 "ourChange": "+56.8%",
                 "ahrefsChange": "+89.3%",
                 "revenueRankings": {
@@ -642,6 +691,10 @@
                 currentChart = null;
             }
             
+            // VIEW TOGGLE: Store current domain info for view toggles
+            currentDomainData = data;
+            currentDomainName = domain;
+            
             const chartsDiv = document.getElementById('charts');
             chartsDiv.innerHTML = '';
 
@@ -711,6 +764,8 @@
             const ourProcessed = interpolateData(filtered.ourData);
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const drProcessed = interpolateData(filtered.drData || []);
+            const internalAvgProcessed = interpolateData(data.internalAvgData || []);
+            const ahrefsAvgProcessed = interpolateData(data.ahrefsAvgData || []);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             
             // Get x-axis bounds for initial zoom (allows zooming out beyond this range)
@@ -734,6 +789,8 @@
             const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
+            const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
+            const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
             
             // Calculate max revenue for "bottom-third" axis scaling
@@ -774,24 +831,99 @@
             // Use annotations based on current toggle state
             const pointAnnotations = showRevenueLabels ? currentAnnotations : [];
 
-            const options = {
-                series: [{
+            // VIEW TOGGLE: Determine which series to show based on currentView
+            const showMonthly = currentView === 'monthly' || currentView === 'both';
+            const showAverage = currentView === 'average' || currentView === 'both';
+            
+            // Build series array based on view
+            const allSeries = [];
+            
+            // Monthly series (indices 0, 1)
+            if (showMonthly) {
+                allSeries.push({
                     name: 'Internal Monthly Traffic',
                     type: 'area',
                     data: ourDataPoints
-                }, {
+                });
+                allSeries.push({
                     name: 'Ahrefs Monthly Traffic',
                     type: 'area',
                     data: ahrefsDataPoints
-                }, {
-                    name: 'Revenue',
+                });
+            }
+            
+            // Average series (indices 2, 3 when monthly hidden, or 4, 5 when both shown)
+            if (showAverage) {
+                allSeries.push({
+                    name: 'Internal Average Traffic',
                     type: 'area',
-                    data: revenuePoints
-                }, {
-                    name: 'DR',
-                    type: 'line',
-                    data: drDataPoints
-                }],
+                    data: internalAvgDataPoints
+                });
+                allSeries.push({
+                    name: 'Ahrefs Average Traffic',
+                    type: 'area',
+                    data: ahrefsAvgDataPoints
+                });
+            }
+            
+            // Revenue always shown
+            allSeries.push({
+                name: 'Revenue',
+                type: 'area',
+                data: revenuePoints
+            });
+            
+            // DR always shown
+            allSeries.push({
+                name: 'DR',
+                type: 'line',
+                data: drDataPoints
+            });
+            
+            // Build colors array based on visible series
+            const allColors = [];
+            if (showMonthly) {
+                allColors.push('#f97316'); // Internal Monthly - Orange
+                allColors.push('#3b82f6'); // Ahrefs Monthly - Blue
+            }
+            if (showAverage) {
+                allColors.push('#ef4444'); // Internal Average - Red
+                allColors.push('#06b6d4'); // Ahrefs Average - Cyan
+            }
+            allColors.push('#10b981'); // Revenue - Green
+            allColors.push('#a855f7'); // DR - Purple
+            
+            // Build stroke config based on visible series
+            const strokeCurve = [];
+            const strokeWidth = [];
+            const strokeDash = [];
+            const fillOpacity = [];
+            
+            if (showMonthly) {
+                strokeCurve.push('smooth', 'smooth');
+                strokeWidth.push(2, 2);
+                strokeDash.push(0, 0);
+                fillOpacity.push(0, 0);
+            }
+            if (showAverage) {
+                strokeCurve.push('smooth', 'smooth');
+                strokeWidth.push(2, 2);
+                strokeDash.push(5, 5); // Dashed lines for average
+                fillOpacity.push(0, 0);
+            }
+            // Revenue
+            strokeCurve.push('stepline');
+            strokeWidth.push(0);
+            strokeDash.push(0);
+            fillOpacity.push(0.25);
+            // DR
+            strokeCurve.push('straight');
+            strokeWidth.push(3);
+            strokeDash.push(6);
+            fillOpacity.push(0);
+            
+            const options = {
+                series: allSeries,
                 chart: {
                     type: 'line',
                     height: 480,
@@ -823,18 +955,18 @@
                 annotations: {
                     points: pointAnnotations
                 },
-                colors: ['#f97316', '#3b82f6', '#10b981', '#a855f7'],
+                colors: allColors,
                 fill: {
-                    type: ['solid', 'solid', 'solid', 'solid'],
-                    opacity: [0, 0, 0.25, 0]
+                    type: allSeries.map(() => 'solid'),
+                    opacity: fillOpacity
                 },
                 stroke: {
-                    curve: ['smooth', 'smooth', 'stepline', 'straight'],
-                    width: [2, 2, 0, 3],
-                    dashArray: [0, 0, 0, 6] // DR is dotted line (thicker dash)
+                    curve: strokeCurve,
+                    width: strokeWidth,
+                    dashArray: strokeDash
                 },
                 markers: {
-                    size: [0, 0, 0, 2], // Small markers for DR to make line visible
+                    size: allSeries.map((s, i) => s.name === 'DR' ? 2 : 0), // Small markers for DR only
                     hover: { size: 5 },
                     strokeWidth: 0
                 },
@@ -865,32 +997,73 @@
                     },
                     tooltip: { enabled: true, format: 'dd MMM yyyy' }
                 },
-                yaxis: [
-                    // [0] Internal Monthly Traffic - Left Axis (Primary Traffic)
-                    {
-                        seriesName: 'Internal Monthly Traffic',
-                        title: {
-                            text: 'Traffic',
-                            style: { color: '#333333', fontSize: '12px' }
-                        },
-                        labels: {
-                            style: { colors: '#333333' },
-                            formatter: val => val ? val.toLocaleString() : ''
-                        },
-                        min: 0
-                    },
-                    // [1] Ahrefs Monthly Traffic - Left Axis (Linked to Internal Monthly Traffic axis)
-                    {
-                        seriesName: 'Ahrefs Monthly Traffic',
-                        show: false, // Hide duplicate axis, shares scale with Our Data
-                        labels: {
-                            style: { colors: '#333333' },
-                            formatter: val => val ? val.toLocaleString() : ''
-                        },
-                        min: 0
-                    },
-                    // [2] Revenue - Right Axis A (Bottom-third logic)
-                    {
+                yaxis: (() => {
+                    // Build y-axis config dynamically based on visible series
+                    const yaxisConfig = [];
+                    
+                    // First traffic series gets the main left axis
+                    let firstTrafficAxis = true;
+                    
+                    if (showMonthly) {
+                        // Internal Monthly Traffic - Left Axis (Primary)
+                        yaxisConfig.push({
+                            seriesName: 'Internal Monthly Traffic',
+                            title: firstTrafficAxis ? {
+                                text: 'Traffic',
+                                style: { color: '#333333', fontSize: '12px' }
+                            } : undefined,
+                            show: firstTrafficAxis,
+                            labels: {
+                                style: { colors: '#333333' },
+                                formatter: val => val ? val.toLocaleString() : ''
+                            },
+                            min: 0
+                        });
+                        firstTrafficAxis = false;
+                        
+                        // Ahrefs Monthly - shares axis
+                        yaxisConfig.push({
+                            seriesName: 'Ahrefs Monthly Traffic',
+                            show: false,
+                            labels: {
+                                style: { colors: '#333333' },
+                                formatter: val => val ? val.toLocaleString() : ''
+                            },
+                            min: 0
+                        });
+                    }
+                    
+                    if (showAverage) {
+                        // Internal Average Traffic
+                        yaxisConfig.push({
+                            seriesName: 'Internal Average Traffic',
+                            title: firstTrafficAxis ? {
+                                text: 'Traffic',
+                                style: { color: '#333333', fontSize: '12px' }
+                            } : undefined,
+                            show: firstTrafficAxis,
+                            labels: {
+                                style: { colors: '#333333' },
+                                formatter: val => val ? val.toLocaleString() : ''
+                            },
+                            min: 0
+                        });
+                        firstTrafficAxis = false;
+                        
+                        // Ahrefs Average - shares axis
+                        yaxisConfig.push({
+                            seriesName: 'Ahrefs Average Traffic',
+                            show: false,
+                            labels: {
+                                style: { colors: '#333333' },
+                                formatter: val => val ? val.toLocaleString() : ''
+                            },
+                            min: 0
+                        });
+                    }
+                    
+                    // Revenue - Right Axis
+                    yaxisConfig.push({
                         seriesName: 'Revenue',
                         opposite: true,
                         title: {
@@ -902,10 +1075,11 @@
                             formatter: val => val ? '$' + val.toLocaleString() : ''
                         },
                         min: 0,
-                        max: revenueAxisMax // Bottom-third logic: max = maxRevenue * 3
-                    },
-                    // [3] DR - Right Axis B (Offset, 0-100 scale)
-                    {
+                        max: revenueAxisMax
+                    });
+                    
+                    // DR - Right Axis B
+                    yaxisConfig.push({
                         seriesName: 'DR',
                         opposite: true,
                         title: {
@@ -926,8 +1100,10 @@
                             color: '#a855f7',
                             offsetX: -5
                         }
-                    }
-                ],
+                    });
+                    
+                    return yaxisConfig;
+                })(),
                 grid: {
                     borderColor: '#e8e8e8',
                     strokeDashArray: 0,
@@ -953,9 +1129,6 @@
                         enabled: false
                     },
                     custom: function({ series, seriesIndex, dataPointIndex, w }) {
-                        const colors = ['#f97316', '#3b82f6', '#10b981', '#a855f7'];
-                        const names = ['Internal Monthly Traffic', 'Ahrefs Monthly Traffic', 'Revenue', 'DR'];
-                        
                         // Get the x value (timestamp) from the HOVERED series
                         const hoveredSeriesData = w.config.series[seriesIndex].data;
                         const hoveredPoint = hoveredSeriesData[dataPointIndex];
@@ -973,14 +1146,20 @@
                         let html = '<div class="apexcharts-tooltip-custom" style="padding: 10px; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);">';
                         html += '<div style="font-weight: 600; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #eee; color: #333;">' + dateStr + '</div>';
                         
-                        // Loop through all 4 series and find matching data by timestamp
-                        for (let i = 0; i < 4; i++) {
+                        // Loop through all visible series dynamically
+                        const seriesCount = w.config.series.length;
+                        const seriesColors = w.config.colors;
+                        
+                        for (let i = 0; i < seriesCount; i++) {
                             const seriesData = w.config.series[i].data;
+                            const seriesName = w.config.series[i].name;
+                            const seriesColor = seriesColors[i];
                             let value = null;
                             
                             // Find the closest point by timestamp
                             let closestDiff = Infinity;
-                            const maxDiff = i === 2 ? 20 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; // 20 days for revenue, 1 day for others
+                            const isRevenue = seriesName === 'Revenue';
+                            const maxDiff = isRevenue ? 20 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
                             
                             for (let j = 0; j < seriesData.length; j++) {
                                 const point = seriesData[j];
@@ -993,31 +1172,26 @@
                                 }
                             }
                             
-                            // Format value
+                            // Format value based on series type
                             let displayValue = '—';
                             if (value !== null && value !== undefined) {
-                                if (i === 2) {
+                                if (seriesName === 'Revenue') {
                                     displayValue = '$' + value.toLocaleString();
-                                } else if (i === 3) {
+                                } else if (seriesName === 'DR') {
                                     displayValue = value.toFixed(0);
                                 } else if (value !== 0) {
                                     displayValue = value.toLocaleString() + ' visits';
                                 }
                             }
                             
-                            // Skip revenue if no data found (null)
-                            if (i === 2 && value === null) {
-                                continue;
-                            }
-                            
-                            // Skip DR if no data found
-                            if (i === 3 && value === null) {
+                            // Skip if no data found
+                            if (value === null) {
                                 continue;
                             }
                             
                             html += '<div style="display: flex; align-items: center; padding: 4px 0;">';
-                            html += '<span style="width: 10px; height: 10px; border-radius: 50%; background: ' + colors[i] + '; margin-right: 8px;"></span>';
-                            html += '<span style="color: #666; min-width: 70px;">' + names[i] + ':</span>';
+                            html += '<span style="width: 10px; height: 10px; border-radius: 50%; background: ' + seriesColor + '; margin-right: 8px;"></span>';
+                            html += '<span style="color: #666; min-width: 140px;">' + seriesName + ':</span>';
                             html += '<span style="font-weight: 600; color: #333; margin-left: auto;">' + displayValue + '</span>';
                             html += '</div>';
                         }
@@ -1163,6 +1337,33 @@
                         }
                     }, false, false); // redrawPaths=false, animate=false for instant toggle
                 }
+            });
+        }
+        
+        // VIEW TOGGLE: Setup view toggle buttons (Monthly / Average / Both)
+        function setupViewToggle() {
+            const buttons = document.querySelectorAll('.view-btn');
+            
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const newView = this.dataset.view;
+                    if (newView === currentView) return; // No change
+                    
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update current view
+                    currentView = newView;
+                    
+                    // Re-render chart with new view
+                    if (currentDomainData && currentDomainName) {
+                        // Get current date range selection
+                        const dateRangeSelect = document.getElementById('chartDateRange');
+                        const currentDateRange = dateRangeSelect ? dateRangeSelect.value : 'dec2024';
+                        createChart(currentDomainName, currentDomainData, currentDateRange);
+                    }
+                });
             });
         }
 
@@ -1501,6 +1702,112 @@
             }
         }
 
+        async function loadInternalAverageCSV() {
+            try {
+                const response = await fetch('internal-average-traffic.csv');
+                if (!response.ok) throw new Error('Failed to load Internal Average CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const internalAvgByDomain = {};
+                
+                // Process each target domain
+                TARGET_DOMAINS.forEach(domain => {
+                    const domainRows = parsed.data.filter(row => 
+                        row.domain && row.domain.toLowerCase() === domain.toLowerCase()
+                    );
+                    
+                    const dataMap = new Map();
+                    domainRows.forEach(row => {
+                        if (!row.date || !row.average_traffic) return;
+                        
+                        const isoDate = new Date(row.date);
+                        if (isNaN(isoDate.getTime())) return;
+                        
+                        const month = monthNames[isoDate.getMonth()];
+                        const day = isoDate.getDate();
+                        const year = isoDate.getFullYear();
+                        const dateStr = `${month} ${day} ${year}`;
+                        
+                        const value = parseNumber(row.average_traffic);
+                        if (value !== null && value !== undefined) {
+                            dataMap.set(dateStr, value);
+                        }
+                    });
+                    
+                    internalAvgByDomain[domain] = dataMap;
+                });
+                
+                console.log('✅ Internal Average data loaded for domains:', Object.keys(internalAvgByDomain).filter(d => internalAvgByDomain[d].size > 0).map(d => `${d}: ${internalAvgByDomain[d].size} points`));
+                return internalAvgByDomain;
+            } catch (error) {
+                console.warn('Warning loading Internal Average CSV:', error);
+                // Return empty maps - graceful degradation
+                const emptyResult = {};
+                TARGET_DOMAINS.forEach(domain => emptyResult[domain] = new Map());
+                return emptyResult;
+            }
+        }
+
+        async function loadAhrefsAverageCSV() {
+            try {
+                const response = await fetch('ahrefs-average-traffic.csv');
+                if (!response.ok) throw new Error('Failed to load Ahrefs Average CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const ahrefsAvgByDomain = {};
+                
+                // Process each target domain
+                TARGET_DOMAINS.forEach(domain => {
+                    const domainRows = parsed.data.filter(row => 
+                        row.domain && row.domain.toLowerCase() === domain.toLowerCase()
+                    );
+                    
+                    const dataMap = new Map();
+                    domainRows.forEach(row => {
+                        if (!row.date || !row.average_traffic) return;
+                        
+                        const isoDate = new Date(row.date);
+                        if (isNaN(isoDate.getTime())) return;
+                        
+                        const month = monthNames[isoDate.getMonth()];
+                        const day = isoDate.getDate();
+                        const year = isoDate.getFullYear();
+                        const dateStr = `${month} ${day} ${year}`;
+                        
+                        const value = parseNumber(row.average_traffic);
+                        if (value !== null && value !== undefined) {
+                            dataMap.set(dateStr, value);
+                        }
+                    });
+                    
+                    ahrefsAvgByDomain[domain] = dataMap;
+                });
+                
+                console.log('✅ Ahrefs Average data loaded for domains:', Object.keys(ahrefsAvgByDomain).filter(d => ahrefsAvgByDomain[d].size > 0).map(d => `${d}: ${ahrefsAvgByDomain[d].size} points`));
+                return ahrefsAvgByDomain;
+            } catch (error) {
+                console.warn('Warning loading Ahrefs Average CSV:', error);
+                // Return empty maps - graceful degradation
+                const emptyResult = {};
+                TARGET_DOMAINS.forEach(domain => emptyResult[domain] = new Map());
+                return emptyResult;
+            }
+        }
+
         async function loadTrafficCSV() {
             try {
                 const response = await fetch('traffic-data.csv');
@@ -1613,6 +1920,7 @@
             // Setup event listeners
             setupDomainSelector();
             setupRevenueToggle(); // REVENUE LABEL CHANGE
+            setupViewToggle(); // VIEW TOGGLE
             
             // Check for URL parameter to pre-select domain
             const urlParams = new URLSearchParams(window.location.search);
@@ -1661,8 +1969,8 @@
                     setTimeout(() => reject(new Error('CSV loading timeout')), 5000)
                 );
                 
-                const [revenueByDomain, trafficByDomain, ahrefsByDomain, drByDomain] = await Promise.race([
-                    Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV(), loadDRHistoryCSV()]),
+                const [revenueByDomain, trafficByDomain, ahrefsByDomain, drByDomain, internalAvgByDomain, ahrefsAvgByDomain] = await Promise.race([
+                    Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV(), loadDRHistoryCSV(), loadInternalAverageCSV(), loadAhrefsAverageCSV()]),
                     timeoutPromise
                 ]);
                 
@@ -1686,12 +1994,16 @@
                     const ahrefsDataMap = ahrefsByDomain[domain] || new Map();
                     const revenueData = revenueByDomain[domain] || {};
                     const drDataMap = drByDomain[domain] || new Map();
+                    const internalAvgMap = internalAvgByDomain[domain] || new Map();
+                    const ahrefsAvgMap = ahrefsAvgByDomain[domain] || new Map();
                     
-                    // Merge all dates from traffic, ahrefs, and DR
+                    // Merge all dates from traffic, ahrefs, DR, and averages
                     const allDatesSet = new Set();
                     trafficData.dates.forEach(d => allDatesSet.add(d));
                     ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
                     drDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+                    internalAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+                    ahrefsAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
                     
                     // Add revenue dates
                     Object.keys(revenueData).forEach(monthKey => {
@@ -1713,12 +2025,16 @@
                     const mergedOurData = [];
                     const mergedAhrefsData = [];
                     const mergedDRData = [];
+                    const mergedInternalAvgData = [];
+                    const mergedAhrefsAvgData = [];
                     
                     allDates.forEach(dateStr => {
                         mergedDates.push(dateStr);
                         mergedOurData.push(ourDataMap.get(dateStr) || null);
                         mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
                         mergedDRData.push(drDataMap.get(dateStr) || null);
+                        mergedInternalAvgData.push(internalAvgMap.get(dateStr) || null);
+                        mergedAhrefsAvgData.push(ahrefsAvgMap.get(dateStr) || null);
                     });
                     
                     // Get revenue values and calculate percentages
@@ -1739,6 +2055,8 @@
                         ourData: mergedOurData,
                         ahrefsData: mergedAhrefsData,
                         drData: mergedDRData,
+                        internalAvgData: mergedInternalAvgData,
+                        ahrefsAvgData: mergedAhrefsAvgData,
                         monthlyRevenue: revenueData,
                         revenueRankings: {
                             lifetime: revenueRankings.lifetime[domain] || TARGET_DOMAINS.length,
