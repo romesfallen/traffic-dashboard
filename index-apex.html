@@ -351,6 +351,33 @@
             opacity: 1;
         }
 
+        /* Copy domain button */
+        .copy-domain-btn {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+            vertical-align: middle;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+
+        .copy-domain-btn img {
+            width: 22px;
+            height: 22px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .copy-domain-btn:hover img {
+            opacity: 1;
+        }
+
+        .copy-domain-btn.copied img {
+            opacity: 1;
+        }
+
         /* Agent and Niche meta row */
         .domain-meta {
             text-align: center;
@@ -839,7 +866,7 @@
             }
             
             card.innerHTML = `
-                <div class="domain-title-centered">${domain}<a href="${getAhrefsUrl(domain)}" target="_blank" class="ahrefs-link" title="View in Ahrefs"><img src="ahrefs-icon.svg" alt="Ahrefs"></a></div>
+                <div class="domain-title-centered">${domain}<a href="${getAhrefsUrl(domain)}" target="_blank" class="ahrefs-link" title="View in Ahrefs"><img src="ahrefs-icon.svg" alt="Ahrefs"></a><button class="copy-domain-btn" onclick="copyDomain('${domain}', event)" title="Copy domain"><img src="copy-icon.svg" alt="Copy"></button></div>
                 <div class="domain-meta">
                     <span class="meta-label">Agent:</span>
                     <a href="agent.html?agent=${encodeURIComponent(agentName)}" class="agent-link">${agentName}</a>
@@ -1613,6 +1640,15 @@
         // Ahrefs URL Generator
         function getAhrefsUrl(domain) {
             return `https://app.ahrefs.com/v2-site-explorer/overview?backlinksChartMode=metrics&backlinksChartPerformanceSources=domainRating%7C%7CurlRating&backlinksCompetitorsSource=%22UrlRating%22&backlinksRefdomainsSource=%22RefDomainsNew%22&bestFilter=all&brandedTrafficSource=target-brand&chartGranularity=daily&chartInterval=all&competitors=&countries=&country=all&entitiesCategory=organisations&generalChartBrandedTraffic=other-brands&generalChartMode=metrics&generalChartPerformanceSources=organicTraffic&generalCompetitorsSource=%22OrganicTraffic%22&generalCountriesSource=organic-traffic&generalEntitiesChartMetric=Traffic&generalPagesByTrafficChartMode=Percentage&generalPagesByTrafficSource=Traffic&highlightChanges=7d&intentsMainSource=informational&keywordsSource=all&mode=subdomains&organicChartBrandedTraffic=non-branded%7C%7Cother-brands%7C%7Ctarget-brand&organicChartMode=metrics&organicChartPerformanceSources=organicTraffic&organicCompetitorsSource=%22OrganicTraffic%22&organicCountriesSource=organic-traffic&organicEntitiesChartMetric=Traffic&organicPagesByTrafficChartMode=Percentage&organicPagesByTrafficSource=Pages%7C%7CTraffic&overviewSerpChartMode=Own&overviewSerpChartSpec=AIOverview%7C%7CAdwordsBottom%7C%7CAdwordsTop%7C%7CDiscussions%7C%7CFeaturedSnippet%7C%7CImagePack%7C%7CKnowledgeCard%7C%7CKnowledgePanel%7C%7CLocalPack%7C%7CPaidSiteLinks%7C%7CPeopleAlsoAsk%7C%7CShoppingAds%7C%7CShoppingOrganic%7C%7CSitelinks%7C%7CThumbnail%7C%7CTopStories%7C%7CTweets%7C%7CVideoPreview%7C%7CVideos&overviewSerpManyChartSpec=Own%7C%7CTotal&overview_tab=general&paidSearchPaidKeywordsByTopPositionsChartMode=Percentage&paidTrafficSources=cost%7C%7Ctraffic&target=${encodeURIComponent(domain)}&topLevelDomainFilter=all&topOrganicKeywordsMode=normal&topOrganicPagesMode=normal&trafficType=Organic&volume_type=monthly`;
+        }
+
+        // Copy domain to clipboard
+        function copyDomain(domain, event) {
+            navigator.clipboard.writeText(domain).then(() => {
+                const btn = event.target.closest('.copy-domain-btn');
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1000);
+            });
         }
 
         // CSV Loading Functions
