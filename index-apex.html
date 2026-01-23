@@ -274,22 +274,42 @@
 
         .ranking-bubble {
             display: flex;
-            align-items: center;
-            gap: 6px;
+            flex-direction: column;
             background: #f5f5f5;
             border: 1px solid #e5e5e5;
-            border-radius: 20px;
-            padding: 8px 14px;
-            font-size: 13px;
+            border-radius: 12px;
+            padding: 12px 16px;
+            min-width: 140px;
+        }
+
+        .ranking-bubble .rank-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
         }
 
         .ranking-bubble .rank-number {
             font-weight: 700;
+            font-size: 16px;
             color: #f97316;
         }
 
         .ranking-bubble .rank-label {
             color: #666666;
+            font-size: 12px;
+        }
+
+        .ranking-bubble .rank-value {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333333;
+        }
+
+        .ranking-bubble .rank-pct {
+            font-size: 12px;
+            color: #10b981;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -349,7 +369,13 @@
                 "revenueRankings": {
                     "lifetime": 1,
                     "last3Month": 1,
-                    "currentMonth": 1
+                    "currentMonth": 1,
+                    "lifetimeValue": 351788,
+                    "last3MonthValue": 19585,
+                    "currentMonthValue": 3630,
+                    "lifetimePct": "100.0",
+                    "last3MonthPct": "100.0",
+                    "currentMonthPct": "100.0"
                 }
             }
         };
@@ -597,21 +623,40 @@
             card.className = 'card';
 
             // Get revenue rankings (with fallback defaults)
-            const rankings = data.revenueRankings || { lifetime: '-', last3Month: '-', currentMonth: '-' };
+            const rankings = data.revenueRankings || { 
+                lifetime: '-', last3Month: '-', currentMonth: '-',
+                lifetimeValue: 0, last3MonthValue: 0, currentMonthValue: 0,
+                lifetimePct: 0, last3MonthPct: 0, currentMonthPct: 0
+            };
+            
+            // Format currency
+            const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
             
             card.innerHTML = `
                 <div class="ranking-bubbles">
                     <div class="ranking-bubble">
-                        <span class="rank-number">#${rankings.lifetime}</span>
-                        <span class="rank-label">Lifetime Revenue</span>
+                        <div class="rank-header">
+                            <span class="rank-number">#${rankings.lifetime}</span>
+                            <span class="rank-label">Lifetime Revenue</span>
+                        </div>
+                        <div class="rank-value">${formatCurrency(rankings.lifetimeValue)}</div>
+                        <div class="rank-pct">${rankings.lifetimePct}% of portfolio</div>
                     </div>
                     <div class="ranking-bubble">
-                        <span class="rank-number">#${rankings.last3Month}</span>
-                        <span class="rank-label">Last 3 Months</span>
+                        <div class="rank-header">
+                            <span class="rank-number">#${rankings.last3Month}</span>
+                            <span class="rank-label">Last 3 Months</span>
+                        </div>
+                        <div class="rank-value">${formatCurrency(rankings.last3MonthValue)}</div>
+                        <div class="rank-pct">${rankings.last3MonthPct}% of portfolio</div>
                     </div>
                     <div class="ranking-bubble">
-                        <span class="rank-number">#${rankings.currentMonth}</span>
-                        <span class="rank-label">Current Month</span>
+                        <div class="rank-header">
+                            <span class="rank-number">#${rankings.currentMonth}</span>
+                            <span class="rank-label">Current Month</span>
+                        </div>
+                        <div class="rank-value">${formatCurrency(rankings.currentMonthValue)}</div>
+                        <div class="rank-pct">${rankings.currentMonthPct}% of portfolio</div>
                     </div>
                 </div>
                 <div class="chart-header">
@@ -1114,6 +1159,13 @@
                 currentMonthRevenue[domain] = revenue[currentMonth] || 0;
             });
             
+            // Calculate portfolio totals
+            const portfolioTotals = {
+                lifetime: Object.values(lifetimeRevenue).reduce((a, b) => a + b, 0),
+                last3Month: Object.values(last3MonthRevenue).reduce((a, b) => a + b, 0),
+                currentMonth: Object.values(currentMonthRevenue).reduce((a, b) => a + b, 0)
+            };
+            
             // Sort and assign ranks (1 = highest revenue)
             const sortAndRank = (obj) => {
                 const sorted = Object.entries(obj).sort((a, b) => b[1] - a[1]);
@@ -1125,7 +1177,13 @@
             return {
                 lifetime: sortAndRank(lifetimeRevenue),
                 last3Month: sortAndRank(last3MonthRevenue),
-                currentMonth: sortAndRank(currentMonthRevenue)
+                currentMonth: sortAndRank(currentMonthRevenue),
+                values: {
+                    lifetime: lifetimeRevenue,
+                    last3Month: last3MonthRevenue,
+                    currentMonth: currentMonthRevenue
+                },
+                totals: portfolioTotals
             };
         }
 
@@ -1626,6 +1684,18 @@
                         mergedDRData.push(drDataMap.get(dateStr) || null);
                     });
                     
+                    // Get revenue values and calculate percentages
+                    const lifetimeVal = revenueRankings.values.lifetime[domain] || 0;
+                    const last3MonthVal = revenueRankings.values.last3Month[domain] || 0;
+                    const currentMonthVal = revenueRankings.values.currentMonth[domain] || 0;
+                    
+                    const lifetimePct = revenueRankings.totals.lifetime > 0 
+                        ? (lifetimeVal / revenueRankings.totals.lifetime * 100).toFixed(1) : 0;
+                    const last3MonthPct = revenueRankings.totals.last3Month > 0 
+                        ? (last3MonthVal / revenueRankings.totals.last3Month * 100).toFixed(1) : 0;
+                    const currentMonthPct = revenueRankings.totals.currentMonth > 0 
+                        ? (currentMonthVal / revenueRankings.totals.currentMonth * 100).toFixed(1) : 0;
+                    
                     domains[domain] = {
                         rank: idx + 1,
                         dates: mergedDates,
@@ -1636,7 +1706,13 @@
                         revenueRankings: {
                             lifetime: revenueRankings.lifetime[domain] || TARGET_DOMAINS.length,
                             last3Month: revenueRankings.last3Month[domain] || TARGET_DOMAINS.length,
-                            currentMonth: revenueRankings.currentMonth[domain] || TARGET_DOMAINS.length
+                            currentMonth: revenueRankings.currentMonth[domain] || TARGET_DOMAINS.length,
+                            lifetimeValue: lifetimeVal,
+                            last3MonthValue: last3MonthVal,
+                            currentMonthValue: currentMonthVal,
+                            lifetimePct: lifetimePct,
+                            last3MonthPct: last3MonthPct,
+                            currentMonthPct: currentMonthPct
                         }
                     };
                 });
