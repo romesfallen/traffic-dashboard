@@ -38,6 +38,7 @@
 
         .controls {
             display: flex;
+            align-items: center;
             gap: 16px;
             margin-bottom: 24px;
             flex-wrap: wrap;
@@ -322,21 +323,16 @@
             font-weight: 500;
         }
 
-        /* Chart controls centered */
-        .chart-controls {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 16px;
-        }
-
-        /* Nav link */
+        /* Nav link - vertically centered */
         .nav-link {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             color: #f97316;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
             margin-left: 16px;
+            height: 44px;
         }
 
         .nav-link:hover {
@@ -692,7 +688,8 @@
                         <div class="rank-pct">${rankings.currentMonthPct}% of portfolio</div>
                     </div>
                 </div>
-                <div class="chart-controls">
+                <div class="chart-header">
+                    <div></div>
                     <select class="chart-range-select" id="chartDateRange">
                         <option value="7" ${dateRange === '7' ? 'selected' : ''}>Last 7 days</option>
                         <option value="30" ${dateRange === '30' ? 'selected' : ''}>Last month</option>
