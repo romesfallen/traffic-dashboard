@@ -988,26 +988,29 @@
                 // Build xaxis annotations for centered month labels
                 annotations: {
                     points: pointAnnotations,
-                    xaxis: revenueResult.revenueAnnotations.map(ann => ({
-                        x: ann.x,
-                        borderColor: 'transparent',
-                        label: {
+                    xaxis: revenueResult.revenueAnnotations.map(ann => {
+                        const isJanuary = ann.month === 'Jan';
+                        return {
+                            x: ann.x,
                             borderColor: 'transparent',
-                            borderWidth: 0,
-                            text: ann.monthLabel,
-                            orientation: 'horizontal',
-                            position: 'bottom',
-                            style: {
-                                background: 'transparent',
-                                color: '#333333',
-                                fontSize: '11px',
-                                fontWeight: 500,
-                                fontFamily: 'Inter, sans-serif',
-                                padding: { left: 0, right: 0, top: 0, bottom: 0 }
-                            },
-                            offsetY: 20
-                        }
-                    }))
+                            label: {
+                                borderColor: 'transparent',
+                                borderWidth: 0,
+                                text: ann.monthLabel,
+                                orientation: 'horizontal',
+                                position: 'bottom',
+                                style: {
+                                    background: 'transparent',
+                                    color: isJanuary ? '#f97316' : '#333333', // Orange for January
+                                    fontSize: isJanuary ? '12px' : '11px',
+                                    fontWeight: isJanuary ? 700 : 500, // Bold for January
+                                    fontFamily: 'Inter, sans-serif',
+                                    padding: { left: 0, right: 0, top: 0, bottom: 0 }
+                                },
+                                offsetY: 20
+                            }
+                        };
+                    })
                 },
                 colors: allColors,
                 fill: {
