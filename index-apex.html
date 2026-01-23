@@ -130,6 +130,25 @@
             text-align: center;
         }
 
+        .dropdown-divider {
+            padding: 8px 16px;
+            font-size: 11px;
+            color: #999999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .dropdown-item.on-demand {
+            color: #666666;
+        }
+
+        .dropdown-item.on-demand:hover {
+            background: #f5f5f5;
+        }
+
         .dropdown-item.highlighted {
             background: #f5f5f5;
         }
@@ -1344,29 +1363,61 @@
             const input = document.getElementById('domainSearch');
             const dropdownList = document.getElementById('dropdownList');
             
-            // Build dropdown items
+            // Build dropdown items - show preloaded first, then on-demand
             function renderDropdown(filter = '') {
                 const filterLower = filter.toLowerCase();
-                const filtered = Object.keys(domains).filter(domain => 
-                    domain.toLowerCase().includes(filterLower)
-                );
                 
-                if (filtered.length === 0) {
+                // Preloaded domains (already in domains object)
+                const preloaded = Object.keys(domains)
+                    .filter(domain => domain.toLowerCase().includes(filterLower))
+                    .sort((a, b) => domains[a].rank - domains[b].rank);
+                
+                // On-demand domains (in allAvailableDomains but not preloaded)
+                const onDemand = Array.from(allAvailableDomains)
+                    .filter(domain => 
+                        domain.includes(filterLower) && 
+                        !domains[domain] && 
+                        !domains[domain.charAt(0).toUpperCase() + domain.slice(1)] // Handle case differences
+                    )
+                    .sort();
+                
+                if (preloaded.length === 0 && onDemand.length === 0) {
                     dropdownList.innerHTML = '<div class="no-results">No domains found</div>';
                 } else {
-                    dropdownList.innerHTML = filtered.map(domain => {
+                    let html = '';
+                    
+                    // Preloaded domains with rank
+                    html += preloaded.map(domain => {
                         const isSelected = domain === selectedDomain;
                         return `<div class="dropdown-item${isSelected ? ' selected' : ''}" data-domain="${domain}">
                             <span class="rank">${domains[domain].rank}.</span>${domain}
                         </div>`;
                     }).join('');
+                    
+                    // On-demand domains (show only when filtering, max 50)
+                    if (filterLower.length >= 2 && onDemand.length > 0) {
+                        const limitedOnDemand = onDemand.slice(0, 50);
+                        if (preloaded.length > 0) {
+                            html += '<div class="dropdown-divider">Other domains (load on demand)</div>';
+                        }
+                        html += limitedOnDemand.map(domain => {
+                            return `<div class="dropdown-item on-demand" data-domain="${domain}" data-ondemand="true">
+                                <span class="rank" style="color: #999;">—</span>${domain}
+                            </div>`;
+                        }).join('');
+                        if (onDemand.length > 50) {
+                            html += `<div class="no-results" style="font-size: 11px;">...and ${onDemand.length - 50} more. Type more to filter.</div>`;
+                        }
+                    }
+                    
+                    dropdownList.innerHTML = html;
                 }
             }
             
             // Show dropdown on focus - select all text and show full list
             input.addEventListener('focus', function() {
-                this.select(); // Select all text so typing replaces it
-                renderDropdown(''); // Show all domains, not filtered by current value
+                this.select();
+                renderDropdown('');
                 dropdownList.classList.add('open');
             });
             
@@ -1377,15 +1428,31 @@
             });
             
             // Handle item click
-            dropdownList.addEventListener('click', function(e) {
+            dropdownList.addEventListener('click', async function(e) {
                 const item = e.target.closest('.dropdown-item');
                 if (item) {
                     const domain = item.dataset.domain;
+                    const isOnDemand = item.dataset.ondemand === 'true';
+                    
                     selectedDomain = domain;
                     input.value = domain;
                     dropdownList.classList.remove('open');
                     
-                    if (domains[domain]) {
+                    if (isOnDemand) {
+                        // Show loading state
+                        const loadingEl = document.getElementById('loading');
+                        loadingEl.style.display = 'block';
+                        loadingEl.querySelector('p').textContent = `Loading ${domain}...`;
+                        
+                        const domainData = await loadDomainOnDemand(domain);
+                        loadingEl.style.display = 'none';
+                        
+                        if (domainData) {
+                            createChart(domain, domainData);
+                        } else {
+                            alert(`Could not load data for ${domain}`);
+                        }
+                    } else if (domains[domain]) {
                         createChart(domain, domains[domain]);
                     }
                 }
@@ -1555,111 +1622,24 @@
             return dateObj >= start && dateObj <= end;
         }
 
-        // List of domains to load (Top 100)
-        const TARGET_DOMAINS = [
-            'decoratoradvice.com',
-            'traveltweaks.com',
-            'famousparenting.com',
-            'etruesports.com',
-            'betterthisworld.com',
-            'lookwhatmomfound.com',
-            'activepropertycare.com',
-            'redandwhitemagz.com',
-            'lyncconf.com',
-            'playmyworld.com',
-            'mygreenbucks.net',
-            'disquantified.org',
-            'whatutalkingboutwillis.com',
-            'arcyart.com',
-            'sportsfanfare.com',
-            'thegamearchives.com',
-            'freelogopng.com',
-            'avstarnews.com',
-            'digitalnewsalerts.com',
-            'mywirelesscoupons.com',
-            'healthsciencesforum.com',
-            'oneframework.net',
-            'entretech.org',
-            'thinkofgames.com',
-            'harmonicode.com',
-            'conversationswithbianca.com',
-            'pushyourdesign.com',
-            'alternativeway.net',
-            'etherions.com',
-            'letsbuildup.org',
-            'mucicallydown.com',
-            'electronmagazine.com',
-            'onthisveryspot.com',
-            'musikcalldown.com',
-            'undergrowthgames.com',
-            'thunderonthegulf.com',
-            'nothing2hide.net',
-            'feedbuzzard.com',
-            'thestripesblog.com',
-            'wealthybyte.com',
-            'smartsatta.com',
-            'waptirick.com',
-            'kdarchitects.net',
-            'beaconsoft.net',
-            'hearthstats.net',
-            'crypticstreet.com',
-            'reactcheck.com',
-            'musikcalidown.com',
-            'gamificationsummit.com',
-            'myfavouriteplaces.org',
-            'geekgadget.net',
-            'fintechasia.net',
-            'luxuryinteriors.org',
-            'greenheal.net',
-            'livingpristine.com',
-            'thehake.com',
-            'icaiorg.net',
-            'flyarchitecture.net',
-            'springhillmedgroup.com',
-            'revolvertech.com',
-            'logicalshout.com',
-            'thehometrotters.com',
-            'voicesofconservation.org',
-            'turbogeek.org',
-            'gfxmaker.com',
-            'drhomey.com',
-            'filmyzillah.com',
-            'sentback.org',
-            'leopardtheme.com',
-            'webtosociety.com',
-            'w88w88hanoi.com',
-            'bageltechnews.com',
-            'bitnation-blog.com',
-            'fameblogs.net',
-            'g15tools.com',
-            'designmode24.com',
-            'dhilisatta.com',
-            'defstartup.org',
-            'tubitymusic.com',
-            'cloudysocial.com',
-            'theblockchainbrief.com',
-            'moneysideoflife.com',
-            'playdedeus.com',
-            'anwire.org',
-            'thechannelrace.org',
-            'theboringmagazine.com',
-            'embedtree.com',
-            'metsuiteorg.com',
-            'eyexcon.com',
-            'aliensync.com',
-            'conversationswithgreg.com',
-            'pondershort.com',
-            'formotorbikes.com',
-            'myinteriorpalace.com',
-            'sportsblitzzone.com',
-            'prositesite.com',
-            'javaobjects.net',
-            'socceragency.net',
-            'proxcroxy.com',
-            'silicon-insider.com'
-        ];
+        // Priority domains (computed dynamically from revenue rankings)
+        let priorityDomains = [];
+        // All domains available in traffic-data.csv (for search)
+        let allAvailableDomains = new Set();
+        // Cache for raw CSV data (for on-demand loading)
+        let csvCache = {
+            revenue: null,
+            traffic: null,
+            ahrefs: null,
+            dr: null,
+            internalAvg: null,
+            ahrefsAvg: null
+        };
+        // Global revenue rankings for all domains
+        let globalRevenueRankings = null;
 
-        async function loadRevenueCSV() {
+        // Load ALL revenue data and compute priority domains
+        async function loadRevenueCSVAndComputePriority() {
             try {
                 const response = await fetch('revenue-history.csv');
                 if (!response.ok) throw new Error('Failed to load revenue CSV');
@@ -1670,61 +1650,97 @@
                     skipEmptyLines: true
                 });
                 
+                // Cache the parsed data for on-demand loading
+                csvCache.revenue = { parsed, headers: parsed.meta.fields || [] };
+                
                 const headers = parsed.meta.fields || [];
                 const revenueByDomain = {};
                 
-                // Process each target domain
-                TARGET_DOMAINS.forEach(domain => {
-                    const row = parsed.data.find(r => 
-                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
-                    );
-                    
-                    if (row) {
-                        const monthlyRevenue = {};
-                        headers.forEach(header => {
-                            const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
-                            if (monthMatch) {
-                                const [, month, year] = monthMatch;
-                                const key = month + year;
-                                const value = parseCurrency(row[header]);
-                                // Include all values including $0 (but not empty/dash)
-                                if (value >= 0 && row[header] && row[header] !== '-') {
-                                    monthlyRevenue[key] = value;
-                                }
-                            }
-                        });
-                        revenueByDomain[domain] = monthlyRevenue;
-                    } else {
-                        revenueByDomain[domain] = {};
+                // Process ALL domains in the CSV
+                parsed.data.forEach(row => {
+                    const domain = row.Website;
+                    if (!domain || domain === '-' || domain.trim() === '' || 
+                        domain.toLowerCase() === 'unmatched payments') {
+                        return;
                     }
+                    
+                    const monthlyRevenue = {};
+                    headers.forEach(header => {
+                        const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
+                        if (monthMatch) {
+                            const [, month, year] = monthMatch;
+                            const key = month + year;
+                            const value = parseCurrency(row[header]);
+                            if (value >= 0 && row[header] && row[header] !== '-') {
+                                monthlyRevenue[key] = value;
+                            }
+                        }
+                    });
+                    revenueByDomain[domain] = monthlyRevenue;
                 });
                 
-                console.log('✅ Revenue data loaded for domains:', Object.keys(revenueByDomain));
+                // Calculate rankings for ALL domains
+                globalRevenueRankings = calculateRevenueRankings(revenueByDomain);
+                
+                // Compute priority domains: top 100 from each period
+                const top100Lifetime = Object.entries(globalRevenueRankings.values.lifetime)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 100)
+                    .map(([domain]) => domain);
+                    
+                const top100Last3Month = Object.entries(globalRevenueRankings.values.last3Month)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 100)
+                    .map(([domain]) => domain);
+                    
+                const top100CurrentMonth = Object.entries(globalRevenueRankings.values.currentMonth)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 100)
+                    .map(([domain]) => domain);
+                
+                // Union all top domains
+                const prioritySet = new Set([...top100Lifetime, ...top100Last3Month, ...top100CurrentMonth]);
+                priorityDomains = Array.from(prioritySet);
+                
+                console.log(`✅ Priority domains computed: ${priorityDomains.length} unique domains from top 100 of each period`);
+                console.log('✅ Revenue data loaded for ALL domains:', Object.keys(revenueByDomain).length);
+                
                 return revenueByDomain;
             } catch (error) {
                 console.error('Error loading revenue CSV:', error);
                 throw error;
             }
         }
+        
+        // Load revenue for specific domains (used for priority loading)
+        async function loadRevenueForDomains(domainList, revenueByDomain) {
+            const result = {};
+            domainList.forEach(domain => {
+                result[domain] = revenueByDomain[domain] || {};
+            });
+            return result;
+        }
 
-        async function loadDRHistoryCSV() {
+        async function loadDRHistoryCSV(domainList) {
             try {
-                const response = await fetch('DR History.csv');
-                if (!response.ok) throw new Error('Failed to load DR History CSV');
+                // Use cache if available
+                if (!csvCache.dr) {
+                    const response = await fetch('DR History.csv');
+                    if (!response.ok) throw new Error('Failed to load DR History CSV');
+                    
+                    const text = await response.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    csvCache.dr = { parsed, headers: parsed.meta.fields || [] };
+                }
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: true
-                });
-                
-                const headers = parsed.meta.fields || [];
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const { parsed, headers } = csvCache.dr;
                 const drByDomain = {};
                 
-                // Process each target domain
-                TARGET_DOMAINS.forEach(domain => {
+                // Process each domain in the list
+                domainList.forEach(domain => {
                     const row = parsed.data.find(r => 
                         r.Website && r.Website.toLowerCase() === domain.toLowerCase()
                     );
@@ -1733,14 +1749,12 @@
                     
                     if (row) {
                         headers.forEach(header => {
-                            // Match date format like "Jul 1 - 2024" or "Jan 20 - 2026"
                             const dateMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)\s*-\s*(\d{4})$/);
                             if (dateMatch) {
                                 const [, month, day, year] = dateMatch;
                                 const dateStr = `${month} ${day} ${year}`;
                                 const value = parseNumber(row[header]);
                                 if (value !== null && value !== undefined) {
-                                    // Only keep first occurrence of each date
                                     if (!drDataMap.has(dateStr)) {
                                         drDataMap.set(dateStr, value);
                                     }
@@ -1752,7 +1766,7 @@
                     drByDomain[domain] = drDataMap;
                 });
                 
-                console.log('✅ DR History data loaded for domains:', Object.keys(drByDomain).map(d => `${d}: ${drByDomain[d].size} points`));
+                console.log('✅ DR History data loaded for', domainList.length, 'domains');
                 return drByDomain;
             } catch (error) {
                 console.error('Error loading DR History CSV:', error);
@@ -1760,23 +1774,28 @@
             }
         }
 
-        async function loadAhrefsCSV() {
+        async function loadAhrefsCSV(domainList) {
             try {
-                const response = await fetch('ahrefs_organic_traffic_results.csv');
-                if (!response.ok) throw new Error('Failed to load Ahrefs CSV');
+                // Use cache if available
+                if (!csvCache.ahrefs) {
+                    const response = await fetch('ahrefs_organic_traffic_results.csv');
+                    if (!response.ok) throw new Error('Failed to load Ahrefs CSV');
+                    
+                    const text = await response.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    csvCache.ahrefs = { parsed };
+                }
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: true
-                });
-                
+                const { parsed } = csvCache.ahrefs;
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const ahrefsByDomain = {};
                 
-                // Process each target domain
-                TARGET_DOMAINS.forEach(domain => {
+                // Process each domain in the list
+                domainList.forEach(domain => {
                     const domainRows = parsed.data.filter(row => 
                         row.domain && row.domain.toLowerCase() === domain.toLowerCase()
                     );
@@ -1802,7 +1821,7 @@
                     ahrefsByDomain[domain] = ahrefsDataMap;
                 });
                 
-                console.log('✅ Ahrefs data loaded for domains:', Object.keys(ahrefsByDomain).map(d => `${d}: ${ahrefsByDomain[d].size} points`));
+                console.log('✅ Ahrefs data loaded for', domainList.length, 'domains');
                 return ahrefsByDomain;
             } catch (error) {
                 console.error('Error loading Ahrefs CSV:', error);
@@ -1810,23 +1829,28 @@
             }
         }
 
-        async function loadInternalAverageCSV() {
+        async function loadInternalAverageCSV(domainList) {
             try {
-                const response = await fetch('internal-average-traffic.csv');
-                if (!response.ok) throw new Error('Failed to load Internal Average CSV');
+                // Use cache if available
+                if (!csvCache.internalAvg) {
+                    const response = await fetch('internal-average-traffic.csv');
+                    if (!response.ok) throw new Error('Failed to load Internal Average CSV');
+                    
+                    const text = await response.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    csvCache.internalAvg = { parsed };
+                }
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: true
-                });
-                
+                const { parsed } = csvCache.internalAvg;
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const internalAvgByDomain = {};
                 
-                // Process each target domain
-                TARGET_DOMAINS.forEach(domain => {
+                // Process each domain in the list
+                domainList.forEach(domain => {
                     const domainRows = parsed.data.filter(row => 
                         row.domain && row.domain.toLowerCase() === domain.toLowerCase()
                     );
@@ -1852,13 +1876,12 @@
                     internalAvgByDomain[domain] = dataMap;
                 });
                 
-                console.log('✅ Internal Average data loaded for domains:', Object.keys(internalAvgByDomain).filter(d => internalAvgByDomain[d].size > 0).map(d => `${d}: ${internalAvgByDomain[d].size} points`));
+                console.log('✅ Internal Average data loaded for', domainList.length, 'domains');
                 return internalAvgByDomain;
             } catch (error) {
                 console.warn('Warning loading Internal Average CSV:', error);
-                // Return empty maps - graceful degradation
                 const emptyResult = {};
-                TARGET_DOMAINS.forEach(domain => emptyResult[domain] = new Map());
+                domainList.forEach(domain => emptyResult[domain] = new Map());
                 return emptyResult;
             }
         }
@@ -1897,23 +1920,28 @@
             }
         }
 
-        async function loadAhrefsAverageCSV() {
+        async function loadAhrefsAverageCSV(domainList) {
             try {
-                const response = await fetch('ahrefs-average-traffic.csv');
-                if (!response.ok) throw new Error('Failed to load Ahrefs Average CSV');
+                // Use cache if available
+                if (!csvCache.ahrefsAvg) {
+                    const response = await fetch('ahrefs-average-traffic.csv');
+                    if (!response.ok) throw new Error('Failed to load Ahrefs Average CSV');
+                    
+                    const text = await response.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    csvCache.ahrefsAvg = { parsed };
+                }
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: true
-                });
-                
+                const { parsed } = csvCache.ahrefsAvg;
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const ahrefsAvgByDomain = {};
                 
-                // Process each target domain
-                TARGET_DOMAINS.forEach(domain => {
+                // Process each domain in the list
+                domainList.forEach(domain => {
                     const domainRows = parsed.data.filter(row => 
                         row.domain && row.domain.toLowerCase() === domain.toLowerCase()
                     );
@@ -1939,58 +1967,71 @@
                     ahrefsAvgByDomain[domain] = dataMap;
                 });
                 
-                console.log('✅ Ahrefs Average data loaded for domains:', Object.keys(ahrefsAvgByDomain).filter(d => ahrefsAvgByDomain[d].size > 0).map(d => `${d}: ${ahrefsAvgByDomain[d].size} points`));
+                console.log('✅ Ahrefs Average data loaded for', domainList.length, 'domains');
                 return ahrefsAvgByDomain;
             } catch (error) {
                 console.warn('Warning loading Ahrefs Average CSV:', error);
-                // Return empty maps - graceful degradation
                 const emptyResult = {};
-                TARGET_DOMAINS.forEach(domain => emptyResult[domain] = new Map());
+                domainList.forEach(domain => emptyResult[domain] = new Map());
                 return emptyResult;
             }
         }
 
-        async function loadTrafficCSV() {
+        async function loadTrafficCSV(domainList) {
             try {
-                const response = await fetch('traffic-data.csv');
-                if (!response.ok) throw new Error('Failed to load traffic CSV');
+                // Use cache if available, otherwise load and cache
+                if (!csvCache.traffic) {
+                    const response = await fetch('traffic-data.csv');
+                    if (!response.ok) throw new Error('Failed to load traffic CSV');
+                    
+                    const text = await response.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: false,
+                        transformHeader: (header) => header.trim()
+                    });
+                    
+                    const headers = parsed.meta.fields || [];
+                    const dateColumns = headers.slice(6);
+                    
+                    // Build date info once
+                    const seenDates = new Map();
+                    dateColumns.forEach((header, idx) => {
+                        if (!header || header.trim() === '') return;
+                        const dateStr = parseDate(header);
+                        if (!dateStr || dateStr === '') return;
+                        if (!seenDates.has(dateStr)) {
+                            seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1, headers: [header] });
+                        } else {
+                            const entry = seenDates.get(dateStr);
+                            if (entry.secondIndex === -1) entry.secondIndex = idx;
+                            entry.headers.push(header);
+                        }
+                    });
+                    
+                    let splitPoint = -1;
+                    seenDates.forEach((entry) => {
+                        if (entry.secondIndex !== -1 && (splitPoint === -1 || entry.secondIndex < splitPoint)) {
+                            splitPoint = entry.secondIndex;
+                        }
+                    });
+                    
+                    // Populate allAvailableDomains from traffic data
+                    parsed.data.forEach(row => {
+                        if (row.Website && row.Website.trim() !== '') {
+                            allAvailableDomains.add(row.Website.toLowerCase());
+                        }
+                    });
+                    
+                    csvCache.traffic = { parsed, headers, dateColumns, seenDates, splitPoint };
+                    console.log('✅ Traffic CSV cached, found', allAvailableDomains.size, 'total domains');
+                }
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: false,
-                    transformHeader: (header) => header.trim()
-                });
-                
-                const headers = parsed.meta.fields || [];
-                const dateColumns = headers.slice(6); // Skip first 6 metadata columns
-                
-                // Build date info once (shared across all domains)
-                const seenDates = new Map();
-                dateColumns.forEach((header, idx) => {
-                    if (!header || header.trim() === '') return;
-                    const dateStr = parseDate(header);
-                    if (!dateStr || dateStr === '') return;
-                    if (!seenDates.has(dateStr)) {
-                        seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1, headers: [header] });
-                    } else {
-                        const entry = seenDates.get(dateStr);
-                        if (entry.secondIndex === -1) entry.secondIndex = idx;
-                        entry.headers.push(header);
-                    }
-                });
-                
-                let splitPoint = -1;
-                seenDates.forEach((entry) => {
-                    if (entry.secondIndex !== -1 && (splitPoint === -1 || entry.secondIndex < splitPoint)) {
-                        splitPoint = entry.secondIndex;
-                    }
-                });
-                
+                const { parsed, dateColumns, seenDates, splitPoint } = csvCache.traffic;
                 const trafficByDomain = {};
                 
-                // Process each target domain
-                TARGET_DOMAINS.forEach(domain => {
+                // Process each domain in the list
+                domainList.forEach(domain => {
                     const row = parsed.data.find(r => 
                         r.Website && r.Website.toLowerCase() === domain.toLowerCase()
                     );
@@ -2020,7 +2061,6 @@
                         
                         const value = parseNumber(row[header]);
                         
-                        // Only use first occurrence (our data), skip duplicates
                         let isOurData = !hasSuffix;
                         if (!hasSuffix && splitPoint > 0 && idx >= splitPoint) {
                             const entry = seenDates.get(dateStr);
@@ -2034,7 +2074,6 @@
                         }
                     });
                     
-                    // Sort dates chronologically
                     const sortedDates = Array.from(ourDataMap.keys()).sort((a, b) => {
                         const parseD = (s) => {
                             const p = s.split(' ');
@@ -2048,7 +2087,7 @@
                     trafficByDomain[domain] = { dates: sortedDates, ourData: sortedOurData };
                 });
                 
-                console.log('✅ Traffic data loaded for domains:', Object.keys(trafficByDomain).map(d => `${d}: ${trafficByDomain[d].dates.length} dates`));
+                console.log('✅ Traffic data loaded for', domainList.length, 'domains');
                 return trafficByDomain;
             } catch (error) {
                 console.error('Error loading traffic CSV:', error);
@@ -2056,7 +2095,7 @@
             }
         }
 
-        function initializeDashboard(data) {
+        async function initializeDashboard(data) {
             domains = data;
             
             // Setup event listeners
@@ -2070,16 +2109,197 @@
             
             // Determine which domain to show
             let targetDomain = null;
-            if (domainParam && domains[domainParam]) {
-                targetDomain = domainParam;
-            } else if (Object.keys(domains).length > 0) {
-                targetDomain = Object.keys(domains)[0];
+            let targetDomainData = null;
+            
+            if (domainParam) {
+                // Check if domain is pre-loaded
+                if (domains[domainParam]) {
+                    targetDomain = domainParam;
+                    targetDomainData = domains[domainParam];
+                } 
+                // Check if domain is available for on-demand loading
+                else if (allAvailableDomains.has(domainParam.toLowerCase())) {
+                    console.log(`Domain ${domainParam} requested via URL, loading on-demand...`);
+                    const loadingEl = document.getElementById('loading');
+                    loadingEl.style.display = 'block';
+                    loadingEl.querySelector('p').textContent = `Loading ${domainParam}...`;
+                    
+                    targetDomainData = await loadDomainOnDemand(domainParam);
+                    loadingEl.style.display = 'none';
+                    
+                    if (targetDomainData) {
+                        targetDomain = domainParam;
+                    }
+                }
             }
             
-            if (targetDomain) {
+            // Fallback to first pre-loaded domain
+            if (!targetDomain && Object.keys(domains).length > 0) {
+                targetDomain = Object.keys(domains)[0];
+                targetDomainData = domains[targetDomain];
+            }
+            
+            if (targetDomain && targetDomainData) {
                 selectedDomain = targetDomain;
                 document.getElementById('domainSearch').value = targetDomain;
-                createChart(targetDomain, domains[targetDomain]);
+                createChart(targetDomain, targetDomainData);
+            }
+        }
+
+        // Helper to build a domain object from raw CSV data
+        function buildDomainObject(domain, trafficData, ahrefsDataMap, revenueData, drDataMap, internalAvgMap, ahrefsAvgMap, revenueRankings) {
+            const parseDateForSort = (dateStr) => {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return new Date(0);
+                const [month, day, year] = parts;
+                return new Date(`${month} ${day}, ${year}`);
+            };
+            
+            // Merge all dates
+            const allDatesSet = new Set();
+            trafficData.dates.forEach(d => allDatesSet.add(d));
+            ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+            drDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+            internalAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+            ahrefsAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+            
+            // Add revenue dates
+            Object.keys(revenueData).forEach(monthKey => {
+                const noSpaceMatch = monthKey.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$/);
+                if (noSpaceMatch) {
+                    const [, month, year] = noSpaceMatch;
+                    allDatesSet.add(`${month} 1 ${year}`);
+                }
+            });
+            
+            const allDates = Array.from(allDatesSet).sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
+            
+            // Build arrays
+            const ourDataMap = new Map();
+            trafficData.dates.forEach((date, i) => ourDataMap.set(date, trafficData.ourData[i]));
+            
+            const mergedDates = [];
+            const mergedOurData = [];
+            const mergedAhrefsData = [];
+            const mergedDRData = [];
+            const mergedInternalAvgData = [];
+            const mergedAhrefsAvgData = [];
+            
+            allDates.forEach(dateStr => {
+                mergedDates.push(dateStr);
+                mergedOurData.push(ourDataMap.get(dateStr) || null);
+                mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
+                mergedDRData.push(drDataMap.get(dateStr) || null);
+                mergedInternalAvgData.push(internalAvgMap.get(dateStr) || null);
+                mergedAhrefsAvgData.push(ahrefsAvgMap.get(dateStr) || null);
+            });
+            
+            // Get revenue values and calculate percentages
+            const lifetimeVal = revenueRankings.values.lifetime[domain] || 0;
+            const last3MonthVal = revenueRankings.values.last3Month[domain] || 0;
+            const currentMonthVal = revenueRankings.values.currentMonth[domain] || 0;
+            
+            const lifetimePct = revenueRankings.totals.lifetime > 0 
+                ? (lifetimeVal / revenueRankings.totals.lifetime * 100).toFixed(2) : 0;
+            const last3MonthPct = revenueRankings.totals.last3Month > 0 
+                ? (last3MonthVal / revenueRankings.totals.last3Month * 100).toFixed(2) : 0;
+            const currentMonthPct = revenueRankings.totals.currentMonth > 0 
+                ? (currentMonthVal / revenueRankings.totals.currentMonth * 100).toFixed(2) : 0;
+            
+            const totalDomains = Object.keys(revenueRankings.lifetime).length;
+            
+            return {
+                rank: revenueRankings.lifetime[domain] || totalDomains,
+                dates: mergedDates,
+                ourData: mergedOurData,
+                ahrefsData: mergedAhrefsData,
+                drData: mergedDRData,
+                internalAvgData: mergedInternalAvgData,
+                ahrefsAvgData: mergedAhrefsAvgData,
+                monthlyRevenue: revenueData,
+                revenueRankings: {
+                    lifetime: revenueRankings.lifetime[domain] || totalDomains,
+                    last3Month: revenueRankings.last3Month[domain] || totalDomains,
+                    currentMonth: revenueRankings.currentMonth[domain] || totalDomains,
+                    lifetimeValue: lifetimeVal,
+                    last3MonthValue: last3MonthVal,
+                    currentMonthValue: currentMonthVal,
+                    lifetimePct: lifetimePct,
+                    last3MonthPct: last3MonthPct,
+                    currentMonthPct: currentMonthPct
+                }
+            };
+        }
+        
+        // On-demand loader for domains not in priority list
+        async function loadDomainOnDemand(domain) {
+            console.log(`🔄 Loading domain on-demand: ${domain}`);
+            
+            // Check if already loaded
+            if (domains[domain]) {
+                console.log(`✅ Domain ${domain} already loaded`);
+                return domains[domain];
+            }
+            
+            // Check if domain exists in traffic data
+            if (!allAvailableDomains.has(domain.toLowerCase())) {
+                console.warn(`⚠️ Domain ${domain} not found in traffic data`);
+                return null;
+            }
+            
+            try {
+                // Load data for just this domain from all cached CSVs
+                const [trafficByDomain, ahrefsByDomain, drByDomain, internalAvgByDomain, ahrefsAvgByDomain] = await Promise.all([
+                    loadTrafficCSV([domain]),
+                    loadAhrefsCSV([domain]),
+                    loadDRHistoryCSV([domain]),
+                    loadInternalAverageCSV([domain]),
+                    loadAhrefsAverageCSV([domain])
+                ]);
+                
+                // Get revenue data from cache
+                const revenueData = csvCache.revenue ? 
+                    (() => {
+                        const row = csvCache.revenue.parsed.data.find(r => 
+                            r.Website && r.Website.toLowerCase() === domain.toLowerCase()
+                        );
+                        if (!row) return {};
+                        
+                        const monthlyRevenue = {};
+                        csvCache.revenue.headers.forEach(header => {
+                            const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
+                            if (monthMatch) {
+                                const [, month, year] = monthMatch;
+                                const key = month + year;
+                                const value = parseCurrency(row[header]);
+                                if (value >= 0 && row[header] && row[header] !== '-') {
+                                    monthlyRevenue[key] = value;
+                                }
+                            }
+                        });
+                        return monthlyRevenue;
+                    })() : {};
+                
+                // Build domain object
+                const trafficData = trafficByDomain[domain] || { dates: [], ourData: [] };
+                const ahrefsDataMap = ahrefsByDomain[domain] || new Map();
+                const drDataMap = drByDomain[domain] || new Map();
+                const internalAvgMap = internalAvgByDomain[domain] || new Map();
+                const ahrefsAvgMap = ahrefsAvgByDomain[domain] || new Map();
+                
+                const domainObj = buildDomainObject(
+                    domain, trafficData, ahrefsDataMap, revenueData,
+                    drDataMap, internalAvgMap, ahrefsAvgMap, globalRevenueRankings
+                );
+                
+                // Cache it
+                domains[domain] = domainObj;
+                console.log(`✅ Domain ${domain} loaded on-demand`);
+                
+                return domainObj;
+            } catch (error) {
+                console.error(`Error loading domain ${domain} on-demand:`, error);
+                return null;
             }
         }
 
@@ -2089,11 +2309,9 @@
             const errorMsg = document.getElementById('error-message');
             const chartsEl = document.getElementById('charts');
             
-            // Check if we're on file:// protocol (CSV won't work)
             const isFileProtocol = window.location.protocol === 'file:';
             
             if (isFileProtocol) {
-                // Use fallback immediately for file:// protocol
                 console.log('File protocol detected - using fallback data');
                 loadingEl.style.display = 'none';
                 errorEl.style.display = 'none';
@@ -2106,35 +2324,36 @@
                 errorEl.style.display = 'none';
                 chartsEl.innerHTML = '';
                 
-                // Set timeout for CSV loading (5 seconds max)
+                // Set timeout for CSV loading (10 seconds max for initial load)
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('CSV loading timeout')), 5000)
+                    setTimeout(() => reject(new Error('CSV loading timeout')), 10000)
                 );
                 
-                const [revenueByDomain, trafficByDomain, ahrefsByDomain, drByDomain, internalAvgByDomain, ahrefsAvgByDomain, agentNicheByDomain] = await Promise.race([
-                    Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV(), loadDRHistoryCSV(), loadInternalAverageCSV(), loadAhrefsAverageCSV(), loadAgentNicheCSV()]),
+                // STEP 1: Load revenue first and compute priority domains
+                const revenueByDomain = await Promise.race([
+                    loadRevenueCSVAndComputePriority(),
                     timeoutPromise
+                ]);
+                
+                console.log('✅ Priority domains:', priorityDomains.length);
+                
+                // STEP 2: Load other CSVs for priority domains only (parallel)
+                const [trafficByDomain, ahrefsByDomain, drByDomain, internalAvgByDomain, ahrefsAvgByDomain, agentNicheByDomain] = await Promise.all([
+                    loadTrafficCSV(priorityDomains),
+                    loadAhrefsCSV(priorityDomains),
+                    loadDRHistoryCSV(priorityDomains),
+                    loadInternalAverageCSV(priorityDomains),
+                    loadAhrefsAverageCSV(priorityDomains),
+                    loadAgentNicheCSV()
                 ]);
                 
                 // Store agent/niche data globally
                 agentNicheData = agentNicheByDomain;
                 
-                // Calculate revenue rankings across all domains
-                const revenueRankings = calculateRevenueRankings(revenueByDomain);
-                console.log('✅ Revenue rankings calculated:', revenueRankings);
-                
-                // Helper to sort dates
-                const parseDateForSort = (dateStr) => {
-                    const parts = dateStr.split(' ');
-                    if (parts.length !== 3) return new Date(0);
-                    const [month, day, year] = parts;
-                    return new Date(`${month} ${day}, ${year}`);
-                };
-                
-                // Build domains object for all target domains
+                // STEP 3: Build domains object for priority domains
                 domains = {};
                 
-                TARGET_DOMAINS.forEach((domain, idx) => {
+                priorityDomains.forEach(domain => {
                     const trafficData = trafficByDomain[domain] || { dates: [], ourData: [] };
                     const ahrefsDataMap = ahrefsByDomain[domain] || new Map();
                     const revenueData = revenueByDomain[domain] || {};
@@ -2142,89 +2361,17 @@
                     const internalAvgMap = internalAvgByDomain[domain] || new Map();
                     const ahrefsAvgMap = ahrefsAvgByDomain[domain] || new Map();
                     
-                    // Merge all dates from traffic, ahrefs, DR, and averages
-                    const allDatesSet = new Set();
-                    trafficData.dates.forEach(d => allDatesSet.add(d));
-                    ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-                    drDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-                    internalAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-                    ahrefsAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-                    
-                    // Add revenue dates
-                    Object.keys(revenueData).forEach(monthKey => {
-                        const noSpaceMatch = monthKey.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$/);
-                        if (noSpaceMatch) {
-                            const [, month, year] = noSpaceMatch;
-                            allDatesSet.add(`${month} 1 ${year}`);
-                        }
-                    });
-                    
-                    // Sort dates
-                    const allDates = Array.from(allDatesSet).sort((a, b) => parseDateForSort(a) - parseDateForSort(b));
-                    
-                    // Build arrays
-                    const ourDataMap = new Map();
-                    trafficData.dates.forEach((date, i) => ourDataMap.set(date, trafficData.ourData[i]));
-                    
-                    const mergedDates = [];
-                    const mergedOurData = [];
-                    const mergedAhrefsData = [];
-                    const mergedDRData = [];
-                    const mergedInternalAvgData = [];
-                    const mergedAhrefsAvgData = [];
-                    
-                    allDates.forEach(dateStr => {
-                        mergedDates.push(dateStr);
-                        mergedOurData.push(ourDataMap.get(dateStr) || null);
-                        mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
-                        mergedDRData.push(drDataMap.get(dateStr) || null);
-                        mergedInternalAvgData.push(internalAvgMap.get(dateStr) || null);
-                        mergedAhrefsAvgData.push(ahrefsAvgMap.get(dateStr) || null);
-                    });
-                    
-                    // Get revenue values and calculate percentages
-                    const lifetimeVal = revenueRankings.values.lifetime[domain] || 0;
-                    const last3MonthVal = revenueRankings.values.last3Month[domain] || 0;
-                    const currentMonthVal = revenueRankings.values.currentMonth[domain] || 0;
-                    
-                    const lifetimePct = revenueRankings.totals.lifetime > 0 
-                        ? (lifetimeVal / revenueRankings.totals.lifetime * 100).toFixed(2) : 0;
-                    const last3MonthPct = revenueRankings.totals.last3Month > 0 
-                        ? (last3MonthVal / revenueRankings.totals.last3Month * 100).toFixed(2) : 0;
-                    const currentMonthPct = revenueRankings.totals.currentMonth > 0 
-                        ? (currentMonthVal / revenueRankings.totals.currentMonth * 100).toFixed(2) : 0;
-                    
-                    domains[domain] = {
-                        rank: idx + 1,
-                        dates: mergedDates,
-                        ourData: mergedOurData,
-                        ahrefsData: mergedAhrefsData,
-                        drData: mergedDRData,
-                        internalAvgData: mergedInternalAvgData,
-                        ahrefsAvgData: mergedAhrefsAvgData,
-                        monthlyRevenue: revenueData,
-                        revenueRankings: {
-                            lifetime: revenueRankings.lifetime[domain] || TARGET_DOMAINS.length,
-                            last3Month: revenueRankings.last3Month[domain] || TARGET_DOMAINS.length,
-                            currentMonth: revenueRankings.currentMonth[domain] || TARGET_DOMAINS.length,
-                            lifetimeValue: lifetimeVal,
-                            last3MonthValue: last3MonthVal,
-                            currentMonthValue: currentMonthVal,
-                            lifetimePct: lifetimePct,
-                            last3MonthPct: last3MonthPct,
-                            currentMonthPct: currentMonthPct
-                        }
-                    };
+                    domains[domain] = buildDomainObject(
+                        domain, trafficData, ahrefsDataMap, revenueData, 
+                        drDataMap, internalAvgMap, ahrefsAvgMap, globalRevenueRankings
+                    );
                 });
                 
-                console.log('✅ Data merged for all domains:', Object.keys(domains).map(d => 
-                    `${d}: ${domains[d].dates.length} dates, ${domains[d].ourData.filter(v => v !== null).length} traffic pts, ${domains[d].drData.filter(v => v !== null).length} DR pts`
-                ));
+                console.log('✅ Data merged for', Object.keys(domains).length, 'priority domains');
                 
                 loadingEl.style.display = 'none';
                 initializeDashboard(domains);
             } catch (error) {
-                // Fallback to hardcoded data on any error
                 console.warn('CSV loading failed, using fallback data:', error);
                 loadingEl.style.display = 'none';
                 errorEl.style.display = 'none';
