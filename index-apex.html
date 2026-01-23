@@ -1489,7 +1489,7 @@
                         // Show loading state
                         const loadingEl = document.getElementById('loading');
                         loadingEl.style.display = 'block';
-                        loadingEl.querySelector('p').textContent = `Loading ${domain}...`;
+                        loadingEl.querySelector('div').textContent = `Loading ${domain}...`;
                         
                         const domainData = await loadDomainOnDemand(domain);
                         loadingEl.style.display = 'none';
@@ -2183,7 +2183,7 @@
                     console.log(`Domain ${domainParam} requested via URL, loading on-demand...`);
                     const loadingEl = document.getElementById('loading');
                     loadingEl.style.display = 'block';
-                    loadingEl.querySelector('p').textContent = `Loading ${domainParam}...`;
+                    loadingEl.querySelector('div').textContent = `Loading ${domainParam}...`;
                     
                     targetDomainData = await loadDomainOnDemand(domainParam);
                     loadingEl.style.display = 'none';
