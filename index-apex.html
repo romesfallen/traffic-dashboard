@@ -829,8 +829,8 @@
             const revenueAxisMax = maxRevenue * 3;
             
             // REVENUE LABEL CHANGE: Build point annotations and store globally for toggle
-            // Use fixed Y position for all labels so they appear at same height near bottom of bars
-            const labelYPosition = 400; // Fixed position just above x-axis (in revenue $ units)
+            // Use uniform Y position for all labels so they appear at same height near bottom of bars
+            const labelYPosition = maxRevenue * 0.025; // Position all labels very close to the x-axis
             
             currentAnnotations = revenueResult.revenueAnnotations.map(ann => ({
                 x: ann.x,
