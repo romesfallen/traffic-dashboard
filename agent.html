@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
     <meta name="googlebot" content="noindex, nofollow">
-    <title>Revenue Leaderboard</title>
+    <title>Sites by Agent</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,13 +38,19 @@
             font-size: 14px;
         }
 
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
         .nav-link {
             display: inline-block;
             color: #f97316;
             text-decoration: none;
             font-size: 13px;
             font-weight: 500;
-            margin-top: 12px;
         }
 
         .nav-link:hover {
@@ -76,14 +82,15 @@
             text-decoration: underline;
         }
 
-        .tabs {
+        .agent-selector {
             display: flex;
             justify-content: center;
             gap: 8px;
             margin-bottom: 24px;
+            flex-wrap: wrap;
         }
 
-        .tab-btn {
+        .agent-btn {
             padding: 10px 20px;
             border: 1px solid #e5e5e5;
             background: #f5f5f5;
@@ -96,12 +103,12 @@
             color: #666666;
         }
 
-        .tab-btn:hover {
+        .agent-btn:hover {
             border-color: #f97316;
             color: #f97316;
         }
 
-        .tab-btn.active {
+        .agent-btn.active {
             background: #f97316;
             border-color: #f97316;
             color: white;
@@ -171,6 +178,20 @@
             text-decoration: underline;
         }
 
+        .niche-cell {
+            color: #666666;
+            font-size: 13px;
+        }
+
+        .niche-cell a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .niche-cell a:hover {
+            text-decoration: underline;
+        }
+
         .revenue-cell {
             font-weight: 600;
             color: #333333;
@@ -179,16 +200,6 @@
         .pct-cell {
             color: #10b981;
             font-weight: 500;
-        }
-
-        .agent-cell a {
-            color: #f97316;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .agent-cell a:hover {
-            text-decoration: underline;
         }
 
         .loading {
@@ -226,20 +237,21 @@
         <a href="/api/auth/logout" class="sign-out">Sign Out</a>
     </div>
     <div class="header">
-        <h1>Revenue Leaderboard</h1>
-        <p>All Sites with Revenue > $0.01 — <span id="siteCount">Loading...</span></p>
-        <a href="index-apex.html" class="nav-link">← Back to Dashboard</a>
+        <h1>Sites by Agent</h1>
+        <p id="subtitle">Loading...</p>
+        <div class="nav-links">
+            <a href="index-apex.html" class="nav-link">← Back to Dashboard</a>
+            <a href="leaderboard.html" class="nav-link">View Leaderboard →</a>
+        </div>
     </div>
 
-    <div class="tabs">
-        <button class="tab-btn active" data-period="lifetime">Lifetime</button>
-        <button class="tab-btn" data-period="last3Month">Last 3 Months</button>
-        <button class="tab-btn" data-period="currentMonth">Current Month</button>
+    <div class="agent-selector" id="agentSelector">
+        <!-- Agent buttons will be inserted here -->
     </div>
 
     <div class="card">
         <div class="portfolio-total">
-            <div class="label">Portfolio Total</div>
+            <div class="label">Agent Portfolio Total (Lifetime)</div>
             <div class="value" id="portfolioTotal">$0</div>
         </div>
         <div class="table-container">
@@ -248,12 +260,12 @@
                     <tr>
                         <th>Rank</th>
                         <th>Domain</th>
-                        <th>Agent</th>
+                        <th>Niche</th>
                         <th>Revenue</th>
                         <th>% of Portfolio</th>
                     </tr>
                 </thead>
-                <tbody id="leaderboardBody">
+                <tbody id="tableBody">
                     <tr>
                         <td colspan="5" class="loading">Loading data...</td>
                     </tr>
@@ -264,9 +276,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script>
-        let revenueData = {};
+        let allData = [];
         let agentNicheMap = {};
-        let currentPeriod = 'lifetime';
+        let currentAgent = '';
+        const allAgents = [];
 
         function parseCurrency(value) {
             if (!value || value === '' || value === '-') return 0;
@@ -279,165 +292,180 @@
         }
 
         async function loadAgentNicheCSV() {
-            try {
-                const response = await fetch('Site Agent & Niche.csv');
-                if (!response.ok) throw new Error('Failed to load Agent & Niche CSV');
+            const response = await fetch('Site Agent & Niche.csv');
+            if (!response.ok) throw new Error('Failed to load Agent & Niche CSV');
+            
+            const text = await response.text();
+            const parsed = Papa.parse(text, { 
+                header: true,
+                skipEmptyLines: true
+            });
+            
+            const dataByDomain = {};
+            const agentsSet = new Set();
+            
+            parsed.data.forEach(row => {
+                const domain = row.Website;
+                if (!domain || domain.trim() === '') return;
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: true
-                });
+                const agent = row.Agent || '';
+                if (agent) agentsSet.add(agent);
                 
-                const dataByDomain = {};
-                
-                parsed.data.forEach(row => {
-                    const domain = row.Website;
-                    if (!domain || domain.trim() === '') return;
-                    
-                    dataByDomain[domain.toLowerCase()] = {
-                        agent: row.Agent || '',
-                        niche: row.Niche || ''
-                    };
-                });
-                
-                console.log('✅ Agent & Niche data loaded:', Object.keys(dataByDomain).length, 'domains');
-                return dataByDomain;
-            } catch (error) {
-                console.warn('Warning loading Agent & Niche CSV:', error);
-                return {};
-            }
+                dataByDomain[domain.toLowerCase()] = {
+                    agent: agent,
+                    niche: row.Niche || ''
+                };
+            });
+            
+            // Sort agents alphabetically
+            allAgents.push(...Array.from(agentsSet).sort());
+            
+            return dataByDomain;
         }
 
         async function loadRevenueCSV() {
-            try {
-                const response = await fetch('revenue-history.csv');
-                if (!response.ok) throw new Error('Failed to load revenue CSV');
+            const response = await fetch('revenue-history.csv');
+            if (!response.ok) throw new Error('Failed to load revenue CSV');
+            
+            const text = await response.text();
+            const parsed = Papa.parse(text, { 
+                header: true,
+                skipEmptyLines: true
+            });
+            
+            const headers = parsed.meta.fields || [];
+            const domainData = [];
+            
+            parsed.data.forEach(row => {
+                const domain = row.Website;
                 
-                const text = await response.text();
-                const parsed = Papa.parse(text, { 
-                    header: true,
-                    skipEmptyLines: true
+                if (!domain || domain === '-' || domain.trim() === '' || 
+                    domain.toLowerCase() === 'unmatched payments') {
+                    return;
+                }
+                
+                let lifetimeTotal = 0;
+                
+                headers.forEach(header => {
+                    const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
+                    if (monthMatch) {
+                        lifetimeTotal += parseCurrency(row[header]);
+                    }
                 });
                 
-                const headers = parsed.meta.fields || [];
-                const currentMonth = 'Jan 2026';
-                const last3Months = ['Nov 2025', 'Dec 2025', 'Jan 2026'];
-                
-                const domainData = [];
-                
-                // Process ALL rows from CSV (not just a predefined list)
-                parsed.data.forEach(row => {
-                    const domain = row.Website;
-                    
-                    // Skip rows without a valid domain name
-                    if (!domain || domain === '-' || domain.trim() === '' || 
-                        domain.toLowerCase() === 'unmatched payments') {
-                        return;
-                    }
-                    
-                    let lifetimeTotal = 0;
-                    let last3MonthTotal = 0;
-                    let currentMonthTotal = 0;
-                    
-                    headers.forEach(header => {
-                        const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
-                        if (monthMatch) {
-                            const value = parseCurrency(row[header]);
-                            lifetimeTotal += value;
-                            
-                            if (last3Months.includes(header)) {
-                                last3MonthTotal += value;
-                            }
-                            if (header === currentMonth) {
-                                currentMonthTotal = value;
-                            }
-                        }
+                if (lifetimeTotal > 0.01) {
+                    domainData.push({
+                        domain: domain,
+                        lifetime: lifetimeTotal
                     });
-                    
-                    // Only include domains with > $0.01 lifetime revenue
-                    if (lifetimeTotal > 0.01) {
-                        domainData.push({
-                            domain: domain,
-                            lifetime: lifetimeTotal,
-                            last3Month: last3MonthTotal,
-                            currentMonth: currentMonthTotal
-                        });
-                    }
-                });
-                
-                // Calculate portfolio totals
-                const totals = {
-                    lifetime: domainData.reduce((sum, d) => sum + d.lifetime, 0),
-                    last3Month: domainData.reduce((sum, d) => sum + d.last3Month, 0),
-                    currentMonth: domainData.reduce((sum, d) => sum + d.currentMonth, 0)
-                };
-                
-                return { domainData, totals };
-            } catch (error) {
-                console.error('Error loading revenue CSV:', error);
-                throw error;
-            }
+                }
+            });
+            
+            return domainData;
         }
 
-        function renderLeaderboard(period) {
-            currentPeriod = period;
-            const tbody = document.getElementById('leaderboardBody');
+        function renderAgentButtons() {
+            const container = document.getElementById('agentSelector');
+            container.innerHTML = allAgents.map(agent => {
+                const isActive = agent === currentAgent ? 'active' : '';
+                return `<button class="agent-btn ${isActive}" data-agent="${agent}">${agent}</button>`;
+            }).join('');
+            
+            // Add click handlers
+            container.querySelectorAll('.agent-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const agent = this.dataset.agent;
+                    currentAgent = agent;
+                    // Update URL without reload
+                    history.pushState({}, '', `agent.html?agent=${encodeURIComponent(agent)}`);
+                    renderAgentButtons();
+                    renderTable();
+                });
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
             const totalEl = document.getElementById('portfolioTotal');
-            const countEl = document.getElementById('siteCount');
+            const subtitleEl = document.getElementById('subtitle');
             
-            // Sort by selected period, filter to > $0.01 for that period
-            const sorted = [...revenueData.domainData]
-                .filter(item => item[period] > 0.01)
-                .sort((a, b) => b[period] - a[period]);
+            // Filter sites by current agent
+            const agentSites = allData.filter(item => {
+                const info = agentNicheMap[item.domain.toLowerCase()];
+                return info && info.agent === currentAgent;
+            });
             
-            const total = revenueData.totals[period];
-            totalEl.textContent = formatCurrency(total);
-            if (countEl) countEl.textContent = sorted.length + ' sites';
+            // Sort by lifetime revenue (descending)
+            agentSites.sort((a, b) => b.lifetime - a.lifetime);
             
-            tbody.innerHTML = sorted.map((item, idx) => {
-                const pct = total > 0 ? (item[period] / total * 100).toFixed(2) : 0;
+            // Calculate agent's total
+            const agentTotal = agentSites.reduce((sum, item) => sum + item.lifetime, 0);
+            
+            totalEl.textContent = formatCurrency(agentTotal);
+            subtitleEl.textContent = `${currentAgent}'s Sites — ${agentSites.length} sites`;
+            document.title = `Sites by ${currentAgent}`;
+            
+            if (agentSites.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No sites found for this agent.</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = agentSites.map((item, idx) => {
+                const pct = agentTotal > 0 ? (item.lifetime / agentTotal * 100).toFixed(2) : 0;
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
-                const agent = info.agent || 'Unknown';
+                
+                // Build niche links
+                let nicheHtml = '';
+                if (info.niche) {
+                    const niches = info.niche.split(',').map(n => n.trim()).filter(n => n);
+                    nicheHtml = niches.map((niche, i) => {
+                        const sep = i < niches.length - 1 ? ', ' : '';
+                        return `<a href="niche.html?niche=${encodeURIComponent(niche)}">${niche}</a>${sep}`;
+                    }).join('');
+                } else {
+                    nicheHtml = '<span style="color: #999;">—</span>';
+                }
+                
                 return `
                     <tr>
                         <td class="rank-cell">#${idx + 1}</td>
                         <td class="domain-cell">
                             <a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>
                         </td>
-                        <td class="agent-cell">
-                            <a href="agent.html?agent=${encodeURIComponent(agent)}">${agent}</a>
-                        </td>
-                        <td class="revenue-cell">${formatCurrency(item[period])}</td>
+                        <td class="niche-cell">${nicheHtml}</td>
+                        <td class="revenue-cell">${formatCurrency(item.lifetime)}</td>
                         <td class="pct-cell">${pct}%</td>
                     </tr>
                 `;
             }).join('');
         }
 
-        function setupTabs() {
-            const tabs = document.querySelectorAll('.tab-btn');
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    this.classList.add('active');
-                    renderLeaderboard(this.dataset.period);
-                });
-            });
-        }
-
         async function init() {
             try {
-                const [revenue, agentNiche] = await Promise.all([
-                    loadRevenueCSV(),
-                    loadAgentNicheCSV()
+                // Get agent from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                currentAgent = urlParams.get('agent') || '';
+                
+                // Load data
+                const [agentNiche, revenue] = await Promise.all([
+                    loadAgentNicheCSV(),
+                    loadRevenueCSV()
                 ]);
-                revenueData = revenue;
+                
                 agentNicheMap = agentNiche;
-                setupTabs();
-                renderLeaderboard('lifetime');
+                allData = revenue;
+                
+                // If no agent specified, default to first one
+                if (!currentAgent && allAgents.length > 0) {
+                    currentAgent = allAgents[0];
+                    history.replaceState({}, '', `agent.html?agent=${encodeURIComponent(currentAgent)}`);
+                }
+                
+                renderAgentButtons();
+                renderTable();
             } catch (error) {
-                document.getElementById('leaderboardBody').innerHTML = `
+                console.error('Error loading data:', error);
+                document.getElementById('tableBody').innerHTML = `
                     <tr>
                         <td colspan="5" class="loading" style="color: #c33;">
                             Error loading data. Please try refreshing the page.
@@ -449,19 +477,17 @@
 
         init();
 
-        // Check authentication and load user info
+        // Check authentication
         async function checkAuthAndLoadUser() {
             try {
                 const response = await fetch('/api/auth/check');
                 const data = await response.json();
                 
                 if (!data.authenticated) {
-                    // Not authenticated - redirect to login
                     window.location.href = '/api/auth/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
                     return;
                 }
                 
-                // Authenticated - show the page and load user info
                 document.body.style.visibility = 'visible';
                 
                 const meResponse = await fetch('/api/auth/me');

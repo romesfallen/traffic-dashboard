@@ -309,7 +309,45 @@
             font-size: 22px;
             font-weight: 600;
             color: #333333;
+            margin-bottom: 8px;
+        }
+
+        /* Agent and Niche meta row */
+        .domain-meta {
+            text-align: center;
+            font-size: 13px;
+            color: #666666;
             margin-bottom: 16px;
+        }
+
+        .domain-meta .meta-label {
+            font-weight: 500;
+            color: #999999;
+            margin-right: 4px;
+        }
+
+        .domain-meta .meta-divider {
+            margin: 0 12px;
+            color: #cccccc;
+        }
+
+        .domain-meta .agent-link {
+            color: #f97316;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .domain-meta .agent-link:hover {
+            text-decoration: underline;
+        }
+
+        .domain-meta .niche-link {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .domain-meta .niche-link:hover {
+            text-decoration: underline;
         }
 
         /* Revenue ranking bubbles */
@@ -743,8 +781,32 @@
             // Format currency
             const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
             
+            // Get agent and niche info
+            const agentNicheInfo = agentNicheData[domain.toLowerCase()] || { agent: '', niche: '' };
+            const agentName = agentNicheInfo.agent || 'Unknown';
+            const nicheString = agentNicheInfo.niche || '';
+            
+            // Build niche links HTML (split by comma, each as separate link)
+            let nicheLinksHtml = '';
+            if (nicheString) {
+                const niches = nicheString.split(',').map(n => n.trim()).filter(n => n);
+                nicheLinksHtml = niches.map((niche, idx) => {
+                    const separator = idx < niches.length - 1 ? ', ' : '';
+                    return `<a href="niche.html?niche=${encodeURIComponent(niche)}" class="niche-link">${niche}</a>${separator}`;
+                }).join('');
+            } else {
+                nicheLinksHtml = '<span style="color: #999;">Unknown</span>';
+            }
+            
             card.innerHTML = `
                 <div class="domain-title-centered">${domain}</div>
+                <div class="domain-meta">
+                    <span class="meta-label">Agent:</span>
+                    <a href="agent.html?agent=${encodeURIComponent(agentName)}" class="agent-link">${agentName}</a>
+                    <span class="meta-divider">|</span>
+                    <span class="meta-label">Niche:</span>
+                    ${nicheLinksHtml}
+                </div>
                 <div class="ranking-bubbles">
                     <div class="ranking-bubble">
                         <div class="rank-header">
@@ -1800,6 +1862,40 @@
             }
         }
 
+        // Agent and Niche data lookup
+        let agentNicheData = {};
+
+        async function loadAgentNicheCSV() {
+            try {
+                const response = await fetch('Site Agent & Niche.csv');
+                if (!response.ok) throw new Error('Failed to load Agent & Niche CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                const dataByDomain = {};
+                
+                parsed.data.forEach(row => {
+                    const domain = row.Website;
+                    if (!domain || domain.trim() === '') return;
+                    
+                    dataByDomain[domain.toLowerCase()] = {
+                        agent: row.Agent || '',
+                        niche: row.Niche || ''
+                    };
+                });
+                
+                console.log('✅ Agent & Niche data loaded:', Object.keys(dataByDomain).length, 'domains');
+                return dataByDomain;
+            } catch (error) {
+                console.warn('Warning loading Agent & Niche CSV:', error);
+                return {};
+            }
+        }
+
         async function loadAhrefsAverageCSV() {
             try {
                 const response = await fetch('ahrefs-average-traffic.csv');
@@ -2014,10 +2110,13 @@
                     setTimeout(() => reject(new Error('CSV loading timeout')), 5000)
                 );
                 
-                const [revenueByDomain, trafficByDomain, ahrefsByDomain, drByDomain, internalAvgByDomain, ahrefsAvgByDomain] = await Promise.race([
-                    Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV(), loadDRHistoryCSV(), loadInternalAverageCSV(), loadAhrefsAverageCSV()]),
+                const [revenueByDomain, trafficByDomain, ahrefsByDomain, drByDomain, internalAvgByDomain, ahrefsAvgByDomain, agentNicheByDomain] = await Promise.race([
+                    Promise.all([loadRevenueCSV(), loadTrafficCSV(), loadAhrefsCSV(), loadDRHistoryCSV(), loadInternalAverageCSV(), loadAhrefsAverageCSV(), loadAgentNicheCSV()]),
                     timeoutPromise
                 ]);
+                
+                // Store agent/niche data globally
+                agentNicheData = agentNicheByDomain;
                 
                 // Calculate revenue rankings across all domains
                 const revenueRankings = calculateRevenueRankings(revenueByDomain);
