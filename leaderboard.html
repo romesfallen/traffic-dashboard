@@ -186,7 +186,7 @@
 <body>
     <div class="header">
         <h1>Revenue Leaderboard</h1>
-        <p>Top 50 Sites by Revenue</p>
+        <p>All Sites with Revenue > $0.01 — <span id="siteCount">Loading...</span></p>
         <a href="index-apex.html" class="nav-link">← Back to Dashboard</a>
     </div>
 
@@ -222,110 +222,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script>
-        // Same target domains list as main dashboard
-        const TARGET_DOMAINS = [
-            'decoratoradvice.com',
-            'traveltweaks.com',
-            'famousparenting.com',
-            'etruesports.com',
-            'betterthisworld.com',
-            'lookwhatmomfound.com',
-            'activepropertycare.com',
-            'redandwhitemagz.com',
-            'lyncconf.com',
-            'playmyworld.com',
-            'mygreenbucks.net',
-            'disquantified.org',
-            'whatutalkingboutwillis.com',
-            'arcyart.com',
-            'sportsfanfare.com',
-            'thegamearchives.com',
-            'freelogopng.com',
-            'avstarnews.com',
-            'digitalnewsalerts.com',
-            'mywirelesscoupons.com',
-            'healthsciencesforum.com',
-            'oneframework.net',
-            'entretech.org',
-            'thinkofgames.com',
-            'harmonicode.com',
-            'conversationswithbianca.com',
-            'pushyourdesign.com',
-            'alternativeway.net',
-            'etherions.com',
-            'letsbuildup.org',
-            'mucicallydown.com',
-            'electronmagazine.com',
-            'onthisveryspot.com',
-            'musikcalldown.com',
-            'undergrowthgames.com',
-            'thunderonthegulf.com',
-            'nothing2hide.net',
-            'feedbuzzard.com',
-            'thestripesblog.com',
-            'wealthybyte.com',
-            'smartsatta.com',
-            'waptirick.com',
-            'kdarchitects.net',
-            'beaconsoft.net',
-            'hearthstats.net',
-            'crypticstreet.com',
-            'reactcheck.com',
-            'musikcalidown.com',
-            'gamificationsummit.com',
-            'myfavouriteplaces.org',
-            'geekgadget.net',
-            'fintechasia.net',
-            'luxuryinteriors.org',
-            'greenheal.net',
-            'livingpristine.com',
-            'thehake.com',
-            'icaiorg.net',
-            'flyarchitecture.net',
-            'springhillmedgroup.com',
-            'revolvertech.com',
-            'logicalshout.com',
-            'thehometrotters.com',
-            'voicesofconservation.org',
-            'turbogeek.org',
-            'gfxmaker.com',
-            'drhomey.com',
-            'filmyzillah.com',
-            'sentback.org',
-            'leopardtheme.com',
-            'webtosociety.com',
-            'w88w88hanoi.com',
-            'bageltechnews.com',
-            'bitnation-blog.com',
-            'fameblogs.net',
-            'g15tools.com',
-            'designmode24.com',
-            'dhilisatta.com',
-            'defstartup.org',
-            'tubitymusic.com',
-            'cloudysocial.com',
-            'theblockchainbrief.com',
-            'moneysideoflife.com',
-            'playdedeus.com',
-            'anwire.org',
-            'thechannelrace.org',
-            'theboringmagazine.com',
-            'embedtree.com',
-            'metsuiteorg.com',
-            'eyexcon.com',
-            'aliensync.com',
-            'conversationswithgreg.com',
-            'pondershort.com',
-            'formotorbikes.com',
-            'myinteriorpalace.com',
-            'sportsblitzzone.com',
-            'prositesite.com',
-            'javaobjects.net',
-            'socceragency.net',
-            'proxcroxy.com',
-            'silicon-insider.com'
-        ];
-
         let revenueData = {};
         let currentPeriod = 'lifetime';
 
@@ -356,43 +252,42 @@
                 
                 const domainData = [];
                 
-                TARGET_DOMAINS.forEach(domain => {
-                    const row = parsed.data.find(r => 
-                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
-                    );
+                // Process ALL rows from CSV (not just a predefined list)
+                parsed.data.forEach(row => {
+                    const domain = row.Website;
                     
-                    if (row) {
-                        let lifetimeTotal = 0;
-                        let last3MonthTotal = 0;
-                        let currentMonthTotal = 0;
-                        
-                        headers.forEach(header => {
-                            const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
-                            if (monthMatch) {
-                                const value = parseCurrency(row[header]);
-                                lifetimeTotal += value;
-                                
-                                if (last3Months.includes(header)) {
-                                    last3MonthTotal += value;
-                                }
-                                if (header === currentMonth) {
-                                    currentMonthTotal = value;
-                                }
+                    // Skip rows without a valid domain name
+                    if (!domain || domain === '-' || domain.trim() === '' || 
+                        domain.toLowerCase() === 'unmatched payments') {
+                        return;
+                    }
+                    
+                    let lifetimeTotal = 0;
+                    let last3MonthTotal = 0;
+                    let currentMonthTotal = 0;
+                    
+                    headers.forEach(header => {
+                        const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
+                        if (monthMatch) {
+                            const value = parseCurrency(row[header]);
+                            lifetimeTotal += value;
+                            
+                            if (last3Months.includes(header)) {
+                                last3MonthTotal += value;
                             }
-                        });
-                        
+                            if (header === currentMonth) {
+                                currentMonthTotal = value;
+                            }
+                        }
+                    });
+                    
+                    // Only include domains with > $0.01 lifetime revenue
+                    if (lifetimeTotal > 0.01) {
                         domainData.push({
                             domain: domain,
                             lifetime: lifetimeTotal,
                             last3Month: last3MonthTotal,
                             currentMonth: currentMonthTotal
-                        });
-                    } else {
-                        domainData.push({
-                            domain: domain,
-                            lifetime: 0,
-                            last3Month: 0,
-                            currentMonth: 0
                         });
                     }
                 });
@@ -415,14 +310,16 @@
             currentPeriod = period;
             const tbody = document.getElementById('leaderboardBody');
             const totalEl = document.getElementById('portfolioTotal');
+            const countEl = document.getElementById('siteCount');
             
-            // Sort by selected period
+            // Sort by selected period, filter to > $0.01 for that period
             const sorted = [...revenueData.domainData]
-                .sort((a, b) => b[period] - a[period])
-                .slice(0, 50);
+                .filter(item => item[period] > 0.01)
+                .sort((a, b) => b[period] - a[period]);
             
             const total = revenueData.totals[period];
             totalEl.textContent = formatCurrency(total);
+            if (countEl) countEl.textContent = sorted.length + ' sites';
             
             tbody.innerHTML = sorted.map((item, idx) => {
                 const pct = total > 0 ? (item[period] / total * 100).toFixed(1) : 0;
