@@ -263,6 +263,34 @@
         .toggle-switch.active::after {
             transform: translateX(18px);
         }
+
+        /* Revenue ranking bubbles */
+        .ranking-bubbles {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .ranking-bubble {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f5f5f5;
+            border: 1px solid #e5e5e5;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+
+        .ranking-bubble .rank-number {
+            font-weight: 700;
+            color: #f97316;
+        }
+
+        .ranking-bubble .rank-label {
+            color: #666666;
+        }
     </style>
 </head>
 <body>
@@ -317,7 +345,12 @@
                 "ahrefsData": [17528, 17527, 17186, 17523, 18024, 17792, 17977, 17593, 17404, 17257, 17189, 17204, 17218, 17231, 16822, 16528, 16154, 16641, 16946, 17137, 17012, 17271, 18026, 17927, 18299, 17851, 17701, 17802, 17731, 17337, 16765, 16442, 15874, 15386, 15074, 14772, 14817, 14566, 14575, 14401, 14444, 14705, 14532, 14530, 14220, 14379, 14276, 14016, 13828, 14019, 14058, 14039, 14200, 14291, 14674, 15683, 16767, 16973, 16861, 16951, 17571, 17970, 17935, 18359, 18498, 17629, 18192, 18461, 18206, 18342, 18807, 18556, 18453, 18828, 18855, 18331, 18499, 18902, 19215, 19260, 18655, 18479, 19183, 26261, 27209, 31515, 32057, 37858, 39789, 41136, 43910, 43490, 44102, 44949, 49039, 53254, 54810, 55483, 55860, 59064, 59505, 60087, 59502, 59714, 61523, 62437, 66084, 66295, 65929, 66803, 67012, 66667, 65457, 65294, 77416, 78362, 80187, 82054, 82102, 83507, 85663, 85012, 84857, 87302, 86783, 90198, 89738, 89679, 89303, 89287, 88653, 89210, 89792, 89049, 89206, 89521, 89308, 89491, 89589, 89437, 90023, 87930, 87415, 87761, 87824, 83780, 80815, 81108, 81137, 80606, 78352, 76677, 75936, 74946, 75697, 75902, 72775, 72194, 71603, 72297, 63810, 64307, 62909, 61219, 59119, 59079, 59178, 58832, 58824, 58272, 58092, 57793, 56335, 55104, 54808, 54797, 52267, 49815, 49815, 49815, 49804, 49030, 47758, 47372, 47377, 47392, 44775, 43091, 44252, 43685, 44094, 44010, 41503, 39458, 37858, 37163, 37451, 37281, 37832, 37197, 37162, 36846, 35246, 34897, 34439, 34555, 34444, 34729, 34686, 34582, 33974, 33946, 33551, 33270, 33193, 33178, 33322, 33180],
                 "drData": [67, 67, 67, 68, 68, 69, 70, 71, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 71, 72, 72, 72, 71, 71, 71, 71, 71, 71, 72, 72, 72, 72, 72, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 70, 70, 70, 70, 70, 70, 70, 70, 70, 69, 70, 70, 70, 69, 69, 69, 69, 69, 69, 68, 68, 68, 68, 68, 68, 68, 70, 70, 70, 70, 70, 70, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71],
                 "ourChange": "+56.8%",
-                "ahrefsChange": "+89.3%"
+                "ahrefsChange": "+89.3%",
+                "revenueRankings": {
+                    "lifetime": 1,
+                    "last3Month": 1,
+                    "currentMonth": 1
+                }
             }
         };
 
@@ -563,7 +596,24 @@
             const card = document.createElement('div');
             card.className = 'card';
 
+            // Get revenue rankings (with fallback defaults)
+            const rankings = data.revenueRankings || { lifetime: '-', last3Month: '-', currentMonth: '-' };
+            
             card.innerHTML = `
+                <div class="ranking-bubbles">
+                    <div class="ranking-bubble">
+                        <span class="rank-number">#${rankings.lifetime}</span>
+                        <span class="rank-label">Lifetime Revenue</span>
+                    </div>
+                    <div class="ranking-bubble">
+                        <span class="rank-number">#${rankings.last3Month}</span>
+                        <span class="rank-label">Last 3 Months</span>
+                    </div>
+                    <div class="ranking-bubble">
+                        <span class="rank-number">#${rankings.currentMonth}</span>
+                        <span class="rank-label">Current Month</span>
+                    </div>
+                </div>
                 <div class="chart-header">
                     <div>
                         <div class="chart-title">${domain}</div>
@@ -1044,6 +1094,41 @@
             });
         }
 
+        // Calculate revenue rankings across all domains
+        function calculateRevenueRankings(revenueByDomain) {
+            const domainList = Object.keys(revenueByDomain);
+            
+            // Calculate totals for each ranking type
+            const lifetimeRevenue = {};
+            const last3MonthRevenue = {};
+            const currentMonthRevenue = {};
+            
+            // Define the months for last 3 and current
+            const currentMonth = 'Jan2026';
+            const last3Months = ['Nov2025', 'Dec2025', 'Jan2026'];
+            
+            domainList.forEach(domain => {
+                const revenue = revenueByDomain[domain];
+                lifetimeRevenue[domain] = Object.values(revenue).reduce((a, b) => a + b, 0);
+                last3MonthRevenue[domain] = last3Months.reduce((sum, m) => sum + (revenue[m] || 0), 0);
+                currentMonthRevenue[domain] = revenue[currentMonth] || 0;
+            });
+            
+            // Sort and assign ranks (1 = highest revenue)
+            const sortAndRank = (obj) => {
+                const sorted = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+                const ranks = {};
+                sorted.forEach(([domain], idx) => ranks[domain] = idx + 1);
+                return ranks;
+            };
+            
+            return {
+                lifetime: sortAndRank(lifetimeRevenue),
+                last3Month: sortAndRank(last3MonthRevenue),
+                currentMonth: sortAndRank(currentMonthRevenue)
+            };
+        }
+
         // CSV Loading Functions
         function parseCurrency(value) {
             if (!value || value === '' || value === '-') return 0;
@@ -1486,6 +1571,10 @@
                     timeoutPromise
                 ]);
                 
+                // Calculate revenue rankings across all domains
+                const revenueRankings = calculateRevenueRankings(revenueByDomain);
+                console.log('✅ Revenue rankings calculated:', revenueRankings);
+                
                 // Helper to sort dates
                 const parseDateForSort = (dateStr) => {
                     const parts = dateStr.split(' ');
@@ -1543,7 +1632,12 @@
                         ourData: mergedOurData,
                         ahrefsData: mergedAhrefsData,
                         drData: mergedDRData,
-                        monthlyRevenue: revenueData
+                        monthlyRevenue: revenueData,
+                        revenueRankings: {
+                            lifetime: revenueRankings.lifetime[domain] || TARGET_DOMAINS.length,
+                            last3Month: revenueRankings.last3Month[domain] || TARGET_DOMAINS.length,
+                            currentMonth: revenueRankings.currentMonth[domain] || TARGET_DOMAINS.length
+                        }
                     };
                 });
                 
