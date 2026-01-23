@@ -652,17 +652,16 @@
                 revenuePoints.push({ x: cutDate.getTime(), y: 0 });
                 
                 // REVENUE LABEL CHANGE: Create point annotation at center of bar (day 13)
-                // Only add annotation if revenue > 0
-                if (revenue > 0) {
-                    const midDate = new Date(info.year, info.monthIndex, 13);
-                    revenueAnnotations.push({
-                        x: midDate.getTime(),
-                        y: revenue,
-                        label: '$' + revenue.toLocaleString(),
-                        month: info.month,
-                        year: info.year
-                    });
-                }
+                const midDate = new Date(info.year, info.monthIndex, 13);
+                // Always add annotation for month label positioning, include revenue if > 0
+                revenueAnnotations.push({
+                    x: midDate.getTime(),
+                    y: revenue,
+                    label: revenue > 0 ? '$' + revenue.toLocaleString() : '',
+                    month: info.month,
+                    year: info.year,
+                    monthLabel: info.month + ' ' + info.year
+                });
             });
             
             // SAFETY CHECK: Sort by timestamp
@@ -986,8 +985,29 @@
                     stacked: false
                 },
                 // REVENUE LABEL CHANGE: Add annotations section
+                // Build xaxis annotations for centered month labels
                 annotations: {
-                    points: pointAnnotations
+                    points: pointAnnotations,
+                    xaxis: revenueResult.revenueAnnotations.map(ann => ({
+                        x: ann.x,
+                        borderColor: 'transparent',
+                        label: {
+                            borderColor: 'transparent',
+                            borderWidth: 0,
+                            text: ann.monthLabel,
+                            orientation: 'horizontal',
+                            position: 'bottom',
+                            style: {
+                                background: 'transparent',
+                                color: '#333333',
+                                fontSize: '11px',
+                                fontWeight: 500,
+                                fontFamily: 'Inter, sans-serif',
+                                padding: { left: 0, right: 0, top: 0, bottom: 0 }
+                            },
+                            offsetY: 20
+                        }
+                    }))
                 },
                 colors: allColors,
                 fill: {
@@ -1009,18 +1029,7 @@
                     min: xAxisBounds.min, // Initial zoom start (undefined = auto)
                     max: xAxisBounds.max, // Initial zoom end (undefined = auto)
                     labels: {
-                        style: { colors: '#333333', fontSize: '11px', fontWeight: 500 },
-                        rotate: 0,
-                        rotateAlways: false,
-                        hideOverlappingLabels: true,
-                        datetimeUTC: false,
-                        format: 'MMM yyyy',
-                        datetimeFormatter: {
-                            year: 'yyyy',
-                            month: 'MMM yyyy',
-                            day: 'dd MMM',
-                            hour: 'HH:mm'
-                        }
+                        show: false // Hide default labels - using centered xaxis annotations instead
                     },
                     axisBorder: { color: '#cccccc' },
                     axisTicks: { show: false },
