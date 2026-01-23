@@ -1,0 +1,261 @@
+# Traffic Dashboard - Cursor Rules
+
+## Project Overview
+
+A traffic comparison dashboard showing internal traffic data vs Ahrefs data, with revenue tracking and DR (Domain Rating) history. Built with ApexCharts for visualization.
+
+**Live URL:** https://traffic-dashboard-theta.vercel.app/
+**Main Dashboard:** /index-apex.html
+**Leaderboard:** /leaderboard.html
+**Repository:** https://github.com/romesfallen/traffic-dashboard.git
+**Branch:** master
+
+---
+
+## Deployment Instructions
+
+When asked to "push", "deploy", "push live", or "push to Vercel":
+
+1. Check git status for changes
+2. Stage relevant files with `git add`
+3. Commit with descriptive message using HEREDOC format:
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   Commit title here
+   
+   - Bullet point details
+   EOF
+   )"
+   ```
+4. Push to origin master: `git push origin master`
+5. Vercel auto-deploys from GitHub
+6. Provide URL: https://traffic-dashboard-theta.vercel.app/
+
+---
+
+## Current Features
+
+### Search Engine Protection
+- [x] robots.txt blocking all crawlers
+- [x] Meta robots tags (noindex, nofollow, noarchive, nosnippet) on all pages
+- [x] X-Robots-Tag HTTP header via vercel.json
+
+### Main Dashboard (index-apex.html)
+- [x] ApexCharts line/area chart with traffic data
+- [x] Dual traffic series: Internal Monthly Traffic vs Ahrefs Monthly Traffic
+- [x] Revenue bars (stepped area, bottom-third of chart)
+- [x] Revenue labels with toggle on/off
+- [x] DR (Domain Rating) line with dotted style
+- [x] Date range selector (7d, 30d, 90d, 6mo, 1yr, From Dec 2024, All time)
+- [x] Searchable domain dropdown with keyboard navigation
+- [x] Linear interpolation for missing data points
+- [x] Zoom and pan functionality
+- [x] Custom tooltip showing all series values
+- [x] Revenue ranking bubbles above chart showing:
+  - Lifetime Revenue rank, value, % of portfolio
+  - Last 3 Months rank, value, % of portfolio  
+  - Current Month rank, value, % of portfolio
+- [x] Centered domain title above ranking bubbles
+- [x] URL parameter support (?domain=example.com)
+- [x] Navigation link to Leaderboard
+
+### Leaderboard (leaderboard.html)
+- [x] Shows ALL domains with revenue > $0.01
+- [x] Three tabs: Lifetime / Last 3 Months / Current Month
+- [x] Sortable table: Rank, Domain, Revenue, % of Portfolio
+- [x] Portfolio total displayed
+- [x] Site count in subtitle
+- [x] Clickable domains link to dashboard with pre-selected domain
+- [x] Back to Dashboard link
+
+### Data Sources
+- `traffic-data.csv` - Internal traffic by date (~14MB)
+- `ahrefs_organic_traffic_results.csv` - Ahrefs organic traffic (~342KB)
+- `revenue-history.csv` - Monthly revenue by domain (~455KB)
+- `DR History.csv` - Domain Rating history (~7.5MB)
+- `ahrefs-data.csv` - Legacy Ahrefs data (deprecated)
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Frontend | Vanilla HTML/CSS/JavaScript (ES6+) |
+| Charts | ApexCharts (CDN) |
+| CSV Parsing | PapaParse 5.4.1 |
+| Fonts | Inter (Google Fonts) |
+| Hosting | Vercel (auto-deploy from GitHub) |
+
+---
+
+## Styling Conventions
+
+- Primary color (orange): #f97316
+- Positive/success (green): #10b981, #4ade80
+- Negative (red): #f87171
+- Neutral (yellow): #fbbf24
+- Chart colors: Orange (internal), Blue (ahrefs), Green (revenue), Purple (DR)
+- Font: Inter
+- Border radius: 12px for cards, 8px for inputs
+- Percentages: 2 decimal places for revenue stats
+
+---
+
+## Things That Didn't Work / Lessons Learned
+
+> **IMPORTANT:** Document ALL failed approaches here with reasons. This prevents going in circles.
+
+### Chart Libraries
+- **Chart.js**: Initially used but replaced with ApexCharts for better customization, zoom/pan, and multiple y-axes support
+- **Plotly**: Initial version (dark theme) - replaced with ApexCharts for lighter weight and better UX
+
+### Revenue Display
+- **Revenue as line chart**: Didn't convey monthly totals well. Switched to stepped area bars (day 1-25 with gap at day 26-27) which clearly shows monthly blocks
+- **Hiding $0 revenue months**: Created gaps in chart. Must include $0 months to maintain continuity
+- **Hiding $0 in tooltip**: Confusing when revenue bar shows but tooltip doesn't mention it. Show "Revenue: $0" explicitly
+
+### Data Handling
+- **Hardcoded domain lists only**: Limited flexibility. Now dynamically load all domains from CSV and filter by revenue > $0.01
+
+### Layout
+- **Date selector centered above chart**: User preferred it in original position (right side of chart header). Reverted.
+
+### Annotations
+- **ApexCharts point annotations for revenue labels**: Works well but needs toggle since it can clutter the chart
+
+### Tooltip
+- **Smooth day-by-day tooltip following cursor X position**: Added then reverted. Caused issues - tooltip needs to snap to actual data points, not interpolate between them
+
+### DR (Domain Rating) Display - Multiple Iterations
+- **DR as 4th series on main chart (first attempt)**: Added but cluttered the chart
+- **DR in separate stat card with sparkline**: Moved DR off chart into its own card. Removed later - redundant since DR visible on chart
+- **Custom legend for DR**: Tried custom legend component. Removed - ApexCharts built-in clickable legend works better
+- **WINNER: DR as purple dotted line on chart**: Dotted style distinguishes it from traffic lines, separate right y-axis (0-100 scale)
+
+### Toggle Implementation
+- **Toggle in chart legend area**: Tried moving revenue label toggle into legend. Harder to find
+- **WINNER: Slider toggle in header**: More visible, clear on/off state
+
+### Chart Styling
+- **Area fill on traffic lines (Our Data, Ahrefs)**: Made chart look heavy/cluttered. Removed fills, kept as clean lines. Only Revenue keeps subtle 25% opacity fill
+
+### Traffic-Revenue Correlation Methods (from earlier analysis)
+- **Same-Month Latest (last snapshot only)**: Correlation 0.48 - noisy, doesn't smooth out daily fluctuations
+- **30-Day Lagged traffic**: Correlation 0.50 - not as good as same-month
+- **60-Day Lagged traffic**: Correlation 0.47 - worse than other methods
+- **WINNER: Same-Month Average**: Correlation 0.58 - averaging all snapshots within the month smooths noise and gives best correlation
+
+### Stability Calculation (from earlier analysis)
+- **CV from all raw traffic snapshots**: Measures snapshot-to-snapshot noise, not meaningful month-to-month stability
+- **WINNER: CV from same-month averages**: Aligns with how revenue is recorded (monthly), captures actual month-over-month volatility
+
+### Traffic Band Analysis (from earlier analysis)
+- **Site-level bands (overall average per site)**: Doesn't show direct traffic→revenue relationship
+- **WINNER: Month-level bands (each site-month is separate)**: Shows "when a site has X traffic in a given month, how much revenue does it typically make?"
+
+---
+
+## File Structure
+
+```
+traffic-dashboard/
+├── index-apex.html          # Main dashboard (ApexCharts - production)
+├── leaderboard.html         # Revenue leaderboard page
+├── index.html               # Legacy Chart.js version (deprecated)
+├── index-apex-annotations.html  # Experimental annotations version
+├── vercel.json              # Vercel deployment config + X-Robots-Tag header
+├── robots.txt               # Blocks search engine crawlers
+├── .cursorrules             # This file - KEEP UPDATED
+├── .gitignore               # Git ignore rules
+│
+├── # Data Files
+├── traffic-data.csv         # Internal traffic data
+├── revenue-history.csv      # Monthly revenue by domain
+├── ahrefs_organic_traffic_results.csv  # Ahrefs organic traffic
+├── DR History.csv           # Domain Rating history
+├── ahrefs-data.csv          # Legacy (deprecated)
+│
+├── # Documentation
+├── README.md                # Setup instructions
+└── PRD.md                   # Product requirements document
+```
+
+---
+
+## Update Instructions
+
+**CRITICAL: When making ANY changes to this project, update this file:**
+
+1. Add new features to "Current Features" section with [x] checkbox
+2. Document EVERY failed approach in "Things That Didn't Work" with:
+   - What was tried
+   - Why it didn't work
+   - What solution was used instead
+3. Keep file structure current
+4. Add new data sources if added
+
+---
+
+## Common Tasks
+
+### Add a new data series to chart
+1. Load data in `loadDataFromCSV()` or create new loader function
+2. Add to domain object in the merge loop
+3. Add series config in `createChart()` options
+4. Add y-axis config if needed
+5. Update tooltip custom function
+6. Update legend colors array
+
+### Change time periods for rankings
+- Modify `currentMonth` and `last3Months` variables in `calculateRevenueRankings()`
+- Same in leaderboard.html `loadRevenueCSV()`
+
+### Local development
+```bash
+python3 -m http.server 8000
+# Open http://localhost:8000/index-apex.html
+```
+Note: Opening HTML directly via `file://` won't load CSVs (browser security). Use local server.
+
+---
+
+## Pending / Future Features
+
+- [ ] Export chart as PNG/PDF
+- [ ] Custom date range picker
+- [ ] Multi-domain comparison view
+- [ ] Data table view toggle
+- [ ] Dark mode toggle
+- [ ] Mobile-optimized layout
+- [ ] Algorithm update annotations
+- [ ] Real-time API integration
+
+---
+
+## Session Log
+
+> Track significant changes made during Cursor sessions here.
+
+| Date | Change | Notes |
+|------|--------|-------|
+| Jan 14, 2026 | Initial commit | Plotly dark theme |
+| Jan 20, 2026 | CSV integration | Load traffic, revenue, Ahrefs from CSV files |
+| Jan 20, 2026 | ApexCharts migration | Replaced Plotly - better zoom/pan, multiple y-axes |
+| Jan 20, 2026 | Revenue axis scaling | Bottom-third display, stepped area bars |
+| Jan 20, 2026 | DR series iterations | Tried stat card → removed → back on chart as dotted line |
+| Jan 20, 2026 | Revenue labels toggle | Slider in header, annotations approach |
+| Jan 20, 2026 | Default view Dec 2024 | Added "From Dec 2024" date option |
+| Jan 20, 2026 | 100 domains support | Searchable dropdown with keyboard nav |
+| Jan 21, 2026 | Dropdown UX | Select all on focus, show full list on click |
+| Jan 21, 2026 | Zoom-out bug fix | Use xaxis min/max instead of data filtering |
+| Jan 21, 2026 | Revenue ranking bubbles | Lifetime, L3M, Current Month with % of portfolio |
+| Jan 21, 2026 | Leaderboard page | All domains with revenue > $0.01, 3 tabs |
+| Jan 21, 2026 | Layout fixes | Restored date selector position, aligned nav |
+| Jan 21, 2026 | Revenue % precision | Changed to 2 decimal places |
+| Jan 23, 2026 | Enhanced .cursorrules | Full lessons learned from git history |
+| Jan 23, 2026 | Search engine blocking | robots.txt, meta tags, X-Robots-Tag header |
+
+---
+
+*Last updated: January 23, 2026*
