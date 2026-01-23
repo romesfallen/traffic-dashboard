@@ -152,6 +152,37 @@
             font-size: 12px;
         }
 
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e5e5;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            color: #666666;
+        }
+
+        .tab-btn:hover {
+            border-color: #f97316;
+            color: #f97316;
+        }
+
+        .tab-btn.active {
+            background: #f97316;
+            border-color: #f97316;
+            color: white;
+        }
+
         .card {
             background: #ffffff;
             border: 1px solid #e5e5e5;
@@ -300,9 +331,15 @@
         </div>
     </div>
 
+    <div class="tabs">
+        <button class="tab-btn active" data-period="lifetime">Lifetime</button>
+        <button class="tab-btn" data-period="last3Month">Last 3 Months</button>
+        <button class="tab-btn" data-period="currentMonth">Current Month</button>
+    </div>
+
     <div class="card">
         <div class="portfolio-total">
-            <div class="label">Niche Portfolio Total (Lifetime)</div>
+            <div class="label" id="portfolioLabel">Niche Portfolio Total (Lifetime)</div>
             <div class="value" id="portfolioTotal">$0</div>
         </div>
         <div class="table-container">
@@ -332,6 +369,13 @@
         let agentNicheMap = {};
         let currentNiche = '';
         let allNiches = []; // { niche: string, count: number }
+        let currentPeriod = 'lifetime';
+        
+        const periodLabels = {
+            lifetime: 'Lifetime',
+            last3Month: 'Last 3 Months',
+            currentMonth: 'Current Month'
+        };
 
         function parseCurrency(value) {
             if (!value || value === '' || value === '-') return 0;
@@ -395,6 +439,8 @@
             });
             
             const headers = parsed.meta.fields || [];
+            const currentMonth = 'Jan 2026';
+            const last3Months = ['Nov 2025', 'Dec 2025', 'Jan 2026'];
             const domainData = [];
             
             parsed.data.forEach(row => {
@@ -406,18 +452,30 @@
                 }
                 
                 let lifetimeTotal = 0;
+                let last3MonthTotal = 0;
+                let currentMonthTotal = 0;
                 
                 headers.forEach(header => {
                     const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
                     if (monthMatch) {
-                        lifetimeTotal += parseCurrency(row[header]);
+                        const value = parseCurrency(row[header]);
+                        lifetimeTotal += value;
+                        
+                        if (last3Months.includes(header)) {
+                            last3MonthTotal += value;
+                        }
+                        if (header === currentMonth) {
+                            currentMonthTotal = value;
+                        }
                     }
                 });
                 
                 if (lifetimeTotal > 0.01) {
                     domainData.push({
                         domain: domain,
-                        lifetime: lifetimeTotal
+                        lifetime: lifetimeTotal,
+                        last3Month: last3MonthTotal,
+                        currentMonth: currentMonthTotal
                     });
                 }
             });
@@ -523,9 +581,22 @@
             });
         }
 
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPeriod = this.dataset.period;
+                    renderTable();
+                });
+            });
+        }
+
         function renderTable() {
             const tbody = document.getElementById('tableBody');
             const totalEl = document.getElementById('portfolioTotal');
+            const labelEl = document.getElementById('portfolioLabel');
             const subtitleEl = document.getElementById('subtitle');
             const searchInput = document.getElementById('nicheSearch');
             const nicheHeader = document.getElementById('nicheHeader');
@@ -553,30 +624,36 @@
                 });
             }
             
-            // Sort by lifetime revenue (descending)
-            nicheSites.sort((a, b) => b.lifetime - a.lifetime);
+            // Filter by current period (only include sites with revenue in this period)
+            const filteredSites = nicheSites.filter(item => item[currentPeriod] > 0.01);
             
-            // Calculate niche total
-            const nicheTotal = nicheSites.reduce((sum, item) => sum + item.lifetime, 0);
+            // Sort by current period revenue (descending)
+            filteredSites.sort((a, b) => b[currentPeriod] - a[currentPeriod]);
             
+            // Calculate niche total for current period
+            const nicheTotal = filteredSites.reduce((sum, item) => sum + item[currentPeriod], 0);
+            
+            // Update portfolio label with period
+            labelEl.textContent = `Niche Portfolio Total (${periodLabels[currentPeriod]})`;
             totalEl.textContent = formatCurrency(nicheTotal);
+            
             if (isAllNiches) {
-                subtitleEl.textContent = `All Niches — ${nicheSites.length} sites`;
+                subtitleEl.textContent = `All Niches — ${filteredSites.length} sites`;
                 document.title = 'All Niches';
             } else {
-                subtitleEl.textContent = `"${currentNiche}" — ${nicheSites.length} sites`;
+                subtitleEl.textContent = `"${currentNiche}" — ${filteredSites.length} sites`;
                 document.title = `Sites in ${currentNiche}`;
             }
             
             const colSpan = isAllNiches ? 6 : 5;
             
-            if (nicheSites.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="loading">No sites found.</td></tr>`;
+            if (filteredSites.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="loading">No sites found with revenue in this period.</td></tr>`;
                 return;
             }
             
-            tbody.innerHTML = nicheSites.map((item, idx) => {
-                const pct = nicheTotal > 0 ? (item.lifetime / nicheTotal * 100).toFixed(2) : 0;
+            tbody.innerHTML = filteredSites.map((item, idx) => {
+                const pct = nicheTotal > 0 ? (item[currentPeriod] / nicheTotal * 100).toFixed(2) : 0;
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 const agent = info.agent || 'Unknown';
                 
@@ -604,7 +681,7 @@
                         <td class="agent-cell">
                             <a href="agent.html?agent=${encodeURIComponent(agent)}">${agent}</a>
                         </td>
-                        <td class="revenue-cell">${formatCurrency(item.lifetime)}</td>
+                        <td class="revenue-cell">${formatCurrency(item[currentPeriod])}</td>
                         <td class="pct-cell">${pct}%</td>
                     </tr>
                 `;
@@ -633,6 +710,7 @@
                 }
                 
                 setupNicheSearch();
+                setupTabs();
                 renderTable();
             } catch (error) {
                 console.error('Error loading data:', error);
