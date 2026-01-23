@@ -176,6 +176,25 @@
             cursor: default;
         }
 
+        /* Ahrefs link icon */
+        .ahrefs-link {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .ahrefs-link img {
+            width: 14px;
+            height: 14px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .ahrefs-link:hover img {
+            opacity: 1;
+        }
+
         .revenue-cell {
             font-weight: 600;
             color: #333333;
@@ -273,6 +292,11 @@
         let agentNicheMap = {};
         let trafficDomains = new Set();
         let currentPeriod = 'lifetime';
+
+        // Ahrefs URL Generator
+        function getAhrefsUrl(domain) {
+            return `https://app.ahrefs.com/v2-site-explorer/overview?backlinksChartMode=metrics&backlinksChartPerformanceSources=domainRating%7C%7CurlRating&backlinksCompetitorsSource=%22UrlRating%22&backlinksRefdomainsSource=%22RefDomainsNew%22&bestFilter=all&brandedTrafficSource=target-brand&chartGranularity=daily&chartInterval=all&competitors=&countries=&country=all&entitiesCategory=organisations&generalChartBrandedTraffic=other-brands&generalChartMode=metrics&generalChartPerformanceSources=organicTraffic&generalCompetitorsSource=%22OrganicTraffic%22&generalCountriesSource=organic-traffic&generalEntitiesChartMetric=Traffic&generalPagesByTrafficChartMode=Percentage&generalPagesByTrafficSource=Traffic&highlightChanges=7d&intentsMainSource=informational&keywordsSource=all&mode=subdomains&organicChartBrandedTraffic=non-branded%7C%7Cother-brands%7C%7Ctarget-brand&organicChartMode=metrics&organicChartPerformanceSources=organicTraffic&organicCompetitorsSource=%22OrganicTraffic%22&organicCountriesSource=organic-traffic&organicEntitiesChartMetric=Traffic&organicPagesByTrafficChartMode=Percentage&organicPagesByTrafficSource=Pages%7C%7CTraffic&overviewSerpChartMode=Own&overviewSerpChartSpec=AIOverview%7C%7CAdwordsBottom%7C%7CAdwordsTop%7C%7CDiscussions%7C%7CFeaturedSnippet%7C%7CImagePack%7C%7CKnowledgeCard%7C%7CKnowledgePanel%7C%7CLocalPack%7C%7CPaidSiteLinks%7C%7CPeopleAlsoAsk%7C%7CShoppingAds%7C%7CShoppingOrganic%7C%7CSitelinks%7C%7CThumbnail%7C%7CTopStories%7C%7CTweets%7C%7CVideoPreview%7C%7CVideos&overviewSerpManyChartSpec=Own%7C%7CTotal&overview_tab=general&paidSearchPaidKeywordsByTopPositionsChartMode=Percentage&paidTrafficSources=cost%7C%7Ctraffic&target=${encodeURIComponent(domain)}&topLevelDomainFilter=all&topOrganicKeywordsMode=normal&topOrganicPagesMode=normal&trafficType=Organic&volume_type=monthly`;
+        }
 
         function parseCurrency(value) {
             if (!value || value === '' || value === '-') return 0;
@@ -435,9 +459,10 @@
                 const agent = info.agent || 'Unknown';
                 const hasGraphData = trafficDomains.has(item.domain.toLowerCase());
                 
+                const ahrefsLinkHtml = `<a href="${getAhrefsUrl(item.domain)}" target="_blank" class="ahrefs-link" title="View in Ahrefs"><img src="ahrefs-icon.svg" alt="Ahrefs"></a>`;
                 const domainHtml = hasGraphData 
-                    ? `<a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>`
-                    : `<span class="no-graph">${item.domain}</span>`;
+                    ? `<a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>${ahrefsLinkHtml}`
+                    : `<span class="no-graph">${item.domain}</span>${ahrefsLinkHtml}`;
                 
                 return `
                     <tr>
