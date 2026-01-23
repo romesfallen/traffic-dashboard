@@ -1,26 +1,20 @@
-// Handle Google OAuth callback
-export const config = {
-  runtime: 'edge',
-};
+import crypto from 'crypto';
 
-export default async function handler(request) {
-  const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state') || '/';
-  const error = url.searchParams.get('error');
+// Handle Google OAuth callback
+export default async function handler(req, res) {
+  const protocol = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const origin = `${protocol}://${host}`;
+  
+  const { code, state, error } = req.query;
+  const redirectPath = state || '/';
   
   if (error) {
-    return new Response(renderError('Google login was cancelled or failed.'), {
-      status: 400,
-      headers: { 'Content-Type': 'text/html' },
-    });
+    return res.status(400).send(renderError('Google login was cancelled or failed.'));
   }
   
   if (!code) {
-    return new Response(renderError('No authorization code received.'), {
-      status: 400,
-      headers: { 'Content-Type': 'text/html' },
-    });
+    return res.status(400).send(renderError('No authorization code received.'));
   }
   
   try {
@@ -32,7 +26,7 @@ export default async function handler(request) {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID,
         client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${url.origin}/api/auth/callback`,
+        redirect_uri: `${origin}/api/auth/callback`,
         grant_type: 'authorization_code',
       }),
     });
@@ -68,85 +62,41 @@ export default async function handler(request) {
       .filter(Boolean);
     
     if (!allowedEmails.includes(email)) {
-      return new Response(renderAccessDenied(email), {
-        status: 403,
-        headers: { 'Content-Type': 'text/html' },
-      });
+      return res.status(403).send(renderAccessDenied(email));
     }
     
     // Create session token (JWT)
-    const sessionToken = await createSessionToken({
+    const sessionToken = createSessionToken({
       email: email,
       name: user.name,
       picture: user.picture,
       exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
     });
     
-    // Redirect to original destination with session cookie
-    const response = new Response(null, {
-      status: 302,
-      headers: {
-        Location: state,
-        'Set-Cookie': `auth_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${24 * 60 * 60}`,
-      },
-    });
-    
-    return response;
+    // Set cookie and redirect
+    res.setHeader('Set-Cookie', `auth_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${24 * 60 * 60}`);
+    res.redirect(302, redirectPath);
   } catch (error) {
     console.error('Auth callback error:', error);
-    return new Response(renderError(error.message), {
-      status: 500,
-      headers: { 'Content-Type': 'text/html' },
-    });
+    return res.status(500).send(renderError(error.message));
   }
 }
 
-// Create JWT using Web Crypto API
-async function createSessionToken(payload) {
+// Create JWT using Node.js crypto
+function createSessionToken(payload) {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error('SESSION_SECRET not configured');
   
   const header = { alg: 'HS256', typ: 'JWT' };
-  const headerB64 = base64UrlEncode(JSON.stringify(header));
-  const payloadB64 = base64UrlEncode(JSON.stringify(payload));
+  const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest('base64url');
   
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    encoder.encode(`${headerB64}.${payloadB64}`)
-  );
-  
-  const signatureB64 = base64UrlEncode(signature);
-  
-  return `${headerB64}.${payloadB64}.${signatureB64}`;
-}
-
-function base64UrlEncode(input) {
-  let bytes;
-  if (typeof input === 'string') {
-    bytes = new TextEncoder().encode(input);
-  } else {
-    bytes = new Uint8Array(input);
-  }
-  
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return `${headerB64}.${payloadB64}.${signature}`;
 }
 
 function renderError(message) {

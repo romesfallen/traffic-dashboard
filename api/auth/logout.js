@@ -1,9 +1,5 @@
 // Handle logout - clear session cookie
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(request) {
+export default function handler(req, res) {
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -29,11 +25,7 @@ export default async function handler(request) {
 </body>
 </html>`;
 
-  return new Response(html, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/html',
-      'Set-Cookie': 'auth_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
-    },
-  });
+  res.setHeader('Set-Cookie', 'auth_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+  res.setHeader('Content-Type', 'text/html');
+  res.status(200).send(html);
 }

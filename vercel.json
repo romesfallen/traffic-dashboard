@@ -1,6 +1,4 @@
 {
-  "buildCommand": "",
-  "outputDirectory": ".",
   "headers": [
     {
       "source": "/(.*)",
@@ -21,10 +19,5 @@
       "source": "/index-apex.html",
       "destination": "/index-apex.html"
     }
-  ],
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "@vercel/edge"
-    }
-  }
+  ]
 }

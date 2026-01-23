@@ -41,11 +41,13 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] X-Robots-Tag HTTP header via vercel.json
 
 ### Authentication (Google OAuth)
-- [x] Edge middleware protects all routes
-- [x] Google OAuth login with email allowlist
+- [x] Client-side auth check redirects to login if not authenticated
+- [x] Google OAuth login flow via /api/auth endpoints
+- [x] Email allowlist validation (ALLOWED_EMAILS env var)
 - [x] 24-hour session cookies (HttpOnly, Secure)
 - [x] User bar showing logged-in email with Sign Out button
 - [x] Access denied page for non-approved emails
+- [x] Page hidden until auth verified (prevents flash of content)
 
 ### Main Dashboard (index-apex.html)
 - [x] ApexCharts line/area chart with traffic data
@@ -171,13 +173,13 @@ traffic-dashboard/
 ├── leaderboard.html         # Revenue leaderboard page
 ├── index.html               # Legacy Chart.js version (deprecated)
 ├── index-apex-annotations.html  # Experimental annotations version
-├── middleware.js            # Edge middleware for auth protection
 ├── api/
 │   └── auth/
 │       ├── login.js         # Redirects to Google OAuth
 │       ├── callback.js      # Handles OAuth callback, validates email
 │       ├── logout.js        # Clears session cookie
-│       └── me.js            # Returns current user info
+│       ├── me.js            # Returns current user info
+│       └── check.js         # Returns auth status for client-side check
 ├── vercel.json              # Vercel deployment config + headers
 ├── robots.txt               # Blocks search engine crawlers
 ├── .cursorrules             # This file - KEEP UPDATED

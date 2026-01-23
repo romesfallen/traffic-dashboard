@@ -220,7 +220,7 @@
         }
     </style>
 </head>
-<body>
+<body style="visibility: hidden;">
     <div class="user-bar" id="userBar" style="display: none;">
         <span class="user-email" id="userEmail"></span>
         <a href="/api/auth/logout" class="sign-out">Sign Out</a>
@@ -406,20 +406,33 @@
 
         init();
 
-        // Load user info for header bar
-        async function loadUserInfo() {
+        // Check authentication and load user info
+        async function checkAuthAndLoadUser() {
             try {
-                const response = await fetch('/api/auth/me');
+                const response = await fetch('/api/auth/check');
                 const data = await response.json();
-                if (data.authenticated && data.email) {
-                    document.getElementById('userEmail').textContent = data.email;
+                
+                if (!data.authenticated) {
+                    // Not authenticated - redirect to login
+                    window.location.href = '/api/auth/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }
+                
+                // Authenticated - show the page and load user info
+                document.body.style.visibility = 'visible';
+                
+                const meResponse = await fetch('/api/auth/me');
+                const meData = await meResponse.json();
+                if (meData.authenticated && meData.email) {
+                    document.getElementById('userEmail').textContent = meData.email;
                     document.getElementById('userBar').style.display = 'flex';
                 }
             } catch (error) {
-                console.log('User info not available');
+                console.log('Auth check failed, showing page anyway');
+                document.body.style.visibility = 'visible';
             }
         }
-        loadUserInfo();
+        checkAuthAndLoadUser();
     </script>
 </body>
 </html>

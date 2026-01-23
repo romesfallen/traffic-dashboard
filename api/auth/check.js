@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-// Return current user info
+// Check authentication and redirect if not authenticated
 export default function handler(req, res) {
   const cookies = req.headers.cookie || '';
   const sessionMatch = cookies.match(/auth_session=([^;]+)/);
@@ -16,12 +16,7 @@ export default function handler(req, res) {
       return res.json({ authenticated: false });
     }
     
-    return res.json({
-      authenticated: true,
-      email: session.email,
-      name: session.name,
-      picture: session.picture,
-    });
+    return res.json({ authenticated: true });
   } catch (error) {
     return res.json({ authenticated: false });
   }
@@ -58,7 +53,6 @@ function verifySession(token) {
     
     return payload;
   } catch (error) {
-    console.error('Session verification failed:', error.message);
     return null;
   }
 }
