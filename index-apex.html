@@ -264,12 +264,22 @@
             transform: translateX(18px);
         }
 
+        /* Centered domain title */
+        .domain-title-centered {
+            text-align: center;
+            font-size: 22px;
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 16px;
+        }
+
         /* Revenue ranking bubbles */
         .ranking-bubbles {
             display: flex;
             gap: 12px;
             margin-bottom: 16px;
             flex-wrap: wrap;
+            justify-content: center;
         }
 
         .ranking-bubble {
@@ -311,6 +321,27 @@
             color: #10b981;
             font-weight: 500;
         }
+
+        /* Chart controls centered */
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        /* Nav link */
+        .nav-link {
+            display: inline-block;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            margin-left: 16px;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -332,6 +363,7 @@
             <input type="text" id="domainSearch" placeholder="Search domains..." autocomplete="off">
             <div class="dropdown-list" id="dropdownList"></div>
         </div>
+        <a href="leaderboard.html" class="nav-link">View Leaderboard →</a>
     </div>
 
     <div id="charts"></div>
@@ -633,6 +665,7 @@
             const formatCurrency = (val) => '$' + Math.round(val).toLocaleString();
             
             card.innerHTML = `
+                <div class="domain-title-centered">${domain}</div>
                 <div class="ranking-bubbles">
                     <div class="ranking-bubble">
                         <div class="rank-header">
@@ -659,10 +692,7 @@
                         <div class="rank-pct">${rankings.currentMonthPct}% of portfolio</div>
                     </div>
                 </div>
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">${domain}</div>
-                    </div>
+                <div class="chart-controls">
                     <select class="chart-range-select" id="chartDateRange">
                         <option value="7" ${dateRange === '7' ? 'selected' : ''}>Last 7 days</option>
                         <option value="30" ${dateRange === '30' ? 'selected' : ''}>Last month</option>
@@ -1587,12 +1617,22 @@
             setupDomainSelector();
             setupRevenueToggle(); // REVENUE LABEL CHANGE
             
-            // Auto-select first domain
-            if (Object.keys(domains).length > 0) {
-                const firstDomain = Object.keys(domains)[0];
-                selectedDomain = firstDomain;
-                document.getElementById('domainSearch').value = firstDomain;
-                createChart(firstDomain, domains[firstDomain]);
+            // Check for URL parameter to pre-select domain
+            const urlParams = new URLSearchParams(window.location.search);
+            const domainParam = urlParams.get('domain');
+            
+            // Determine which domain to show
+            let targetDomain = null;
+            if (domainParam && domains[domainParam]) {
+                targetDomain = domainParam;
+            } else if (Object.keys(domains).length > 0) {
+                targetDomain = Object.keys(domains)[0];
+            }
+            
+            if (targetDomain) {
+                selectedDomain = targetDomain;
+                document.getElementById('domainSearch').value = targetDomain;
+                createChart(targetDomain, domains[targetDomain]);
             }
         }
 

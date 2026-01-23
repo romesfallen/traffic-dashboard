@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revenue Leaderboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            color: #333333;
+            padding: 24px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666666;
+            font-size: 14px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 12px;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: 1px solid #e5e5e5;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            color: #666666;
+        }
+
+        .tab-btn:hover {
+            border-color: #f97316;
+            color: #f97316;
+        }
+
+        .tab-btn.active {
+            background: #f97316;
+            border-color: #f97316;
+            color: white;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e5e5e5;
+            color: #666666;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        th:first-child {
+            width: 60px;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        .rank-cell {
+            font-weight: 700;
+            color: #f97316;
+            font-size: 16px;
+        }
+
+        .domain-cell {
+            font-weight: 500;
+        }
+
+        .domain-cell a {
+            color: #333333;
+            text-decoration: none;
+        }
+
+        .domain-cell a:hover {
+            color: #f97316;
+            text-decoration: underline;
+        }
+
+        .revenue-cell {
+            font-weight: 600;
+            color: #333333;
+        }
+
+        .pct-cell {
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666666;
+        }
+
+        .portfolio-total {
+            text-align: center;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f5f5f5;
+            border-radius: 12px;
+        }
+
+        .portfolio-total .label {
+            font-size: 12px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .portfolio-total .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Revenue Leaderboard</h1>
+        <p>Top 50 Sites by Revenue</p>
+        <a href="index-apex.html" class="nav-link">← Back to Dashboard</a>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-period="lifetime">Lifetime</button>
+        <button class="tab-btn" data-period="last3Month">Last 3 Months</button>
+        <button class="tab-btn" data-period="currentMonth">Current Month</button>
+    </div>
+
+    <div class="card">
+        <div class="portfolio-total">
+            <div class="label">Portfolio Total</div>
+            <div class="value" id="portfolioTotal">$0</div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Domain</th>
+                        <th>Revenue</th>
+                        <th>% of Portfolio</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr>
+                        <td colspan="4" class="loading">Loading data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script>
+        // Same target domains list as main dashboard
+        const TARGET_DOMAINS = [
+            'decoratoradvice.com',
+            'traveltweaks.com',
+            'famousparenting.com',
+            'etruesports.com',
+            'betterthisworld.com',
+            'lookwhatmomfound.com',
+            'activepropertycare.com',
+            'redandwhitemagz.com',
+            'lyncconf.com',
+            'playmyworld.com',
+            'mygreenbucks.net',
+            'disquantified.org',
+            'whatutalkingboutwillis.com',
+            'arcyart.com',
+            'sportsfanfare.com',
+            'thegamearchives.com',
+            'freelogopng.com',
+            'avstarnews.com',
+            'digitalnewsalerts.com',
+            'mywirelesscoupons.com',
+            'healthsciencesforum.com',
+            'oneframework.net',
+            'entretech.org',
+            'thinkofgames.com',
+            'harmonicode.com',
+            'conversationswithbianca.com',
+            'pushyourdesign.com',
+            'alternativeway.net',
+            'etherions.com',
+            'letsbuildup.org',
+            'mucicallydown.com',
+            'electronmagazine.com',
+            'onthisveryspot.com',
+            'musikcalldown.com',
+            'undergrowthgames.com',
+            'thunderonthegulf.com',
+            'nothing2hide.net',
+            'feedbuzzard.com',
+            'thestripesblog.com',
+            'wealthybyte.com',
+            'smartsatta.com',
+            'waptirick.com',
+            'kdarchitects.net',
+            'beaconsoft.net',
+            'hearthstats.net',
+            'crypticstreet.com',
+            'reactcheck.com',
+            'musikcalidown.com',
+            'gamificationsummit.com',
+            'myfavouriteplaces.org',
+            'geekgadget.net',
+            'fintechasia.net',
+            'luxuryinteriors.org',
+            'greenheal.net',
+            'livingpristine.com',
+            'thehake.com',
+            'icaiorg.net',
+            'flyarchitecture.net',
+            'springhillmedgroup.com',
+            'revolvertech.com',
+            'logicalshout.com',
+            'thehometrotters.com',
+            'voicesofconservation.org',
+            'turbogeek.org',
+            'gfxmaker.com',
+            'drhomey.com',
+            'filmyzillah.com',
+            'sentback.org',
+            'leopardtheme.com',
+            'webtosociety.com',
+            'w88w88hanoi.com',
+            'bageltechnews.com',
+            'bitnation-blog.com',
+            'fameblogs.net',
+            'g15tools.com',
+            'designmode24.com',
+            'dhilisatta.com',
+            'defstartup.org',
+            'tubitymusic.com',
+            'cloudysocial.com',
+            'theblockchainbrief.com',
+            'moneysideoflife.com',
+            'playdedeus.com',
+            'anwire.org',
+            'thechannelrace.org',
+            'theboringmagazine.com',
+            'embedtree.com',
+            'metsuiteorg.com',
+            'eyexcon.com',
+            'aliensync.com',
+            'conversationswithgreg.com',
+            'pondershort.com',
+            'formotorbikes.com',
+            'myinteriorpalace.com',
+            'sportsblitzzone.com',
+            'prositesite.com',
+            'javaobjects.net',
+            'socceragency.net',
+            'proxcroxy.com',
+            'silicon-insider.com'
+        ];
+
+        let revenueData = {};
+        let currentPeriod = 'lifetime';
+
+        function parseCurrency(value) {
+            if (!value || value === '' || value === '-') return 0;
+            const cleaned = String(value).replace(/[$,]/g, '');
+            return parseFloat(cleaned) || 0;
+        }
+
+        function formatCurrency(val) {
+            return '$' + Math.round(val).toLocaleString();
+        }
+
+        async function loadRevenueCSV() {
+            try {
+                const response = await fetch('revenue-history.csv');
+                if (!response.ok) throw new Error('Failed to load revenue CSV');
+                
+                const text = await response.text();
+                const parsed = Papa.parse(text, { 
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                const headers = parsed.meta.fields || [];
+                const currentMonth = 'Jan 2026';
+                const last3Months = ['Nov 2025', 'Dec 2025', 'Jan 2026'];
+                
+                const domainData = [];
+                
+                TARGET_DOMAINS.forEach(domain => {
+                    const row = parsed.data.find(r => 
+                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
+                    );
+                    
+                    if (row) {
+                        let lifetimeTotal = 0;
+                        let last3MonthTotal = 0;
+                        let currentMonthTotal = 0;
+                        
+                        headers.forEach(header => {
+                            const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
+                            if (monthMatch) {
+                                const value = parseCurrency(row[header]);
+                                lifetimeTotal += value;
+                                
+                                if (last3Months.includes(header)) {
+                                    last3MonthTotal += value;
+                                }
+                                if (header === currentMonth) {
+                                    currentMonthTotal = value;
+                                }
+                            }
+                        });
+                        
+                        domainData.push({
+                            domain: domain,
+                            lifetime: lifetimeTotal,
+                            last3Month: last3MonthTotal,
+                            currentMonth: currentMonthTotal
+                        });
+                    } else {
+                        domainData.push({
+                            domain: domain,
+                            lifetime: 0,
+                            last3Month: 0,
+                            currentMonth: 0
+                        });
+                    }
+                });
+                
+                // Calculate portfolio totals
+                const totals = {
+                    lifetime: domainData.reduce((sum, d) => sum + d.lifetime, 0),
+                    last3Month: domainData.reduce((sum, d) => sum + d.last3Month, 0),
+                    currentMonth: domainData.reduce((sum, d) => sum + d.currentMonth, 0)
+                };
+                
+                return { domainData, totals };
+            } catch (error) {
+                console.error('Error loading revenue CSV:', error);
+                throw error;
+            }
+        }
+
+        function renderLeaderboard(period) {
+            currentPeriod = period;
+            const tbody = document.getElementById('leaderboardBody');
+            const totalEl = document.getElementById('portfolioTotal');
+            
+            // Sort by selected period
+            const sorted = [...revenueData.domainData]
+                .sort((a, b) => b[period] - a[period])
+                .slice(0, 50);
+            
+            const total = revenueData.totals[period];
+            totalEl.textContent = formatCurrency(total);
+            
+            tbody.innerHTML = sorted.map((item, idx) => {
+                const pct = total > 0 ? (item[period] / total * 100).toFixed(1) : 0;
+                return `
+                    <tr>
+                        <td class="rank-cell">#${idx + 1}</td>
+                        <td class="domain-cell">
+                            <a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>
+                        </td>
+                        <td class="revenue-cell">${formatCurrency(item[period])}</td>
+                        <td class="pct-cell">${pct}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    renderLeaderboard(this.dataset.period);
+                });
+            });
+        }
+
+        async function init() {
+            try {
+                revenueData = await loadRevenueCSV();
+                setupTabs();
+                renderLeaderboard('lifetime');
+            } catch (error) {
+                document.getElementById('leaderboardBody').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="loading" style="color: #c33;">
+                            Error loading data. Please try refreshing the page.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
