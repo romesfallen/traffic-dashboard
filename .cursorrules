@@ -62,8 +62,10 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Custom tooltip showing all series values
 - [x] Revenue ranking bubbles above chart showing:
   - Lifetime Revenue rank, value, % of portfolio
-  - Last 3 Months rank, value, % of portfolio  
+  - Last 3 Months rank, value, % of portfolio (uses 3 complete calendar months, excludes current incomplete month)
   - Current Month rank, value, % of portfolio
+  - Avg Last 3 Months value (no rank, no percentage)
+- [x] Dynamic month calculations based on current date (auto-updates each month)
 - [x] Centered domain title above ranking bubbles
 - [x] URL parameter support (?domain=example.com)
 - [x] Navigation link to Leaderboard
@@ -76,6 +78,26 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Site count in subtitle
 - [x] Clickable domains link to dashboard with pre-selected domain
 - [x] Back to Dashboard link
+- [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
+
+### Sites by Agent (agent.html)
+- [x] Agent selector buttons (dynamically loaded from CSV)
+- [x] Three tabs: Lifetime / Last 3 Months / Current Month
+- [x] Table showing: Rank, Domain, Niche, Revenue, % of Portfolio
+- [x] Agent portfolio total displayed
+- [x] Ahrefs links and copy domain buttons
+- [x] Clickable domains link to main dashboard
+- [x] Clickable niches link to niche.html
+- [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
+- [x] Rank change tracker on Current Month tab:
+  - Shows position change vs previous complete month
+  - Green up arrow (▲) with +N for improvements
+  - Red down arrow (▼) with -N for declines
+  - Star (★) with "new" for sites new to the rankings
+
+### Sites by Niche (niche.html)
+- [x] Similar structure to agent.html but filtered by niche
+- [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
 
 ### Data Sources
 - `traffic-data.csv` - Internal traffic by date (~14MB)
@@ -463,7 +485,10 @@ python3 -m http.server 8000
 | Jan 23, 2026 | Revenue label positioning | Fixed uniform height near x-axis (was varying with bar height) |
 | Jan 23, 2026 | Centered month labels | Xaxis annotations at day 13 of each month, replacing auto datetime labels |
 | Jan 23, 2026 | January label highlighting | Bold font weight for Jan labels to mark year boundaries |
+| Jan 24, 2026 | Dynamic month calculations | Last 3 Months now uses complete calendar months only, auto-updates |
+| Jan 24, 2026 | Rank change tracker | Sites by Agent Current Month tab shows position changes vs previous month |
+| Jan 24, 2026 | Avg Last 3 Months bubble | New metric on main dashboard showing average monthly revenue |
 
 ---
 
-*Last updated: January 23, 2026 - Revenue label and month label centering improvements*
+*Last updated: January 24, 2026 - Dynamic month calculations and rank tracker feature*
