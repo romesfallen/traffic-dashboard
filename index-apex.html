@@ -466,6 +466,11 @@
             font-weight: 500;
         }
 
+        .ranking-bubble .avg-header {
+            min-height: 19px; /* Match height of rank-number (16px) + gap */
+            align-items: flex-end;
+        }
+
 
         /* Nav link - vertically centered */
         .nav-link {
@@ -901,8 +906,7 @@
                         <div class="rank-pct">${rankings.currentMonthPct}% of portfolio</div>
                     </div>
                     <div class="ranking-bubble avg-bubble">
-                        <div class="rank-header">
-                            <span class="rank-number" style="visibility: hidden;">#0</span>
+                        <div class="rank-header avg-header">
                             <span class="rank-label">Avg Last 3 Months</span>
                         </div>
                         <div class="rank-value">${formatCurrency(rankings.last3MonthValue / 3)}</div>
