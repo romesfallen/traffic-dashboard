@@ -73,27 +73,47 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 ### Leaderboard (leaderboard.html)
 - [x] Shows ALL domains with revenue > $0.01
 - [x] Three tabs: Lifetime / Last 3 Months / Current Month
-- [x] Sortable table: Rank, Domain, Revenue, % of Portfolio
+- [x] Sortable table columns: Rank, Change, Domain, Agent, Revenue, % of Portfolio
 - [x] Portfolio total displayed
 - [x] Site count in subtitle
 - [x] Clickable domains link to dashboard with pre-selected domain
 - [x] Back to Dashboard link
 - [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
+- [x] Rank change column on Current Month tab (separate sortable column)
+- [x] Filter panel on Current Month tab:
+  - Rank (min/max range)
+  - Change (Up only, Down only, New only, Unchanged)
+  - Revenue (min/max range)
+  - Agent (dropdown)
+  - % of Portfolio (min/max range)
+  - Filters are combinable
+  - Active filter count badge
+  - Clear All button
+- [x] Table max-width 1100px for better domain/icon fit
 
 ### Sites by Agent (agent.html)
 - [x] Agent selector buttons (dynamically loaded from CSV)
 - [x] Three tabs: Lifetime / Last 3 Months / Current Month
-- [x] Table showing: Rank, Domain, Niche, Revenue, % of Portfolio
+- [x] Sortable table columns: Rank, Change, Domain, Niche, Revenue, % of Portfolio
 - [x] Agent portfolio total displayed
 - [x] Ahrefs links and copy domain buttons
 - [x] Clickable domains link to main dashboard
 - [x] Clickable niches link to niche.html
 - [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
-- [x] Rank change tracker on Current Month tab:
+- [x] Rank change column on Current Month tab (separate sortable column):
   - Shows position change vs previous complete month
   - Green up arrow (▲) with +N for improvements
   - Red down arrow (▼) with -N for declines
   - Star (★) with "new" for sites new to the rankings
+- [x] Filter panel on Current Month tab:
+  - Rank (min/max range)
+  - Change (Up only, Down only, New only, Unchanged)
+  - Revenue (min/max range)
+  - % of Portfolio (min/max range)
+  - Filters are combinable
+  - Active filter count badge
+  - Clear All button
+- [x] Table max-width 1100px for better domain/icon fit
 
 ### Sites by Niche (niche.html)
 - [x] Similar structure to agent.html but filtered by niche
@@ -488,7 +508,11 @@ python3 -m http.server 8000
 | Jan 24, 2026 | Dynamic month calculations | Last 3 Months now uses complete calendar months only, auto-updates |
 | Jan 24, 2026 | Rank change tracker | Sites by Agent Current Month tab shows position changes vs previous month |
 | Jan 24, 2026 | Avg Last 3 Months bubble | New metric on main dashboard showing average monthly revenue |
+| Jan 24, 2026 | Sortable Change column | Moved rank change to separate column, sortable by clicking header |
+| Jan 24, 2026 | Leaderboard rank change | Added Change column and sorting to leaderboard Current Month tab |
+| Jan 24, 2026 | Filter panel | Added filter button/panel to Current Month tab on leaderboard and agent pages |
+| Jan 24, 2026 | Table width increase | Increased max-width from 900px to 1100px, added nowrap to domain cells |
 
 ---
 
-*Last updated: January 24, 2026 - Dynamic month calculations and rank tracker feature*
+*Last updated: January 24, 2026 - Filter panel, sortable columns, wider tables*
