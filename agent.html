@@ -390,6 +390,161 @@
             font-weight: 700;
             color: #333333;
         }
+
+        /* Filter styles */
+        .filter-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e5e5;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            color: #666666;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-btn:hover {
+            border-color: #f97316;
+            color: #f97316;
+        }
+
+        .filter-btn.active {
+            background: #fff7ed;
+            border-color: #f97316;
+            color: #f97316;
+        }
+
+        .filter-btn .filter-count {
+            background: #f97316;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .filter-panel {
+            display: none;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .filter-panel.open {
+            display: block;
+        }
+
+        .filter-panel h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-panel .clear-filters {
+            font-size: 12px;
+            color: #f97316;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .filter-panel .clear-filters:hover {
+            text-decoration: underline;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 8px 12px;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: #333;
+        }
+
+        .filter-group select:focus,
+        .filter-group input:focus {
+            outline: none;
+            border-color: #f97316;
+        }
+
+        .filter-range {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .filter-range input {
+            width: 80px;
+        }
+
+        .filter-range span {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .filter-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .filter-apply-btn {
+            padding: 8px 16px;
+            background: #f97316;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .filter-apply-btn:hover {
+            background: #ea580c;
+        }
     </style>
 </head>
 <body style="visibility: hidden;">
@@ -414,6 +569,59 @@
         <button class="tab-btn active" data-period="lifetime">Lifetime</button>
         <button class="tab-btn" data-period="last3Month">Last 3 Months</button>
         <button class="tab-btn" data-period="currentMonth">Current Month</button>
+    </div>
+
+    <div class="filter-container" id="filterContainer" style="display: none;">
+        <button class="filter-btn" id="filterBtn">
+            <span>⚙ Filters</span>
+            <span class="filter-count" id="filterCount" style="display: none;">0</span>
+        </button>
+    </div>
+
+    <div class="filter-panel" id="filterPanel">
+        <h3>
+            Filter Results
+            <span class="clear-filters" id="clearFilters">Clear All</span>
+        </h3>
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label>Rank</label>
+                <div class="filter-range">
+                    <input type="number" id="filterRankMin" placeholder="Min" min="1">
+                    <span>to</span>
+                    <input type="number" id="filterRankMax" placeholder="Max" min="1">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Change</label>
+                <select id="filterChange">
+                    <option value="">All</option>
+                    <option value="up">Up only</option>
+                    <option value="down">Down only</option>
+                    <option value="new">New only</option>
+                    <option value="unchanged">Unchanged only</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Revenue ($)</label>
+                <div class="filter-range">
+                    <input type="number" id="filterRevenueMin" placeholder="Min" min="0">
+                    <span>to</span>
+                    <input type="number" id="filterRevenueMax" placeholder="Max" min="0">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>% of Portfolio</label>
+                <div class="filter-range">
+                    <input type="number" id="filterPctMin" placeholder="Min" min="0" step="0.01">
+                    <span>to</span>
+                    <input type="number" id="filterPctMax" placeholder="Max" min="0" step="0.01">
+                </div>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="filter-apply-btn" id="applyFilters">Apply Filters</button>
+        </div>
     </div>
 
     <div class="card">
@@ -453,6 +661,17 @@
         
         // Sorting state
         let currentSort = { column: 'revenue', direction: 'desc' };
+        
+        // Filter state
+        let filters = {
+            rankMin: null,
+            rankMax: null,
+            change: '',
+            revenueMin: null,
+            revenueMax: null,
+            pctMin: null,
+            pctMax: null
+        };
 
         const periodLabels = {
             lifetime: 'Lifetime',
@@ -654,8 +873,9 @@
                     tabs.forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
                     currentPeriod = this.dataset.period;
-                    // Reset sort to default (revenue desc) when switching tabs
+                    // Reset sort and filters when switching tabs
                     currentSort = { column: 'revenue', direction: 'desc' };
+                    clearAllFilters(false);
                     renderTable();
                 });
             });
@@ -667,10 +887,12 @@
             const labelEl = document.getElementById('portfolioLabel');
             const subtitleEl = document.getElementById('subtitle');
             const changeHeader = document.getElementById('changeHeader');
+            const filterContainer = document.getElementById('filterContainer');
             
-            // Show/hide Change column based on period
+            // Show/hide Change column and Filters based on period
             const showChangeColumn = currentPeriod === 'currentMonth';
             changeHeader.style.display = showChangeColumn ? '' : 'none';
+            filterContainer.style.display = showChangeColumn ? 'flex' : 'none';
             
             // Filter sites by current agent
             const agentSites = allData.filter(item => {
@@ -683,7 +905,7 @@
             });
             
             // Filter to sites with revenue > 0.01 for selected period
-            const filteredSites = agentSites.filter(item => item[currentPeriod] > 0.01);
+            let filteredSites = agentSites.filter(item => item[currentPeriod] > 0.01);
             
             // Calculate previous month rankings for this agent's sites (for rank change feature)
             let previousMonthRanks = {};
@@ -714,14 +936,43 @@
                     const prevRank = previousMonthRanks[item.domain.toLowerCase()];
                     if (prevRank) {
                         item._change = prevRank - item._currentRank; // Positive = moved up
+                        item._isNew = false;
                     } else {
                         item._change = 999; // New entries sort to top when sorting by change
                         item._isNew = true;
                     }
                 } else {
                     item._change = 0;
+                    item._isNew = false;
                 }
             });
+            
+            // Apply user filters (only on Current Month)
+            if (currentPeriod === 'currentMonth') {
+                filteredSites = filteredSites.filter(item => {
+                    // Rank filter
+                    if (filters.rankMin !== null && item._currentRank < filters.rankMin) return false;
+                    if (filters.rankMax !== null && item._currentRank > filters.rankMax) return false;
+                    
+                    // Change filter
+                    if (filters.change) {
+                        if (filters.change === 'up' && item._change <= 0) return false;
+                        if (filters.change === 'down' && item._change >= 0) return false;
+                        if (filters.change === 'new' && !item._isNew) return false;
+                        if (filters.change === 'unchanged' && item._change !== 0) return false;
+                    }
+                    
+                    // Revenue filter
+                    if (filters.revenueMin !== null && item[currentPeriod] < filters.revenueMin) return false;
+                    if (filters.revenueMax !== null && item[currentPeriod] > filters.revenueMax) return false;
+                    
+                    // Pct filter
+                    if (filters.pctMin !== null && item._pct < filters.pctMin) return false;
+                    if (filters.pctMax !== null && item._pct > filters.pctMax) return false;
+                    
+                    return true;
+                });
+            }
             
             // Apply custom sort if not default
             if (currentSort.column !== 'rank' || currentSort.direction !== 'asc') {
@@ -848,6 +1099,87 @@
             });
         }
 
+        function setupFilters() {
+            const filterBtn = document.getElementById('filterBtn');
+            const filterPanel = document.getElementById('filterPanel');
+            const applyBtn = document.getElementById('applyFilters');
+            const clearBtn = document.getElementById('clearFilters');
+            
+            // Toggle filter panel
+            filterBtn.addEventListener('click', () => {
+                filterPanel.classList.toggle('open');
+                filterBtn.classList.toggle('active');
+            });
+            
+            // Apply filters
+            applyBtn.addEventListener('click', () => {
+                filters.rankMin = parseFloat(document.getElementById('filterRankMin').value) || null;
+                filters.rankMax = parseFloat(document.getElementById('filterRankMax').value) || null;
+                filters.change = document.getElementById('filterChange').value;
+                filters.revenueMin = parseFloat(document.getElementById('filterRevenueMin').value) || null;
+                filters.revenueMax = parseFloat(document.getElementById('filterRevenueMax').value) || null;
+                filters.pctMin = parseFloat(document.getElementById('filterPctMin').value) || null;
+                filters.pctMax = parseFloat(document.getElementById('filterPctMax').value) || null;
+                
+                updateFilterCount();
+                renderTable();
+            });
+            
+            // Clear filters
+            clearBtn.addEventListener('click', () => {
+                clearAllFilters(true);
+            });
+        }
+
+        function clearAllFilters(rerender = true) {
+            filters = {
+                rankMin: null,
+                rankMax: null,
+                change: '',
+                revenueMin: null,
+                revenueMax: null,
+                pctMin: null,
+                pctMax: null
+            };
+            
+            // Clear input fields
+            document.getElementById('filterRankMin').value = '';
+            document.getElementById('filterRankMax').value = '';
+            document.getElementById('filterChange').value = '';
+            document.getElementById('filterRevenueMin').value = '';
+            document.getElementById('filterRevenueMax').value = '';
+            document.getElementById('filterPctMin').value = '';
+            document.getElementById('filterPctMax').value = '';
+            
+            updateFilterCount();
+            
+            if (rerender) {
+                renderTable();
+            }
+        }
+
+        function updateFilterCount() {
+            let count = 0;
+            if (filters.rankMin !== null || filters.rankMax !== null) count++;
+            if (filters.change) count++;
+            if (filters.revenueMin !== null || filters.revenueMax !== null) count++;
+            if (filters.pctMin !== null || filters.pctMax !== null) count++;
+            
+            const countEl = document.getElementById('filterCount');
+            const filterBtn = document.getElementById('filterBtn');
+            
+            if (count > 0) {
+                countEl.textContent = count;
+                countEl.style.display = 'inline';
+                filterBtn.classList.add('active');
+            } else {
+                countEl.style.display = 'none';
+                if (!document.getElementById('filterPanel').classList.contains('open')) {
+                    filterBtn.classList.remove('active');
+                }
+            }
+        }
+
         async function init() {
             try {
                 // Get agent from URL
@@ -874,12 +1206,13 @@
                 renderAgentButtons();
                 setupTabs();
                 setupSorting();
+                setupFilters();
                 renderTable();
             } catch (error) {
                 console.error('Error loading data:', error);
                 document.getElementById('tableBody').innerHTML = `
                     <tr>
-                        <td colspan="5" class="loading" style="color: #c33;">
+                        <td colspan="6" class="loading" style="color: #c33;">
                             Error loading data. Please try refreshing the page.
                         </td>
                     </tr>
