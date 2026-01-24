@@ -195,6 +195,31 @@
             font-size: 16px;
         }
 
+        .rank-change {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .rank-change.up {
+            color: #10b981;
+        }
+
+        .rank-change.down {
+            color: #ef4444;
+        }
+
+        .rank-change.neutral {
+            color: #9ca3af;
+        }
+
+        .rank-change .arrow {
+            margin-right: 2px;
+            font-size: 11px;
+        }
+
         .domain-cell {
             font-weight: 500;
         }
@@ -472,8 +497,25 @@
             });
             
             const headers = parsed.meta.fields || [];
-            const currentMonth = 'Jan 2026';
-            const last3Months = ['Nov 2025', 'Dec 2025', 'Jan 2026'];
+            // Dynamically calculate months based on current date
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonthIdx = now.getMonth(); // 0-indexed
+            
+            // Current month (incomplete - still in progress)
+            const currentMonth = `${monthNames[currentMonthIdx]} ${currentYear}`;
+            
+            // Previous complete month
+            const prevMonthDate = new Date(currentYear, currentMonthIdx - 1, 1);
+            const previousMonth = `${monthNames[prevMonthDate.getMonth()]} ${prevMonthDate.getFullYear()}`;
+            
+            // Last 3 complete months (excluding current incomplete month)
+            const last3Months = [];
+            for (let i = 3; i >= 1; i--) {
+                const d = new Date(currentYear, currentMonthIdx - i, 1);
+                last3Months.push(`${monthNames[d.getMonth()]} ${d.getFullYear()}`);
+            }
             const domainData = [];
             
             parsed.data.forEach(row => {
@@ -487,6 +529,7 @@
                 let lifetimeTotal = 0;
                 let last3MonthTotal = 0;
                 let currentMonthTotal = 0;
+                let previousMonthTotal = 0;
                 
                 headers.forEach(header => {
                     const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
@@ -500,6 +543,9 @@
                         if (header === currentMonth) {
                             currentMonthTotal = value;
                         }
+                        if (header === previousMonth) {
+                            previousMonthTotal = value;
+                        }
                     }
                 });
                 
@@ -508,7 +554,8 @@
                         domain: domain,
                         lifetime: lifetimeTotal,
                         last3Month: last3MonthTotal,
-                        currentMonth: currentMonthTotal
+                        currentMonth: currentMonthTotal,
+                        previousMonth: previousMonthTotal
                     });
                 }
             });
@@ -577,6 +624,20 @@
             // Sort by selected period revenue (descending)
             filteredSites.sort((a, b) => b[currentPeriod] - a[currentPeriod]);
             
+            // Calculate previous month rankings for this agent's sites (for rank change feature)
+            let previousMonthRanks = {};
+            if (currentPeriod === 'currentMonth') {
+                // Get all agent sites with previous month revenue > 0.01, sorted by previous month
+                const prevMonthSites = agentSites
+                    .filter(item => item.previousMonth > 0.01)
+                    .sort((a, b) => b.previousMonth - a.previousMonth);
+                
+                // Assign ranks
+                prevMonthSites.forEach((item, idx) => {
+                    previousMonthRanks[item.domain.toLowerCase()] = idx + 1;
+                });
+            }
+            
             // Calculate agent's total for this period
             const agentTotal = filteredSites.reduce((sum, item) => sum + item[currentPeriod], 0);
             
@@ -594,6 +655,26 @@
                 const pct = agentTotal > 0 ? (item[currentPeriod] / agentTotal * 100).toFixed(2) : 0;
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 const hasGraphData = trafficDomains.has(item.domain.toLowerCase());
+                
+                // Calculate rank change for Current Month tab
+                let rankChangeHtml = '';
+                if (currentPeriod === 'currentMonth') {
+                    const currentRank = idx + 1;
+                    const prevRank = previousMonthRanks[item.domain.toLowerCase()];
+                    
+                    if (prevRank) {
+                        const change = prevRank - currentRank; // Positive = moved up, negative = moved down
+                        if (change > 0) {
+                            rankChangeHtml = `<span class="rank-change up"><span class="arrow">▲</span>+${change}</span>`;
+                        } else if (change < 0) {
+                            rankChangeHtml = `<span class="rank-change down"><span class="arrow">▼</span>${change}</span>`;
+                        }
+                        // No indicator for unchanged (change === 0)
+                    } else {
+                        // New entry (wasn't in previous month's top sites)
+                        rankChangeHtml = `<span class="rank-change up" title="New this month"><span class="arrow">★</span>new</span>`;
+                    }
+                }
                 
                 // Build domain cell
                 const ahrefsLinkHtml = `<a href="${getAhrefsUrl(item.domain)}" target="_blank" class="ahrefs-link" title="View in Ahrefs"><img src="ahrefs-icon.svg" alt="Ahrefs"></a>`;
@@ -616,7 +697,7 @@
                 
                 return `
                     <tr>
-                        <td class="rank-cell">#${idx + 1}</td>
+                        <td class="rank-cell">#${idx + 1}${rankChangeHtml}</td>
                         <td class="domain-cell">${domainHtml}</td>
                         <td class="niche-cell">${nicheHtml}</td>
                         <td class="revenue-cell">${formatCurrency(item[currentPeriod])}</td>

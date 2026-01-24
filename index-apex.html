@@ -466,6 +466,12 @@
             font-weight: 500;
         }
 
+        .ranking-bubble .rank-label-only {
+            color: #666666;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
         /* Nav link - vertically centered */
         .nav-link {
             display: inline-flex;
@@ -898,6 +904,12 @@
                         </div>
                         <div class="rank-value">${formatCurrency(rankings.currentMonthValue)}</div>
                         <div class="rank-pct">${rankings.currentMonthPct}% of portfolio</div>
+                    </div>
+                    <div class="ranking-bubble avg-bubble">
+                        <div class="rank-header">
+                            <span class="rank-label-only">Avg Last 3 Months</span>
+                        </div>
+                        <div class="rank-value">${formatCurrency(rankings.last3MonthValue / 3)}</div>
                     </div>
                 </div>
                 <div class="chart-header">
@@ -1598,9 +1610,21 @@
             const last3MonthRevenue = {};
             const currentMonthRevenue = {};
             
-            // Define the months for last 3 and current
-            const currentMonth = 'Jan2026';
-            const last3Months = ['Nov2025', 'Dec2025', 'Jan2026'];
+            // Dynamically calculate months based on current date
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonthIdx = now.getMonth(); // 0-indexed
+            
+            // Current month (incomplete - still in progress) - format: Jan2026 (no space)
+            const currentMonth = `${monthNames[currentMonthIdx]}${currentYear}`;
+            
+            // Last 3 complete months (excluding current incomplete month) - format: Oct2025 (no space)
+            const last3Months = [];
+            for (let i = 3; i >= 1; i--) {
+                const d = new Date(currentYear, currentMonthIdx - i, 1);
+                last3Months.push(`${monthNames[d.getMonth()]}${d.getFullYear()}`);
+            }
             
             domainList.forEach(domain => {
                 const revenue = revenueByDomain[domain];
