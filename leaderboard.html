@@ -142,6 +142,37 @@
             width: 60px;
         }
 
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s ease;
+        }
+
+        th.sortable:hover {
+            color: #f97316;
+        }
+
+        th.sortable.active {
+            color: #f97316;
+        }
+
+        th.sortable::after {
+            content: '';
+            display: inline-block;
+            margin-left: 4px;
+            opacity: 0.3;
+        }
+
+        th.sortable.asc::after {
+            content: '▲';
+            opacity: 1;
+        }
+
+        th.sortable.desc::after {
+            content: '▼';
+            opacity: 1;
+        }
+
         td {
             padding: 12px 16px;
             border-bottom: 1px solid #f0f0f0;
@@ -155,6 +186,28 @@
             font-weight: 700;
             color: #f97316;
             font-size: 16px;
+        }
+
+        .change-cell {
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .change-cell.up {
+            color: #10b981;
+        }
+
+        .change-cell.down {
+            color: #ef4444;
+        }
+
+        .change-cell.neutral {
+            color: #9ca3af;
+        }
+
+        .change-cell.new {
+            color: #10b981;
         }
 
         .domain-cell {
@@ -296,18 +349,19 @@
         </div>
         <div class="table-container">
             <table>
-                <thead>
+                <thead id="tableHead">
                     <tr>
-                        <th>Rank</th>
+                        <th class="sortable" data-sort="rank">Rank</th>
+                        <th id="changeHeader" class="sortable" data-sort="change" style="display: none;">Change</th>
                         <th>Domain</th>
                         <th>Agent</th>
-                        <th>Revenue</th>
-                        <th>% of Portfolio</th>
+                        <th class="sortable" data-sort="revenue">Revenue</th>
+                        <th class="sortable" data-sort="pct">% of Portfolio</th>
                     </tr>
                 </thead>
                 <tbody id="leaderboardBody">
                     <tr>
-                        <td colspan="5" class="loading">Loading data...</td>
+                        <td colspan="6" class="loading">Loading data...</td>
                     </tr>
                 </tbody>
             </table>
@@ -320,6 +374,7 @@
         let agentNicheMap = {};
         let trafficDomains = new Set();
         let currentPeriod = 'lifetime';
+        let currentSort = { column: 'revenue', direction: 'desc' };
 
         // Ahrefs URL Generator
         function getAhrefsUrl(domain) {
@@ -425,6 +480,10 @@
                 // Current month (incomplete - still in progress)
                 const currentMonth = `${monthNames[currentMonthIdx]} ${currentYear}`;
                 
+                // Previous complete month
+                const prevMonthDate = new Date(currentYear, currentMonthIdx - 1, 1);
+                const previousMonth = `${monthNames[prevMonthDate.getMonth()]} ${prevMonthDate.getFullYear()}`;
+                
                 // Last 3 complete months (excluding current incomplete month)
                 const last3Months = [];
                 for (let i = 3; i >= 1; i--) {
@@ -447,6 +506,7 @@
                     let lifetimeTotal = 0;
                     let last3MonthTotal = 0;
                     let currentMonthTotal = 0;
+                    let previousMonthTotal = 0;
                     
                     headers.forEach(header => {
                         const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
@@ -460,6 +520,9 @@
                             if (header === currentMonth) {
                                 currentMonthTotal = value;
                             }
+                            if (header === previousMonth) {
+                                previousMonthTotal = value;
+                            }
                         }
                     });
                     
@@ -469,7 +532,8 @@
                             domain: domain,
                             lifetime: lifetimeTotal,
                             last3Month: last3MonthTotal,
-                            currentMonth: currentMonthTotal
+                            currentMonth: currentMonthTotal,
+                            previousMonth: previousMonthTotal
                         });
                     }
                 });
@@ -493,21 +557,116 @@
             const tbody = document.getElementById('leaderboardBody');
             const totalEl = document.getElementById('portfolioTotal');
             const countEl = document.getElementById('siteCount');
+            const changeHeader = document.getElementById('changeHeader');
             
-            // Sort by selected period, filter to > $0.01 for that period
-            const sorted = [...revenueData.domainData]
-                .filter(item => item[period] > 0.01)
-                .sort((a, b) => b[period] - a[period]);
+            // Show/hide Change column based on period
+            const showChangeColumn = period === 'currentMonth';
+            changeHeader.style.display = showChangeColumn ? '' : 'none';
+            
+            // Filter to > $0.01 for that period
+            const filtered = [...revenueData.domainData]
+                .filter(item => item[period] > 0.01);
+            
+            // First sort by revenue to establish base ranks
+            filtered.sort((a, b) => b[period] - a[period]);
             
             const total = revenueData.totals[period];
-            totalEl.textContent = formatCurrency(total);
-            if (countEl) countEl.textContent = sorted.length + ' sites';
             
-            tbody.innerHTML = sorted.map((item, idx) => {
-                const pct = total > 0 ? (item[period] / total * 100).toFixed(2) : 0;
+            // Calculate previous month rankings for rank change feature
+            let previousMonthRanks = {};
+            if (period === 'currentMonth') {
+                const prevMonthSorted = [...revenueData.domainData]
+                    .filter(item => item.previousMonth > 0.01)
+                    .sort((a, b) => b.previousMonth - a.previousMonth);
+                
+                prevMonthSorted.forEach((item, idx) => {
+                    previousMonthRanks[item.domain.toLowerCase()] = idx + 1;
+                });
+            }
+            
+            // Assign current ranks and calculate changes
+            filtered.forEach((item, idx) => {
+                item._currentRank = idx + 1;
+                item._pct = total > 0 ? (item[period] / total * 100) : 0;
+                
+                if (period === 'currentMonth') {
+                    const prevRank = previousMonthRanks[item.domain.toLowerCase()];
+                    if (prevRank) {
+                        item._change = prevRank - item._currentRank;
+                    } else {
+                        item._change = 999;
+                        item._isNew = true;
+                    }
+                } else {
+                    item._change = 0;
+                    item._isNew = false;
+                }
+            });
+            
+            // Apply custom sort
+            if (currentSort.column !== 'rank' || currentSort.direction !== 'asc') {
+                filtered.sort((a, b) => {
+                    let aVal, bVal;
+                    
+                    switch (currentSort.column) {
+                        case 'rank':
+                            aVal = a._currentRank;
+                            bVal = b._currentRank;
+                            break;
+                        case 'change':
+                            aVal = a._change;
+                            bVal = b._change;
+                            break;
+                        case 'revenue':
+                            aVal = a[period];
+                            bVal = b[period];
+                            break;
+                        case 'pct':
+                            aVal = a._pct;
+                            bVal = b._pct;
+                            break;
+                        default:
+                            return 0;
+                    }
+                    
+                    if (currentSort.direction === 'asc') {
+                        return aVal - bVal;
+                    } else {
+                        return bVal - aVal;
+                    }
+                });
+            }
+            
+            // Update sort indicators
+            updateSortIndicators();
+            
+            totalEl.textContent = formatCurrency(total);
+            if (countEl) countEl.textContent = filtered.length + ' sites';
+            
+            const colSpan = showChangeColumn ? 6 : 5;
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" class="loading">No sites found for this period.</td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map((item) => {
                 const info = agentNicheMap[item.domain.toLowerCase()] || {};
                 const agent = info.agent || 'Unknown';
                 const hasGraphData = trafficDomains.has(item.domain.toLowerCase());
+                
+                // Build change cell for Current Month tab
+                let changeCellHtml = '';
+                if (showChangeColumn) {
+                    if (item._isNew) {
+                        changeCellHtml = `<td class="change-cell new">★ new</td>`;
+                    } else if (item._change > 0) {
+                        changeCellHtml = `<td class="change-cell up">▲ +${item._change}</td>`;
+                    } else if (item._change < 0) {
+                        changeCellHtml = `<td class="change-cell down">▼ ${item._change}</td>`;
+                    } else {
+                        changeCellHtml = `<td class="change-cell neutral">—</td>`;
+                    }
+                }
                 
                 const ahrefsLinkHtml = `<a href="${getAhrefsUrl(item.domain)}" target="_blank" class="ahrefs-link" title="View in Ahrefs"><img src="ahrefs-icon.svg" alt="Ahrefs"></a>`;
                 const copyBtnHtml = `<button class="copy-domain-btn" onclick="copyDomain('${item.domain}', event)" title="Copy domain"><img src="copy-icon.svg" alt="Copy"></button>`;
@@ -517,16 +676,43 @@
                 
                 return `
                     <tr>
-                        <td class="rank-cell">#${idx + 1}</td>
+                        <td class="rank-cell">#${item._currentRank}</td>
+                        ${changeCellHtml}
                         <td class="domain-cell">${domainHtml}</td>
                         <td class="agent-cell">
                             <a href="agent.html?agent=${encodeURIComponent(agent)}">${agent}</a>
                         </td>
                         <td class="revenue-cell">${formatCurrency(item[period])}</td>
-                        <td class="pct-cell">${pct}%</td>
+                        <td class="pct-cell">${item._pct.toFixed(2)}%</td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('asc', 'desc', 'active');
+                if (th.dataset.sort === currentSort.column) {
+                    th.classList.add(currentSort.direction, 'active');
+                }
+            });
+        }
+
+        function setupSorting() {
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.addEventListener('click', function() {
+                    const column = this.dataset.sort;
+                    
+                    if (currentSort.column === column) {
+                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSort.column = column;
+                        currentSort.direction = column === 'rank' ? 'asc' : 'desc';
+                    }
+                    
+                    renderLeaderboard(currentPeriod);
+                });
+            });
         }
 
         function setupTabs() {
@@ -535,6 +721,8 @@
                 tab.addEventListener('click', function() {
                     tabs.forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
+                    // Reset sort when switching tabs
+                    currentSort = { column: 'revenue', direction: 'desc' };
                     renderLeaderboard(this.dataset.period);
                 });
             });
@@ -551,11 +739,12 @@
                 agentNicheMap = agentNiche;
                 trafficDomains = trafficData;
                 setupTabs();
+                setupSorting();
                 renderLeaderboard('lifetime');
             } catch (error) {
                 document.getElementById('leaderboardBody').innerHTML = `
                     <tr>
-                        <td colspan="5" class="loading" style="color: #c33;">
+                        <td colspan="6" class="loading" style="color: #c33;">
                             Error loading data. Please try refreshing the page.
                         </td>
                     </tr>
