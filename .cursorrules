@@ -55,6 +55,7 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Revenue bars (stepped area, bottom-third of chart)
 - [x] Revenue labels with toggle on/off
 - [x] DR (Domain Rating) line with dotted style
+- [x] DR metric card with Ahrefs-style circular progress ring (purple, fills based on 0-100 value)
 - [x] RD (Referring Domains) line - pink dashed, hidden by default, toggle via legend
 - [x] Date range selector (7d, 30d, 90d, 6mo, 1yr, From Dec 2024, All time)
 - [x] Searchable domain dropdown with keyboard navigation
@@ -81,15 +82,20 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Back to Dashboard link
 - [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
 - [x] Rank change column on Current Month tab (separate sortable column)
+- [x] Show Metrics toggle - displays DR, Traffic, RD columns when enabled
 - [x] Filter panel on Current Month tab:
   - Rank (min/max range)
   - Change (Up only, Down only, New only, Unchanged)
   - Revenue (min/max range)
   - Agent (dropdown)
   - % of Portfolio (min/max range)
+  - DR (min/max range, 0-100)
+  - Traffic (min/max range)
+  - Ref. Domains (min/max range)
   - Filters are combinable
   - Active filter count badge
   - Clear All button
+  - Using metric filters auto-enables Show Metrics toggle
 - [x] Table max-width 1100px for better domain/icon fit
 
 ### Sites by Agent (agent.html)
@@ -600,7 +606,10 @@ python3 -m http.server 8000
 | Jan 26, 2026 | Vercel API Proxy | New /api/data/* endpoints serve S3 data securely |
 | Jan 26, 2026 | "Current" column fix | Revenue CSV "Current" header maps to current month dynamically |
 | Jan 26, 2026 | RD (Referring Domains) | Added RD metric to dashboard - pink dashed line, hidden by default, toggle via legend click |
+| Jan 26, 2026 | DR Circle Progress Ring | Added Ahrefs-style circular progress indicator to DR metric card on main dashboard |
+| Jan 26, 2026 | Leaderboard Show Metrics | Added toggle to show/hide DR, Traffic, RD columns in leaderboard table |
+| Jan 26, 2026 | Leaderboard Metric Filters | Added DR, Traffic, Ref. Domains filters to filter panel (auto-loads metrics when used) |
 
 ---
 
-*Last updated: January 26, 2026 - Added RD (Referring Domains) metric*
+*Last updated: January 26, 2026 - Added DR circle progress, leaderboard metrics toggle and filters*
