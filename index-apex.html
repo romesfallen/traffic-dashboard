@@ -417,6 +417,80 @@
             text-decoration: underline;
         }
 
+        /* Ahrefs-style Metric Cards */
+        .metrics-summary {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .metric-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 24px;
+            background: #fafafa;
+            border: 1px solid #e8e8e8;
+            border-radius: 10px;
+            min-width: 120px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666666;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333333;
+            line-height: 1.2;
+        }
+
+        .metric-change {
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .metric-change.positive {
+            color: #10b981;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        .metric-change.neutral {
+            color: #9ca3af;
+        }
+
+        .metrics-period-selector {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .metrics-period-selector select {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            padding: 6px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: #fff;
+            color: #666;
+            cursor: pointer;
+        }
+
+        .metrics-period-selector select:focus {
+            outline: none;
+            border-color: #f97316;
+        }
+
         /* Revenue ranking bubbles */
         .ranking-bubbles {
             display: flex;
@@ -636,6 +710,139 @@
             }
             
             return { real, estimated, isEstimated };
+        }
+
+        // Format large numbers with K/M suffix
+        function formatMetricValue(value) {
+            if (value === null || value === undefined) return '--';
+            if (value >= 1000000) {
+                return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            }
+            if (value >= 1000) {
+                return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            }
+            return value.toLocaleString();
+        }
+
+        // Format change value with +/- prefix and K suffix
+        function formatChangeValue(change) {
+            if (change === null || change === undefined) return '--';
+            const prefix = change > 0 ? '+' : '';
+            if (Math.abs(change) >= 1000000) {
+                return prefix + (change / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            }
+            if (Math.abs(change) >= 1000) {
+                return prefix + (change / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            }
+            return prefix + change.toLocaleString();
+        }
+
+        // Calculate metric current value and change over period
+        function calculateMetricChange(dataArray, datesArray, periodDays) {
+            if (!dataArray || dataArray.length === 0) {
+                return { current: null, previous: null, change: null };
+            }
+
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            // Parse date string to timestamp
+            function parseDateStr(dateStr) {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return null;
+                const [month, day, year] = parts;
+                const monthIndex = monthNames.indexOf(month);
+                if (monthIndex === -1) return null;
+                return new Date(parseInt(year), monthIndex, parseInt(day)).getTime();
+            }
+
+            // Find most recent non-null value (current)
+            let currentValue = null;
+            let currentIdx = -1;
+            for (let i = dataArray.length - 1; i >= 0; i--) {
+                if (dataArray[i] !== null && dataArray[i] !== undefined) {
+                    currentValue = dataArray[i];
+                    currentIdx = i;
+                    break;
+                }
+            }
+
+            if (currentValue === null || currentIdx === -1) {
+                return { current: null, previous: null, change: null };
+            }
+
+            // Get current date timestamp
+            const currentDateStr = datesArray[currentIdx];
+            const currentTimestamp = parseDateStr(currentDateStr);
+            if (!currentTimestamp) {
+                return { current: currentValue, previous: null, change: null };
+            }
+
+            // Calculate target date (periodDays ago)
+            const targetTimestamp = currentTimestamp - (periodDays * 24 * 60 * 60 * 1000);
+
+            // Find nearest non-null value to target date
+            let previousValue = null;
+            let closestDiff = Infinity;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                if (dataArray[i] !== null && dataArray[i] !== undefined && datesArray[i]) {
+                    const timestamp = parseDateStr(datesArray[i]);
+                    if (timestamp) {
+                        const diff = Math.abs(timestamp - targetTimestamp);
+                        if (diff < closestDiff) {
+                            closestDiff = diff;
+                            previousValue = dataArray[i];
+                        }
+                    }
+                }
+            }
+
+            // If closest match is the current value itself (no historical data), return null change
+            if (previousValue === currentValue && closestDiff > periodDays * 24 * 60 * 60 * 1000 * 0.5) {
+                return { current: currentValue, previous: null, change: null };
+            }
+
+            const change = previousValue !== null ? currentValue - previousValue : null;
+            return { current: currentValue, previous: previousValue, change: change };
+        }
+
+        // Update metric cards with calculated values
+        function updateMetricCards(data, periodDays) {
+            // DR
+            const drResult = calculateMetricChange(data.drData, data.dates, periodDays);
+            document.getElementById('metricDR').textContent = drResult.current !== null ? drResult.current : '--';
+            const drChangeEl = document.getElementById('metricDRChange');
+            if (drResult.change !== null) {
+                drChangeEl.textContent = formatChangeValue(drResult.change);
+                drChangeEl.className = 'metric-change ' + (drResult.change > 0 ? 'positive' : drResult.change < 0 ? 'negative' : 'neutral');
+            } else {
+                drChangeEl.textContent = '--';
+                drChangeEl.className = 'metric-change neutral';
+            }
+
+            // RD (Referring Domains)
+            const rdResult = calculateMetricChange(data.rdData, data.dates, periodDays);
+            document.getElementById('metricRD').textContent = formatMetricValue(rdResult.current);
+            const rdChangeEl = document.getElementById('metricRDChange');
+            if (rdResult.change !== null) {
+                rdChangeEl.textContent = formatChangeValue(rdResult.change);
+                rdChangeEl.className = 'metric-change ' + (rdResult.change > 0 ? 'positive' : rdResult.change < 0 ? 'negative' : 'neutral');
+            } else {
+                rdChangeEl.textContent = '--';
+                rdChangeEl.className = 'metric-change neutral';
+            }
+
+            // Traffic (Internal Monthly)
+            const trafficResult = calculateMetricChange(data.ourData, data.dates, periodDays);
+            document.getElementById('metricTraffic').textContent = formatMetricValue(trafficResult.current);
+            const trafficChangeEl = document.getElementById('metricTrafficChange');
+            if (trafficResult.change !== null) {
+                trafficChangeEl.textContent = formatChangeValue(trafficResult.change);
+                trafficChangeEl.className = 'metric-change ' + (trafficResult.change > 0 ? 'positive' : trafficResult.change < 0 ? 'negative' : 'neutral');
+            } else {
+                trafficChangeEl.textContent = '--';
+                trafficChangeEl.className = 'metric-change neutral';
+            }
         }
 
         // Calculate x-axis range for initial zoom (returns min/max timestamps)
@@ -882,6 +1089,32 @@
                     <span class="meta-label">Niche:</span>
                     ${nicheLinksHtml}
                 </div>
+                <div class="metrics-summary" id="metricsSummary">
+                    <div class="metric-card">
+                        <div class="metric-label">DR</div>
+                        <div class="metric-value" id="metricDR">--</div>
+                        <div class="metric-change neutral" id="metricDRChange">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Ref. domains</div>
+                        <div class="metric-value" id="metricRD">--</div>
+                        <div class="metric-change neutral" id="metricRDChange">--</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Traffic</div>
+                        <div class="metric-value" id="metricTraffic">--</div>
+                        <div class="metric-change neutral" id="metricTrafficChange">--</div>
+                    </div>
+                </div>
+                <div class="metrics-period-selector">
+                    <select id="metricsPeriod">
+                        <option value="7">Changes: Last 7 days</option>
+                        <option value="30" selected>Changes: Last month</option>
+                        <option value="90">Changes: Last 3 months</option>
+                        <option value="180">Changes: Last 6 months</option>
+                        <option value="365">Changes: Last year</option>
+                    </select>
+                </div>
                 <div class="ranking-bubbles">
                     <div class="ranking-bubble">
                         <div class="rank-header">
@@ -933,6 +1166,16 @@
 
             document.getElementById('chartDateRange').addEventListener('change', function() {
                 createChart(domain, data, this.value);
+            });
+
+            // Update metric cards with current data
+            const metricsPeriodEl = document.getElementById('metricsPeriod');
+            const currentPeriod = parseInt(metricsPeriodEl.value);
+            updateMetricCards(data, currentPeriod);
+
+            // Add event listener for metrics period dropdown
+            metricsPeriodEl.addEventListener('change', function() {
+                updateMetricCards(data, parseInt(this.value));
             });
 
             const ourProcessed = interpolateData(filtered.ourData);

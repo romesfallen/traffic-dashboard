@@ -479,6 +479,85 @@
         .filter-apply-btn:hover {
             background: #ea580c;
         }
+
+        /* Metrics Toggle */
+        .metrics-toggle-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .metrics-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .metrics-toggle .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .metrics-toggle .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .metrics-toggle .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .metrics-toggle .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .metrics-toggle .toggle-switch input:checked + .toggle-slider {
+            background-color: #10b981;
+        }
+
+        .metrics-toggle .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .metrics-col {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .metrics-col.dr-col {
+            color: #a855f7;
+            font-weight: 500;
+        }
+
+        .metrics-col.traffic-col {
+            color: #f97316;
+            font-weight: 500;
+        }
+
+        .metrics-col.rd-col {
+            color: #ec4899;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body style="visibility: hidden;">
@@ -496,6 +575,16 @@
         <button class="tab-btn active" data-period="lifetime">Lifetime</button>
         <button class="tab-btn" data-period="last3Month">Last 3 Months</button>
         <button class="tab-btn" data-period="currentMonth">Current Month</button>
+    </div>
+
+    <div class="metrics-toggle-container">
+        <label class="metrics-toggle">
+            <span>Show Metrics</span>
+            <div class="toggle-switch">
+                <input type="checkbox" id="metricsToggle">
+                <span class="toggle-slider"></span>
+            </div>
+        </label>
     </div>
 
     <div class="filter-container" id="filterContainer" style="display: none;">
@@ -572,6 +661,9 @@
                         <th>Agent</th>
                         <th class="sortable" data-sort="revenue">Revenue</th>
                         <th class="sortable" data-sort="pct">% of Portfolio</th>
+                        <th class="metrics-col" style="display: none;">DR</th>
+                        <th class="metrics-col" style="display: none;">Traffic</th>
+                        <th class="metrics-col" style="display: none;">RD</th>
                     </tr>
                 </thead>
                 <tbody id="leaderboardBody">
@@ -591,6 +683,11 @@
         let currentPeriod = 'lifetime';
         let currentSort = { column: 'revenue', direction: 'desc' };
         let allAgents = [];
+        
+        // Metrics data
+        let metricsData = {}; // { domain: { dr, traffic, rd } }
+        let metricsLoaded = false;
+        let showMetrics = false;
         
         // Filter state
         let filters = {
@@ -791,6 +888,94 @@
             }
         }
 
+        // Load metrics data (DR, Traffic, RD) for all domains
+        async function loadMetricsData() {
+            if (metricsLoaded) return;
+            
+            try {
+                // Load DR, Traffic, and RD data in parallel
+                const [drResponse, trafficResponse, rdResponse] = await Promise.all([
+                    fetch('/api/data/dr', { credentials: 'include' }),
+                    fetch('/api/data/traffic', { credentials: 'include' }),
+                    fetch('/api/data/rd', { credentials: 'include' })
+                ]);
+
+                if (!drResponse.ok || !trafficResponse.ok || !rdResponse.ok) {
+                    throw new Error('Failed to load metrics data');
+                }
+
+                const [drText, trafficText, rdText] = await Promise.all([
+                    drResponse.text(),
+                    trafficResponse.text(),
+                    rdResponse.text()
+                ]);
+
+                // Parse DR data
+                const drParsed = Papa.parse(drText, { header: true, skipEmptyLines: true });
+                const drHeaders = drParsed.meta.fields || [];
+                const drDateCols = drHeaders.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
+                const lastDRCol = drDateCols[drDateCols.length - 1];
+                
+                drParsed.data.forEach(row => {
+                    const domain = (row.Website || '').toLowerCase();
+                    if (!domain) return;
+                    if (!metricsData[domain]) metricsData[domain] = {};
+                    const val = lastDRCol ? parseFloat(row[lastDRCol]) : null;
+                    metricsData[domain].dr = isNaN(val) ? null : val;
+                });
+
+                // Parse Traffic data
+                const trafficParsed = Papa.parse(trafficText, { header: true, skipEmptyLines: true });
+                const trafficHeaders = trafficParsed.meta.fields || [];
+                const trafficDateCols = trafficHeaders.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
+                const lastTrafficCol = trafficDateCols[trafficDateCols.length - 1];
+                
+                trafficParsed.data.forEach(row => {
+                    const domain = (row.Website || '').toLowerCase();
+                    if (!domain) return;
+                    if (!metricsData[domain]) metricsData[domain] = {};
+                    const valStr = lastTrafficCol ? String(row[lastTrafficCol]).replace(/,/g, '') : '';
+                    const val = parseInt(valStr, 10);
+                    metricsData[domain].traffic = isNaN(val) ? null : val;
+                });
+
+                // Parse RD data
+                const rdParsed = Papa.parse(rdText, { header: true, skipEmptyLines: true });
+                const rdHeaders = rdParsed.meta.fields || [];
+                const rdDateCols = rdHeaders.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
+                const lastRDCol = rdDateCols[rdDateCols.length - 1];
+                
+                rdParsed.data.forEach(row => {
+                    const domain = (row.Website || '').toLowerCase();
+                    if (!domain) return;
+                    if (!metricsData[domain]) metricsData[domain] = {};
+                    const valStr = lastRDCol ? String(row[lastRDCol]).replace(/,/g, '') : '';
+                    const val = parseInt(valStr, 10);
+                    metricsData[domain].rd = isNaN(val) ? null : val;
+                });
+
+                metricsLoaded = true;
+                console.log('✅ Metrics data loaded for leaderboard');
+                
+                // Re-render to show metrics
+                renderLeaderboard(currentPeriod);
+            } catch (error) {
+                console.error('Error loading metrics data:', error);
+            }
+        }
+
+        // Format large numbers with K suffix
+        function formatMetricValue(value) {
+            if (value === null || value === undefined) return '--';
+            if (value >= 1000000) {
+                return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            }
+            if (value >= 1000) {
+                return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            }
+            return value.toLocaleString();
+        }
+
         function renderLeaderboard(period) {
             currentPeriod = period;
             const tbody = document.getElementById('leaderboardBody');
@@ -947,6 +1132,20 @@
                     ? `<a href="index-apex.html?domain=${encodeURIComponent(item.domain)}">${item.domain}</a>${ahrefsLinkHtml}${copyBtnHtml}`
                     : `<span class="no-graph">${item.domain}</span>${ahrefsLinkHtml}${copyBtnHtml}`;
                 
+                // Build metrics cells if toggle is on
+                let metricsCellsHtml = '';
+                if (showMetrics) {
+                    const metrics = metricsData[item.domain.toLowerCase()] || {};
+                    const drVal = metrics.dr !== null && metrics.dr !== undefined ? metrics.dr : '--';
+                    const trafficVal = formatMetricValue(metrics.traffic);
+                    const rdVal = formatMetricValue(metrics.rd);
+                    metricsCellsHtml = `
+                        <td class="metrics-col dr-col">${drVal}</td>
+                        <td class="metrics-col traffic-col">${trafficVal}</td>
+                        <td class="metrics-col rd-col">${rdVal}</td>
+                    `;
+                }
+                
                 return `
                     <tr>
                         <td class="rank-cell">#${item._currentRank}</td>
@@ -957,6 +1156,7 @@
                         </td>
                         <td class="revenue-cell">${formatCurrency(item[period])}</td>
                         <td class="pct-cell">${item._pct.toFixed(2)}%</td>
+                        ${metricsCellsHtml}
                     </tr>
                 `;
             }).join('');
@@ -1096,6 +1296,26 @@
             }
         }
 
+        function setupMetricsToggle() {
+            const toggle = document.getElementById('metricsToggle');
+            toggle.addEventListener('change', function() {
+                showMetrics = this.checked;
+                
+                // Show/hide metric columns in header
+                document.querySelectorAll('th.metrics-col').forEach(el => {
+                    el.style.display = showMetrics ? '' : 'none';
+                });
+                
+                if (showMetrics && !metricsLoaded) {
+                    // Load metrics data then re-render
+                    loadMetricsData();
+                } else {
+                    // Just re-render with current data
+                    renderLeaderboard(currentPeriod);
+                }
+            });
+        }
+
         async function init() {
             try {
                 const [revenue, agentNiche, trafficData] = await Promise.all([
@@ -1109,6 +1329,7 @@
                 setupTabs();
                 setupSorting();
                 setupFilters();
+                setupMetricsToggle();
                 renderLeaderboard('lifetime');
             } catch (error) {
                 console.error('Error loading data:', error);
