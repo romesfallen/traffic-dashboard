@@ -690,6 +690,9 @@
         let currentChart = null;
         let currentAnnotations = [];
         
+        // X-AXIS LABEL DENSITY: Store all x-axis annotations for dynamic filtering based on zoom level
+        let allXAxisAnnotations = [];
+        
         // METRICS CARDS: Track visibility of DR/RD/Traffic cards
         let showMetricsCards = true;
         
@@ -955,6 +958,47 @@
                 drData: data.drData || [],
                 rdData: data.rdData || []
             };
+        }
+
+        // X-AXIS LABEL DENSITY: Filter annotations based on visible date range
+        // Shows quarterly labels (Jan, Apr, Jul, Oct) when zoomed out, all months when zoomed in
+        function getFilteredXAxisAnnotations(minTimestamp, maxTimestamp, annotations) {
+            const monthsVisible = (maxTimestamp - minTimestamp) / (30 * 24 * 60 * 60 * 1000);
+            const quarterlyMonths = ['Jan', 'Apr', 'Jul', 'Oct'];
+            
+            if (monthsVisible > 8) {
+                // Zoomed out: show only quarterly labels to prevent overlap
+                return annotations.filter(ann => quarterlyMonths.includes(ann.month));
+            }
+            // Zoomed in: show all monthly labels
+            return annotations;
+        }
+        
+        // X-AXIS LABEL DENSITY: Build ApexCharts annotation config from annotation data
+        function buildXAxisAnnotationConfig(annotations) {
+            return annotations.map(ann => {
+                const isJanuary = ann.month === 'Jan';
+                return {
+                    x: ann.x,
+                    borderColor: 'transparent',
+                    label: {
+                        borderColor: 'transparent',
+                        borderWidth: 0,
+                        text: ann.monthLabel,
+                        orientation: 'horizontal',
+                        position: 'bottom',
+                        style: {
+                            background: 'transparent',
+                            color: '#333333',
+                            fontSize: '11px',
+                            fontWeight: isJanuary ? 700 : 500,
+                            fontFamily: 'Inter, sans-serif',
+                            padding: { left: 0, right: 0, top: 0, bottom: 0 }
+                        },
+                        offsetY: 20
+                    }
+                };
+            });
         }
 
         // REVENUE LABEL CHANGE: Modified to also return annotation data for labels
@@ -1256,6 +1300,22 @@
             // Get x-axis bounds for initial zoom (allows zooming out beyond this range)
             const xAxisBounds = getDateRangeBounds(data, dateRange);
             
+            // X-AXIS LABEL DENSITY: Store all annotations globally and filter based on initial view
+            allXAxisAnnotations = revenueResult.revenueAnnotations;
+            
+            // Calculate initial date range for filtering (use bounds if set, otherwise use full data range)
+            let initialMinTimestamp, initialMaxTimestamp;
+            if (xAxisBounds.min !== undefined && xAxisBounds.max !== undefined) {
+                initialMinTimestamp = xAxisBounds.min;
+                initialMaxTimestamp = xAxisBounds.max;
+            } else {
+                // Use full data range
+                const allTimestamps = allXAxisAnnotations.map(ann => ann.x);
+                initialMinTimestamp = Math.min(...allTimestamps);
+                initialMaxTimestamp = Math.max(...allTimestamps);
+            }
+            const initialFilteredAnnotations = getFilteredXAxisAnnotations(initialMinTimestamp, initialMaxTimestamp, allXAxisAnnotations);
+            
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             
             // Convert traffic data to timestamp-based {x, y} format
@@ -1459,36 +1519,29 @@
                             setTimeout(() => {
                                 chartContext.windowResizeHandler();
                             }, 50);
+                        },
+                        // X-AXIS LABEL DENSITY: Update labels when user zooms
+                        zoomed: function(chartContext, { xaxis }) {
+                            const filtered = getFilteredXAxisAnnotations(xaxis.min, xaxis.max, allXAxisAnnotations);
+                            chartContext.updateOptions({
+                                annotations: {
+                                    xaxis: buildXAxisAnnotationConfig(filtered),
+                                    points: showRevenueLabels ? currentAnnotations : []
+                                }
+                            }, false, false); // redrawPaths=false, animate=false for instant update
+                        },
+                        // X-AXIS LABEL DENSITY: Reset labels when user resets zoom
+                        beforeResetZoom: function(chartContext, opts) {
+                            // Will be handled by the subsequent zoomed event after reset
+                            return undefined;
                         }
                     }
                 },
                 // REVENUE LABEL CHANGE: Add annotations section
-                // Build xaxis annotations for centered month labels
+                // X-AXIS LABEL DENSITY: Use buildXAxisAnnotationConfig with filtered annotations
                 annotations: {
                     points: pointAnnotations,
-                    xaxis: revenueResult.revenueAnnotations.map(ann => {
-                        const isJanuary = ann.month === 'Jan';
-                        return {
-                            x: ann.x,
-                            borderColor: 'transparent',
-                            label: {
-                                borderColor: 'transparent',
-                                borderWidth: 0,
-                                text: ann.monthLabel,
-                                orientation: 'horizontal',
-                                position: 'bottom',
-                                style: {
-                                    background: 'transparent',
-                                    color: '#333333',
-                                    fontSize: '11px',
-                                    fontWeight: isJanuary ? 700 : 500, // Bold for January to mark year start
-                                    fontFamily: 'Inter, sans-serif',
-                                    padding: { left: 0, right: 0, top: 0, bottom: 0 }
-                                },
-                                offsetY: 20
-                            }
-                        };
-                    })
+                    xaxis: buildXAxisAnnotationConfig(initialFilteredAnnotations)
                 },
                 colors: allColors,
                 fill: {
