@@ -825,31 +825,51 @@
                     rdResponse.text()
                 ]);
 
+                // Helper: Find date columns with flexible regex (handles "Jan 1 - 2024" format)
+                function findDateColumns(headers) {
+                    return headers.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
+                }
+
+                // Helper: Get last value for a domain from CSV row
+                function getLastMetricValue(row, dateCols) {
+                    // Try columns from newest to oldest to find the last non-empty value
+                    for (let i = dateCols.length - 1; i >= 0; i--) {
+                        const col = dateCols[i];
+                        const val = row[col];
+                        if (val !== undefined && val !== null && val !== '') {
+                            return val;
+                        }
+                    }
+                    return null;
+                }
+
                 // Parse DR data
                 const drParsed = Papa.parse(drText, { header: true, skipEmptyLines: true });
                 const drHeaders = drParsed.meta.fields || [];
-                const drDateCols = drHeaders.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
-                const lastDRCol = drDateCols[drDateCols.length - 1];
+                const drDateCols = findDateColumns(drHeaders);
+                console.log('📊 DR columns found:', drDateCols.length, 'Last col:', drDateCols[drDateCols.length - 1] || 'none');
                 
                 drParsed.data.forEach(row => {
                     const domain = (row.Website || '').toLowerCase();
                     if (!domain) return;
                     if (!metricsData[domain]) metricsData[domain] = {};
-                    const val = lastDRCol ? parseFloat(row[lastDRCol]) : null;
+                    const rawVal = getLastMetricValue(row, drDateCols);
+                    const val = rawVal !== null ? parseFloat(rawVal) : null;
                     metricsData[domain].dr = isNaN(val) ? null : val;
                 });
 
                 // Parse Traffic data
                 const trafficParsed = Papa.parse(trafficText, { header: true, skipEmptyLines: true });
                 const trafficHeaders = trafficParsed.meta.fields || [];
-                const trafficDateCols = trafficHeaders.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
-                const lastTrafficCol = trafficDateCols[trafficDateCols.length - 1];
+                const trafficDateCols = findDateColumns(trafficHeaders);
+                console.log('📊 Traffic columns found:', trafficDateCols.length, 'Last col:', trafficDateCols[trafficDateCols.length - 1] || 'none');
                 
                 trafficParsed.data.forEach(row => {
                     const domain = (row.Website || '').toLowerCase();
                     if (!domain) return;
                     if (!metricsData[domain]) metricsData[domain] = {};
-                    const valStr = lastTrafficCol ? String(row[lastTrafficCol]).replace(/,/g, '') : '';
+                    const rawVal = getLastMetricValue(row, trafficDateCols);
+                    const valStr = rawVal !== null ? String(rawVal).replace(/,/g, '') : '';
                     const val = parseInt(valStr, 10);
                     metricsData[domain].traffic = isNaN(val) ? null : val;
                 });
@@ -857,14 +877,15 @@
                 // Parse RD data
                 const rdParsed = Papa.parse(rdText, { header: true, skipEmptyLines: true });
                 const rdHeaders = rdParsed.meta.fields || [];
-                const rdDateCols = rdHeaders.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
-                const lastRDCol = rdDateCols[rdDateCols.length - 1];
+                const rdDateCols = findDateColumns(rdHeaders);
+                console.log('📊 RD columns found:', rdDateCols.length, 'Last col:', rdDateCols[rdDateCols.length - 1] || 'none');
                 
                 rdParsed.data.forEach(row => {
                     const domain = (row.Website || '').toLowerCase();
                     if (!domain) return;
                     if (!metricsData[domain]) metricsData[domain] = {};
-                    const valStr = lastRDCol ? String(row[lastRDCol]).replace(/,/g, '') : '';
+                    const rawVal = getLastMetricValue(row, rdDateCols);
+                    const valStr = rawVal !== null ? String(rawVal).replace(/,/g, '') : '';
                     const val = parseInt(valStr, 10);
                     metricsData[domain].rd = isNaN(val) ? null : val;
                 });

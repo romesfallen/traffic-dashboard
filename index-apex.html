@@ -437,6 +437,46 @@
             min-width: 120px;
         }
 
+        /* DR Circle Progress Ring */
+        .metric-card.dr-card {
+            position: relative;
+            padding: 16px 24px;
+        }
+
+        .dr-circle-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 4px;
+        }
+
+        .dr-circle-bg {
+            fill: none;
+            stroke: #e8e8e8;
+            stroke-width: 6;
+        }
+
+        .dr-circle-progress {
+            fill: none;
+            stroke: #a855f7;
+            stroke-width: 6;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        .dr-circle-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 700;
+            color: #333333;
+            line-height: 1;
+        }
+
         .metric-label {
             font-size: 12px;
             color: #666666;
@@ -808,9 +848,19 @@
 
         // Update metric cards with calculated values
         function updateMetricCards(data, periodDays) {
-            // DR
+            // DR with circular progress
             const drResult = calculateMetricChange(data.drData, data.dates, periodDays);
             document.getElementById('metricDR').textContent = drResult.current !== null ? drResult.current : '--';
+            
+            // Update DR circle progress (circumference = 2 * PI * 34 ≈ 213.63)
+            const drCircle = document.getElementById('drCircleProgress');
+            if (drCircle) {
+                const circumference = 213.63;
+                const drValue = drResult.current !== null ? drResult.current : 0;
+                const offset = circumference * (1 - drValue / 100);
+                drCircle.style.strokeDashoffset = offset;
+            }
+            
             const drChangeEl = document.getElementById('metricDRChange');
             if (drResult.change !== null) {
                 drChangeEl.textContent = formatChangeValue(drResult.change);
@@ -1090,9 +1140,15 @@
                     ${nicheLinksHtml}
                 </div>
                 <div class="metrics-summary" id="metricsSummary">
-                    <div class="metric-card">
+                    <div class="metric-card dr-card">
                         <div class="metric-label">DR</div>
-                        <div class="metric-value" id="metricDR">--</div>
+                        <div class="dr-circle-container">
+                            <svg viewBox="0 0 80 80" width="80" height="80">
+                                <circle class="dr-circle-bg" cx="40" cy="40" r="34"></circle>
+                                <circle class="dr-circle-progress" id="drCircleProgress" cx="40" cy="40" r="34" stroke-dasharray="213.63" stroke-dashoffset="213.63"></circle>
+                            </svg>
+                            <div class="dr-circle-value" id="metricDR">--</div>
+                        </div>
                         <div class="metric-change neutral" id="metricDRChange">--</div>
                     </div>
                     <div class="metric-card">
