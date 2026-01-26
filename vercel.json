@@ -18,6 +18,10 @@
     {
       "source": "/index-apex.html",
       "destination": "/index-apex.html"
+    },
+    {
+      "source": "/log",
+      "destination": "/log.html"
     }
   ]
 }
