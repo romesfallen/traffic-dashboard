@@ -2755,6 +2755,106 @@
             };
         }
         
+        // Load full domain list in background for search (after priority load completes)
+        async function loadFullDomainListInBackground() {
+            try {
+                console.log('🔄 Loading full data in background for on-demand search...');
+                
+                // Fetch all full CSVs in parallel (not priority versions)
+                const [trafficRes, drRes, rdRes, avgRes] = await Promise.all([
+                    fetch('/api/data/traffic', { credentials: 'include' }),
+                    fetch('/api/data/dr', { credentials: 'include' }),
+                    fetch('/api/data/rd', { credentials: 'include' }),
+                    fetch('/api/data/average', { credentials: 'include' })
+                ]);
+                
+                // Process traffic data (required for domain list)
+                if (trafficRes.ok) {
+                    const text = await trafficRes.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: false,
+                        transformHeader: (header) => header.trim()
+                    });
+                    
+                    // Populate allAvailableDomains with ALL domains
+                    const previousCount = allAvailableDomains.size;
+                    parsed.data.forEach(row => {
+                        if (row.Website && row.Website.trim() !== '') {
+                            allAvailableDomains.add(row.Website.toLowerCase());
+                        }
+                    });
+                    
+                    // Update the traffic cache with full data for on-demand loading
+                    const headers = parsed.meta.fields || [];
+                    const dateColumns = headers.slice(6);
+                    
+                    // Build date info
+                    const seenDates = new Map();
+                    dateColumns.forEach((header, idx) => {
+                        if (!header || header.trim() === '') return;
+                        const dateStr = parseDate(header);
+                        if (!dateStr || dateStr === '') return;
+                        if (!seenDates.has(dateStr)) {
+                            seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1, headers: [header] });
+                        } else {
+                            const entry = seenDates.get(dateStr);
+                            if (entry.secondIndex === -1) entry.secondIndex = idx;
+                            entry.headers.push(header);
+                        }
+                    });
+                    
+                    let splitPoint = -1;
+                    seenDates.forEach((entry) => {
+                        if (entry.secondIndex !== -1 && (splitPoint === -1 || entry.secondIndex < splitPoint)) {
+                            splitPoint = entry.secondIndex;
+                        }
+                    });
+                    
+                    csvCache.traffic = { parsed, headers, dateColumns, seenDates, splitPoint };
+                    console.log(`✅ Full traffic data loaded: ${allAvailableDomains.size} domains (was ${previousCount})`);
+                }
+                
+                // Process DR data
+                if (drRes.ok) {
+                    const text = await drRes.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    csvCache.dr = { parsed, headers: parsed.meta.fields || [] };
+                    console.log('✅ Full DR data loaded');
+                }
+                
+                // Process RD data
+                if (rdRes.ok) {
+                    const text = await rdRes.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    csvCache.rd = { parsed, headers: parsed.meta.fields || [] };
+                    console.log('✅ Full RD data loaded');
+                }
+                
+                // Process Internal Average data
+                if (avgRes.ok) {
+                    const text = await avgRes.text();
+                    const parsed = Papa.parse(text, { 
+                        header: true,
+                        skipEmptyLines: true,
+                        transformHeader: (header) => header.trim()
+                    });
+                    csvCache.internalAvg = { parsed, headers: parsed.meta.fields || [] };
+                    console.log('✅ Full Internal Average data loaded');
+                }
+                
+                console.log('✅ Background loading complete - all domains now searchable');
+            } catch (error) {
+                console.warn('Background loading of full data failed:', error);
+            }
+        }
+
         // On-demand loader for domains not in priority list
         async function loadDomainOnDemand(domain) {
             console.log(`🔄 Loading domain on-demand: ${domain}`);
@@ -2910,6 +3010,9 @@
                 
                 loadingEl.style.display = 'none';
                 initializeDashboard(domains);
+                
+                // STEP 4: Load full domain list in background for search functionality
+                loadFullDomainListInBackground();
             } catch (error) {
                 console.warn('CSV loading failed, using fallback data:', error);
                 loadingEl.style.display = 'none';
