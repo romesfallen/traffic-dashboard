@@ -580,11 +580,13 @@ def extract_csv_metadata(s3_client):
     - Row count
     - Column count
     - Newest date column
+    - Content hash (MD5) for change detection
     
-    Returns dict: {file_name: {sheet_updated, rows, columns, newest_date_col}}
+    Returns dict: {file_name: {sheet_updated, rows, columns, newest_date_col, content_hash}}
     """
     import re
     import csv
+    import hashlib
     
     metadata = {}
     
@@ -600,6 +602,9 @@ def extract_csv_metadata(s3_client):
         try:
             response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=file_name)
             content = response['Body'].read().decode('utf-8')
+            
+            # Compute content hash for change detection
+            content_hash = hashlib.md5(content.encode('utf-8')).hexdigest()
             
             # Parse CSV
             reader = csv.reader(io.StringIO(content))
@@ -631,10 +636,11 @@ def extract_csv_metadata(s3_client):
                 'sheet_updated': sheet_updated,
                 'rows': row_count,
                 'columns': col_count,
-                'newest_date_col': newest_date_col
+                'newest_date_col': newest_date_col,
+                'content_hash': content_hash
             }
             
-            print(f"  {label}: {row_count} rows, {col_count} cols, newest: {newest_date_col}")
+            print(f"  {label}: {row_count} rows, {col_count} cols, hash: {content_hash[:8]}...")
             if sheet_updated:
                 print(f"    Sheet updated: {sheet_updated}")
                 
@@ -960,25 +966,53 @@ def lambda_handler(event, context):
         existing_log = read_sync_log(s3_client)
         
         # Detect data changes by comparing with previous metadata
+        # Also track last_content_change timestamp for each CSV
         data_changes = []
-        if existing_log and 'csv_metadata' in existing_log:
-            prev_metadata = existing_log['csv_metadata']
-            for file_name, curr in csv_metadata.items():
-                if curr and file_name in prev_metadata and prev_metadata[file_name]:
-                    prev = prev_metadata[file_name]
-                    row_diff = curr['rows'] - prev.get('rows', 0)
-                    col_diff = curr['columns'] - prev.get('columns', 0)
-                    
+        current_timestamp = start_time.isoformat() + 'Z'
+        
+        for file_name, curr in csv_metadata.items():
+            if not curr:
+                continue
+                
+            # Check if we have previous metadata to compare
+            prev = None
+            if existing_log and 'csv_metadata' in existing_log:
+                prev = existing_log.get('csv_metadata', {}).get(file_name)
+            
+            # Compare content hashes to detect any value changes
+            content_changed = False
+            if prev and prev.get('content_hash'):
+                if curr.get('content_hash') != prev.get('content_hash'):
+                    content_changed = True
+                    print(f"  CONTENT CHANGE: {file_name} - hash changed")
+            else:
+                # First time seeing this file, treat as changed
+                content_changed = True
+            
+            # Track last_content_change timestamp
+            if content_changed:
+                curr['last_content_change'] = current_timestamp
+            else:
+                # Carry forward previous timestamp
+                curr['last_content_change'] = prev.get('last_content_change') if prev else current_timestamp
+            
+            # Also detect row/column changes for detailed reporting
+            if prev:
+                row_diff = curr['rows'] - prev.get('rows', 0)
+                col_diff = curr['columns'] - prev.get('columns', 0)
+                
+                if row_diff != 0 or col_diff != 0 or content_changed:
+                    change = {
+                        'file': file_name,
+                        'rows_added': row_diff,
+                        'columns_added': col_diff,
+                        'new_rows': curr['rows'],
+                        'new_columns': curr['columns'],
+                        'newest_date_col': curr.get('newest_date_col'),
+                        'content_changed': content_changed
+                    }
+                    data_changes.append(change)
                     if row_diff != 0 or col_diff != 0:
-                        change = {
-                            'file': file_name,
-                            'rows_added': row_diff,
-                            'columns_added': col_diff,
-                            'new_rows': curr['rows'],
-                            'new_columns': curr['columns'],
-                            'newest_date_col': curr.get('newest_date_col')
-                        }
-                        data_changes.append(change)
                         print(f"  DATA CHANGE: {file_name} - {row_diff:+d} rows, {col_diff:+d} cols")
         
         # Build history (keep last 20 entries)
