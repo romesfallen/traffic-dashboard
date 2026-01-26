@@ -1445,9 +1445,6 @@
             const chart = new ApexCharts(document.querySelector('#apex-chart'), options);
             chart.render();
             
-            // Hide RD series by default (can be toggled via legend click)
-            chart.hideSeries('RD');
-            
             // REVENUE LABEL CHANGE: Store chart instance for dynamic updates
             currentChart = chart;
             
