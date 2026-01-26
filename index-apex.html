@@ -966,11 +966,11 @@
             const monthsVisible = (maxTimestamp - minTimestamp) / (30 * 24 * 60 * 60 * 1000);
             const quarterlyMonths = ['Jan', 'Apr', 'Jul', 'Oct'];
             
-            if (monthsVisible > 8) {
-                // Zoomed out: show only quarterly labels to prevent overlap
+            if (monthsVisible > 12) {
+                // Zoomed out (>12 months): show only quarterly labels to prevent overlap
                 return annotations.filter(ann => quarterlyMonths.includes(ann.month));
             }
-            // Zoomed in: show all monthly labels
+            // Zoomed in (12 months or less): show all monthly labels
             return annotations;
         }
         
