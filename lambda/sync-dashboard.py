@@ -573,6 +573,78 @@ def get_s3_file_size(s3_client, file_name):
         return 0
 
 
+def extract_csv_metadata(s3_client):
+    """
+    Extract metadata from CSVs including:
+    - 'Last update' timestamp from header (when Google Sheets was updated)
+    - Row count
+    - Column count
+    - Newest date column
+    
+    Returns dict: {file_name: {sheet_updated, rows, columns, newest_date_col}}
+    """
+    import re
+    import csv
+    
+    metadata = {}
+    
+    files_to_check = [
+        ('revenue-history.csv', 'Revenue'),
+        ('traffic-data.csv', 'Traffic Monthly'),
+        ('internal-average-traffic.csv', 'Traffic Average'),
+        ('DR History.csv', 'DR'),
+        ('RD History.csv', 'RD'),
+    ]
+    
+    for file_name, label in files_to_check:
+        try:
+            response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=file_name)
+            content = response['Body'].read().decode('utf-8')
+            
+            # Parse CSV
+            reader = csv.reader(io.StringIO(content))
+            rows = list(reader)
+            
+            if not rows:
+                metadata[file_name] = None
+                continue
+            
+            header = rows[0]
+            row_count = len(rows) - 1  # Exclude header
+            col_count = len(header)
+            
+            # Extract "Last update" timestamp from first cell
+            sheet_updated = None
+            first_cell = header[0] if header else ''
+            match = re.search(r'Last update\s+(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M\s+\w+)', first_cell)
+            if match:
+                sheet_updated = match.group(1)
+            
+            # Find newest date column
+            date_cols = []
+            for col in header:
+                if any(m in col for m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']):
+                    date_cols.append(col)
+            newest_date_col = date_cols[-1] if date_cols else None
+            
+            metadata[file_name] = {
+                'sheet_updated': sheet_updated,
+                'rows': row_count,
+                'columns': col_count,
+                'newest_date_col': newest_date_col
+            }
+            
+            print(f"  {label}: {row_count} rows, {col_count} cols, newest: {newest_date_col}")
+            if sheet_updated:
+                print(f"    Sheet updated: {sheet_updated}")
+                
+        except Exception as e:
+            print(f"  Error reading {file_name}: {e}")
+            metadata[file_name] = None
+    
+    return metadata
+
+
 def send_slack_notification(message, is_error=False):
     """Send notification to Slack."""
     if not SLACK_WEBHOOK_URL:
@@ -875,26 +947,56 @@ def lambda_handler(event, context):
                 'size_bytes': size
             }
         
+        # Extract CSV metadata (rows, columns, timestamps)
+        print("\n=== STEP 4: Extracting CSV Metadata ===")
+        csv_metadata = extract_csv_metadata(s3_client)
+        
         # Prepare summary
         success_count = sum(1 for v in results.values() if v)
         total_count = len(results)
         
         # Write sync log
-        print("\n=== STEP 4: Writing Sync Log ===")
+        print("\n=== STEP 5: Writing Sync Log ===")
         existing_log = read_sync_log(s3_client)
+        
+        # Detect data changes by comparing with previous metadata
+        data_changes = []
+        if existing_log and 'csv_metadata' in existing_log:
+            prev_metadata = existing_log['csv_metadata']
+            for file_name, curr in csv_metadata.items():
+                if curr and file_name in prev_metadata and prev_metadata[file_name]:
+                    prev = prev_metadata[file_name]
+                    row_diff = curr['rows'] - prev.get('rows', 0)
+                    col_diff = curr['columns'] - prev.get('columns', 0)
+                    
+                    if row_diff != 0 or col_diff != 0:
+                        change = {
+                            'file': file_name,
+                            'rows_added': row_diff,
+                            'columns_added': col_diff,
+                            'new_rows': curr['rows'],
+                            'new_columns': curr['columns'],
+                            'newest_date_col': curr.get('newest_date_col')
+                        }
+                        data_changes.append(change)
+                        print(f"  DATA CHANGE: {file_name} - {row_diff:+d} rows, {col_diff:+d} cols")
         
         # Build history (keep last 20 entries)
         history = []
         if existing_log and 'history' in existing_log:
             history = existing_log['history'][:19]  # Keep last 19 to make room for new entry
         
-        # Add current run to history
-        history.insert(0, {
+        # Add current run to history (including data changes if any)
+        history_entry = {
             'timestamp': start_time.isoformat() + 'Z',
             'status': 'error' if errors else 'success',
             'duration_seconds': round(duration, 1),
-            'priority_domains_count': len(priority_domains)
-        })
+            'priority_domains_count': len(priority_domains),
+            'data_changed': len(data_changes) > 0
+        }
+        if data_changes:
+            history_entry['changes'] = data_changes
+        history.insert(0, history_entry)
         
         # Build sync log
         sync_log = {
@@ -903,6 +1005,8 @@ def lambda_handler(event, context):
             'status': 'error' if errors else 'success',
             'priority_domains_count': len(priority_domains),
             'files': file_stats,
+            'csv_metadata': csv_metadata,
+            'data_changes': data_changes,
             'errors': errors,
             'history': history
         }

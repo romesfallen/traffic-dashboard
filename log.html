@@ -277,6 +277,60 @@
         .priority-count strong {
             font-size: 18px;
         }
+
+        .data-change-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .data-change-badge.positive {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .data-change-badge.negative {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .data-changes-alert {
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .data-changes-alert h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .data-changes-alert ul {
+            list-style: none;
+            font-size: 14px;
+        }
+
+        .data-changes-alert li {
+            padding: 4px 0;
+        }
+
+        .sheet-timestamp {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .no-changes {
+            color: #666;
+            font-size: 13px;
+            text-align: center;
+            padding: 12px;
+        }
     </style>
 </head>
 <body>
@@ -317,16 +371,40 @@
             </div>
         </div>
 
-        <!-- Files Table -->
+        <!-- Data Changes Alert (if any) -->
+        <div id="data-changes-container"></div>
+
+        <!-- CSV Data Status -->
         <div class="card">
             <div class="section-title">
-                <span>Files Synced</span>
+                <span>CSV Data Status</span>
                 <div style="margin-left: auto;">
                     <label class="refresh-toggle">
                         <input type="checkbox" id="auto-refresh"> Auto-refresh (60s)
                     </label>
                 </div>
             </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Rows</th>
+                            <th>Columns</th>
+                            <th>Newest Date Column</th>
+                            <th>Sheet Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody id="csv-metadata-table">
+                    </tbody>
+                </table>
+            </div>
+            <div id="errors-container"></div>
+        </div>
+
+        <!-- Files Table -->
+        <div class="card">
+            <div class="section-title">Files in S3</div>
             <div class="table-container">
                 <table>
                     <thead>
@@ -340,7 +418,6 @@
                     </tbody>
                 </table>
             </div>
-            <div id="errors-container"></div>
         </div>
 
         <!-- History -->
@@ -353,7 +430,7 @@
                             <th>Time</th>
                             <th>Status</th>
                             <th>Duration</th>
-                            <th>Priority Domains</th>
+                            <th>Data Changed</th>
                         </tr>
                     </thead>
                     <tbody id="history-table">
@@ -441,7 +518,55 @@
             // Priority count
             document.getElementById('priority-count').textContent = data.priority_domains_count || '-';
             
-            // Files table
+            // Data changes alert
+            const changesContainer = document.getElementById('data-changes-container');
+            if (data.data_changes && data.data_changes.length > 0) {
+                let changesHtml = `<div class="data-changes-alert">
+                    <h3>📊 Data Changes Detected</h3>
+                    <ul>`;
+                for (const change of data.data_changes) {
+                    const rowText = change.rows_added !== 0 ? `${change.rows_added > 0 ? '+' : ''}${change.rows_added} rows` : '';
+                    const colText = change.columns_added !== 0 ? `${change.columns_added > 0 ? '+' : ''}${change.columns_added} columns` : '';
+                    const parts = [rowText, colText].filter(x => x);
+                    changesHtml += `<li><strong>${change.file}</strong>: ${parts.join(', ')}${change.newest_date_col ? ` (newest: ${change.newest_date_col})` : ''}</li>`;
+                }
+                changesHtml += `</ul></div>`;
+                changesContainer.innerHTML = changesHtml;
+            } else {
+                changesContainer.innerHTML = '';
+            }
+            
+            // CSV metadata table
+            const metadataTable = document.getElementById('csv-metadata-table');
+            const csvOrder = [
+                ['revenue-history.csv', 'Revenue'],
+                ['traffic-data.csv', 'Traffic Monthly'],
+                ['internal-average-traffic.csv', 'Traffic Average'],
+                ['DR History.csv', 'DR'],
+                ['RD History.csv', 'RD']
+            ];
+            
+            let metadataHtml = '';
+            for (const [fileName, label] of csvOrder) {
+                const meta = data.csv_metadata ? data.csv_metadata[fileName] : null;
+                if (!meta) {
+                    metadataHtml += `<tr><td>${label}</td><td colspan="4" style="color: #666;">No data</td></tr>`;
+                    continue;
+                }
+                
+                metadataHtml += `
+                    <tr>
+                        <td><strong>${label}</strong></td>
+                        <td>${meta.rows ? meta.rows.toLocaleString() : '-'}</td>
+                        <td>${meta.columns || '-'}</td>
+                        <td>${meta.newest_date_col || '-'}</td>
+                        <td class="sheet-timestamp">${meta.sheet_updated || '-'}</td>
+                    </tr>
+                `;
+            }
+            metadataTable.innerHTML = metadataHtml;
+            
+            // Files table (S3 files)
             const filesTable = document.getElementById('files-table');
             const fileOrder = [
                 'revenue-history.csv',
@@ -491,14 +616,29 @@
             // History table
             const historyTable = document.getElementById('history-table');
             let historyHtml = '';
-            for (const entry of (data.history || []).slice(0, 10)) {
+            for (const entry of (data.history || []).slice(0, 15)) {
                 const statusClass = entry.status === 'success' ? 'success' : 'error';
+                
+                // Build data change info
+                let changeInfo = '-';
+                if (entry.data_changed && entry.changes && entry.changes.length > 0) {
+                    const changeSummary = entry.changes.map(c => {
+                        const parts = [];
+                        if (c.rows_added) parts.push(`${c.rows_added > 0 ? '+' : ''}${c.rows_added}r`);
+                        if (c.columns_added) parts.push(`${c.columns_added > 0 ? '+' : ''}${c.columns_added}c`);
+                        return parts.join('/');
+                    }).join(', ');
+                    changeInfo = `<span class="status-badge positive">Yes</span> <span style="font-size: 12px; color: #666;">${changeSummary}</span>`;
+                } else if (entry.data_changed === false) {
+                    changeInfo = '<span style="color: #999;">No</span>';
+                }
+                
                 historyHtml += `
                     <tr>
                         <td class="timestamp">${formatDate(entry.timestamp)}</td>
                         <td><span class="status-badge ${statusClass}">${entry.status === 'success' ? 'Success' : 'Error'}</span></td>
                         <td>${entry.duration_seconds.toFixed(1)}s</td>
-                        <td>${entry.priority_domains_count || '-'}</td>
+                        <td>${changeInfo}</td>
                     </tr>
                 `;
             }
