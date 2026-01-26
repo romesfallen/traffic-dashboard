@@ -534,6 +534,45 @@ def merge_wide_format_data(existing_data, new_data):
     return merged_data
 
 
+def read_sync_log(s3_client):
+    """Read existing sync log from S3."""
+    try:
+        response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key='sync-log.json')
+        content = response['Body'].read().decode('utf-8')
+        return json.loads(content)
+    except s3_client.exceptions.NoSuchKey:
+        print("No existing sync-log.json (first run)")
+        return None
+    except Exception as e:
+        print(f"Error reading sync-log.json: {e}")
+        return None
+
+
+def write_sync_log(s3_client, log_data):
+    """Write sync log to S3."""
+    try:
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key='sync-log.json',
+            Body=json.dumps(log_data, indent=2).encode('utf-8'),
+            ContentType='application/json'
+        )
+        print("Wrote sync-log.json to S3")
+        return True
+    except Exception as e:
+        print(f"Error writing sync-log.json: {e}")
+        return False
+
+
+def get_s3_file_size(s3_client, file_name):
+    """Get the size of a file in S3."""
+    try:
+        response = s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=file_name)
+        return response['ContentLength']
+    except Exception:
+        return 0
+
+
 def send_slack_notification(message, is_error=False):
     """Send notification to Slack."""
     if not SLACK_WEBHOOK_URL:
@@ -701,6 +740,9 @@ def lambda_handler(event, context):
     errors = []
     priority_domains = set()
     
+    # Track file statistics for sync log
+    file_stats = {}
+    
     try:
         # Initialize services
         sheets_service = get_google_sheets_service()
@@ -823,9 +865,49 @@ def lambda_handler(event, context):
         # Calculate duration
         duration = (datetime.utcnow() - start_time).total_seconds()
         
+        # Gather file statistics for sync log
+        print("\n=== STEP 3: Gathering File Statistics ===")
+        all_files = list(S3_FILES.values()) + list(S3_PRIORITY_FILES.values())
+        for file_name in all_files:
+            size = get_s3_file_size(s3_client, file_name)
+            file_stats[file_name] = {
+                'status': 'success' if size > 0 else 'missing',
+                'size_bytes': size
+            }
+        
         # Prepare summary
         success_count = sum(1 for v in results.values() if v)
         total_count = len(results)
+        
+        # Write sync log
+        print("\n=== STEP 4: Writing Sync Log ===")
+        existing_log = read_sync_log(s3_client)
+        
+        # Build history (keep last 20 entries)
+        history = []
+        if existing_log and 'history' in existing_log:
+            history = existing_log['history'][:19]  # Keep last 19 to make room for new entry
+        
+        # Add current run to history
+        history.insert(0, {
+            'timestamp': start_time.isoformat() + 'Z',
+            'status': 'error' if errors else 'success',
+            'duration_seconds': round(duration, 1),
+            'priority_domains_count': len(priority_domains)
+        })
+        
+        # Build sync log
+        sync_log = {
+            'last_sync': start_time.isoformat() + 'Z',
+            'duration_seconds': round(duration, 1),
+            'status': 'error' if errors else 'success',
+            'priority_domains_count': len(priority_domains),
+            'files': file_stats,
+            'errors': errors,
+            'history': history
+        }
+        
+        write_sync_log(s3_client, sync_log)
         
         if errors:
             error_msg = f"Sync completed with errors ({success_count}/{total_count} succeeded)\n"

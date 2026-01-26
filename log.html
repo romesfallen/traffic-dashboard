@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="googlebot" content="noindex, nofollow">
+    <title>Sync Log - Dashboard Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            color: #333333;
+            padding: 24px;
+            visibility: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666666;
+            font-size: 14px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 12px;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            color: #666;
+        }
+
+        .user-bar .user-email {
+            color: #666;
+        }
+
+        .user-bar .sign-out {
+            color: #f97316;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .user-bar .sign-out:hover {
+            text-decoration: underline;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            max-width: 900px;
+            margin: 0 auto 24px auto;
+        }
+
+        .status-banner {
+            padding: 20px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-banner.success {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+        }
+
+        .status-banner.error {
+            background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+            color: white;
+        }
+
+        .status-banner.loading {
+            background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);
+            color: white;
+        }
+
+        .status-icon {
+            font-size: 32px;
+        }
+
+        .status-details h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .status-details p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .status-meta {
+            margin-left: auto;
+            text-align: right;
+            font-size: 13px;
+        }
+
+        .status-meta .duration {
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e5e5e5;
+            color: #666666;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-badge.missing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .file-size {
+            color: #666;
+            font-family: 'SF Mono', 'Monaco', monospace;
+            font-size: 13px;
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .refresh-toggle input {
+            cursor: pointer;
+        }
+
+        .error-list {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .error-list h4 {
+            color: #991b1b;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .error-list ul {
+            list-style: none;
+            color: #991b1b;
+            font-size: 13px;
+        }
+
+        .error-list li {
+            padding: 4px 0;
+        }
+
+        .error-list li::before {
+            content: "• ";
+        }
+
+        #loading-state {
+            text-align: center;
+            padding: 48px;
+            color: #666;
+        }
+
+        #error-state {
+            text-align: center;
+            padding: 48px;
+            color: #991b1b;
+        }
+
+        .priority-count {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #166534;
+        }
+
+        .priority-count strong {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-bar">
+        <span class="user-email" id="user-email"></span>
+        <a href="/api/auth/logout" class="sign-out">Sign Out</a>
+    </div>
+
+    <div class="header">
+        <h1>Sync Log</h1>
+        <p>Monitor data sync from Google Sheets to S3</p>
+        <a href="/index-apex.html" class="nav-link">← Back to Dashboard</a>
+    </div>
+
+    <div id="loading-state" class="card">
+        Loading sync log...
+    </div>
+
+    <div id="error-state" class="card" style="display: none;">
+        <p>Failed to load sync log. The Lambda may not have run yet.</p>
+    </div>
+
+    <div id="content" style="display: none;">
+        <!-- Status Banner -->
+        <div id="status-banner" class="status-banner loading">
+            <div class="status-icon">⏳</div>
+            <div class="status-details">
+                <h2>Loading...</h2>
+                <p>Fetching sync status</p>
+            </div>
+        </div>
+
+        <!-- Priority Domains -->
+        <div style="text-align: center; margin-bottom: 24px;">
+            <div class="priority-count">
+                <span>Priority Domains:</span>
+                <strong id="priority-count">-</strong>
+            </div>
+        </div>
+
+        <!-- Files Table -->
+        <div class="card">
+            <div class="section-title">
+                <span>Files Synced</span>
+                <div style="margin-left: auto;">
+                    <label class="refresh-toggle">
+                        <input type="checkbox" id="auto-refresh"> Auto-refresh (60s)
+                    </label>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Status</th>
+                            <th>Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="files-table">
+                    </tbody>
+                </table>
+            </div>
+            <div id="errors-container"></div>
+        </div>
+
+        <!-- History -->
+        <div class="card">
+            <div class="section-title">Recent Sync History</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Priority Domains</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshInterval = null;
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        function formatRelativeTime(isoString) {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins} min ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            return formatDate(isoString);
+        }
+
+        async function loadSyncLog() {
+            try {
+                const response = await fetch('/api/data/sync-log', { credentials: 'include' });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load sync log');
+                }
+                
+                const data = await response.json();
+                renderSyncLog(data);
+                
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('error-state').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading sync log:', error);
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('error-state').style.display = 'block';
+            }
+        }
+
+        function renderSyncLog(data) {
+            // Status banner
+            const banner = document.getElementById('status-banner');
+            const isSuccess = data.status === 'success';
+            banner.className = `status-banner ${isSuccess ? 'success' : 'error'}`;
+            banner.innerHTML = `
+                <div class="status-icon">${isSuccess ? '✓' : '✗'}</div>
+                <div class="status-details">
+                    <h2>SYNC ${isSuccess ? 'SUCCESS' : 'ERROR'}</h2>
+                    <p>Last sync: ${formatDate(data.last_sync)} (${formatRelativeTime(data.last_sync)})</p>
+                </div>
+                <div class="status-meta">
+                    <div class="duration">${data.duration_seconds.toFixed(1)}s</div>
+                    <div>duration</div>
+                </div>
+            `;
+            
+            // Priority count
+            document.getElementById('priority-count').textContent = data.priority_domains_count || '-';
+            
+            // Files table
+            const filesTable = document.getElementById('files-table');
+            const fileOrder = [
+                'revenue-history.csv',
+                'traffic-data.csv',
+                'traffic-data-priority.csv',
+                'internal-average-traffic.csv',
+                'internal-average-traffic-priority.csv',
+                'DR History.csv',
+                'DR History-priority.csv',
+                'RD History.csv',
+                'RD History-priority.csv'
+            ];
+            
+            let filesHtml = '';
+            for (const fileName of fileOrder) {
+                const file = data.files[fileName];
+                if (!file) continue;
+                
+                const statusClass = file.status === 'success' ? 'success' : 'missing';
+                const isPriority = fileName.includes('-priority');
+                
+                filesHtml += `
+                    <tr>
+                        <td>${isPriority ? '↳ ' : ''}${fileName}</td>
+                        <td><span class="status-badge ${statusClass}">${file.status === 'success' ? 'OK' : 'Missing'}</span></td>
+                        <td class="file-size">${formatBytes(file.size_bytes)}</td>
+                    </tr>
+                `;
+            }
+            filesTable.innerHTML = filesHtml;
+            
+            // Errors
+            const errorsContainer = document.getElementById('errors-container');
+            if (data.errors && data.errors.length > 0) {
+                errorsContainer.innerHTML = `
+                    <div class="error-list">
+                        <h4>Errors</h4>
+                        <ul>
+                            ${data.errors.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            } else {
+                errorsContainer.innerHTML = '';
+            }
+            
+            // History table
+            const historyTable = document.getElementById('history-table');
+            let historyHtml = '';
+            for (const entry of (data.history || []).slice(0, 10)) {
+                const statusClass = entry.status === 'success' ? 'success' : 'error';
+                historyHtml += `
+                    <tr>
+                        <td class="timestamp">${formatDate(entry.timestamp)}</td>
+                        <td><span class="status-badge ${statusClass}">${entry.status === 'success' ? 'Success' : 'Error'}</span></td>
+                        <td>${entry.duration_seconds.toFixed(1)}s</td>
+                        <td>${entry.priority_domains_count || '-'}</td>
+                    </tr>
+                `;
+            }
+            historyTable.innerHTML = historyHtml || '<tr><td colspan="4" style="text-align: center; color: #666;">No history yet</td></tr>';
+        }
+
+        // Auto-refresh toggle
+        document.getElementById('auto-refresh').addEventListener('change', function() {
+            if (this.checked) {
+                refreshInterval = setInterval(loadSyncLog, 60000);
+            } else {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        });
+
+        // Check authentication
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/check');
+                const data = await response.json();
+                
+                if (!data.authenticated) {
+                    window.location.href = '/api/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                    return;
+                }
+                
+                document.body.style.visibility = 'visible';
+                
+                const meResponse = await fetch('/api/auth/me');
+                if (meResponse.ok) {
+                    const meData = await meResponse.json();
+                    document.getElementById('user-email').textContent = meData.email || '';
+                }
+                
+                loadSyncLog();
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                document.body.style.visibility = 'visible';
+                loadSyncLog();
+            }
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>
