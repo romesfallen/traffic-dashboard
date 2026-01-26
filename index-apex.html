@@ -939,12 +939,6 @@
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const drProcessed = interpolateData(filtered.drData || []);
             const rdProcessed = interpolateData(filtered.rdData || []);
-            
-            // Debug RD before interpolation
-            const rdRawNonNull = (filtered.rdData || []).filter(v => v !== null && v !== undefined);
-            console.log('[RD DEBUG] filtered.rdData length:', (filtered.rdData || []).length);
-            console.log('[RD DEBUG] filtered.rdData non-null count:', rdRawNonNull.length);
-            console.log('[RD DEBUG] rdProcessed.real non-null count:', rdProcessed.real.filter(v => v !== null && v !== undefined).length);
             const internalAvgProcessed = interpolateData(data.internalAvgData || []);
             const ahrefsAvgProcessed = interpolateData(data.ahrefsAvgData || []);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
@@ -971,16 +965,6 @@
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
             const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real);
-            
-            // Debug RD data
-            const rdNonNull = rdDataPoints.filter(p => p.y !== null && p.y !== undefined);
-            console.log('[RD DEBUG] rdDataPoints total:', rdDataPoints.length);
-            console.log('[RD DEBUG] rdDataPoints with values:', rdNonNull.length);
-            if (rdNonNull.length > 0) {
-                console.log('[RD DEBUG] First RD point:', rdNonNull[0]);
-                console.log('[RD DEBUG] Last RD point:', rdNonNull[rdNonNull.length - 1]);
-                console.log('[RD DEBUG] Sample RD values:', rdNonNull.slice(0, 5).map(p => ({ date: new Date(p.x).toDateString(), y: p.y })));
-            }
             const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
             const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
@@ -1157,7 +1141,16 @@
                         easing: 'easeinout',
                         speed: 800
                     },
-                    stacked: false
+                    stacked: false,
+                    events: {
+                        legendClick: function(chartContext, seriesIndex, config) {
+                            // Force chart to recalculate axes after legend toggle
+                            // This fixes RD not rendering when it's the only visible series
+                            setTimeout(() => {
+                                chartContext.windowResizeHandler();
+                            }, 50);
+                        }
+                    }
                 },
                 // REVENUE LABEL CHANGE: Add annotations section
                 // Build xaxis annotations for centered month labels
