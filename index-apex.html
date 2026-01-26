@@ -1310,12 +1310,23 @@
                     yaxisConfig.push({
                         seriesName: 'RD',
                         opposite: true,
-                        show: false, // Hide axis line to avoid clutter, but still use separate scale
+                        show: true, // Show axis when series is visible
+                        title: {
+                            text: 'RD',
+                            style: { color: '#ec4899', fontSize: '12px' },
+                            offsetX: -20
+                        },
                         labels: {
                             style: { colors: '#ec4899' },
-                            formatter: val => val ? val.toLocaleString() : ''
+                            formatter: val => val ? val.toLocaleString() : '',
+                            offsetX: -20
                         },
-                        min: 0
+                        min: 0,
+                        axisBorder: {
+                            show: true,
+                            color: '#ec4899',
+                            offsetX: -15
+                        }
                         // No max - let it auto-scale based on data
                     });
                     
@@ -1396,6 +1407,8 @@
                                     displayValue = '$' + value.toLocaleString();
                                 } else if (seriesName === 'DR') {
                                     displayValue = value.toFixed(0);
+                                } else if (seriesName === 'RD') {
+                                    displayValue = value.toLocaleString() + ' domains';
                                 } else if (value !== 0) {
                                     displayValue = value.toLocaleString() + ' visits';
                                 }
