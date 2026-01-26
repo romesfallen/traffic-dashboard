@@ -491,6 +491,17 @@
             line-height: 1.2;
         }
 
+        .metric-value-link {
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+        }
+
+        .metric-value-link:hover .metric-value {
+            text-decoration: underline;
+            opacity: 0.8;
+        }
+
         .metric-change {
             font-size: 13px;
             font-weight: 600;
@@ -895,6 +906,12 @@
                 rdChangeEl.textContent = '--';
                 rdChangeEl.className = 'metric-change neutral';
             }
+            
+            // Update RD Ahrefs link
+            const rdLink = document.getElementById('metricRDLink');
+            if (rdLink && currentDomainName) {
+                rdLink.href = getAhrefsRefDomainsUrl(currentDomainName);
+            }
 
             // Traffic (Internal Monthly)
             const trafficResult = calculateMetricChange(data.ourData, data.dates, periodDays);
@@ -906,6 +923,12 @@
             } else {
                 trafficChangeEl.textContent = '--';
                 trafficChangeEl.className = 'metric-change neutral';
+            }
+            
+            // Update Traffic Ahrefs link
+            const trafficLink = document.getElementById('metricTrafficLink');
+            if (trafficLink && currentDomainName) {
+                trafficLink.href = getAhrefsTrafficUrl(currentDomainName);
             }
         }
 
@@ -1208,12 +1231,16 @@
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Ref. domains</div>
-                        <div class="metric-value" id="metricRD">--</div>
+                        <a href="#" id="metricRDLink" class="metric-value-link" target="_blank" rel="noopener">
+                            <div class="metric-value" id="metricRD">--</div>
+                        </a>
                         <div class="metric-change neutral" id="metricRDChange">--</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">Traffic</div>
-                        <div class="metric-value" id="metricTraffic">--</div>
+                        <a href="#" id="metricTrafficLink" class="metric-value-link" target="_blank" rel="noopener">
+                            <div class="metric-value" id="metricTraffic">--</div>
+                        </a>
                         <div class="metric-change neutral" id="metricTrafficChange">--</div>
                     </div>
                 </div>
@@ -2100,6 +2127,14 @@
         // Ahrefs URL Generator
         function getAhrefsUrl(domain) {
             return `https://app.ahrefs.com/v2-site-explorer/overview?backlinksChartMode=metrics&backlinksChartPerformanceSources=domainRating%7C%7CurlRating&backlinksCompetitorsSource=%22UrlRating%22&backlinksRefdomainsSource=%22RefDomainsNew%22&bestFilter=all&brandedTrafficSource=target-brand&chartGranularity=daily&chartInterval=all&competitors=&countries=&country=all&entitiesCategory=organisations&generalChartBrandedTraffic=other-brands&generalChartMode=metrics&generalChartPerformanceSources=organicTraffic&generalCompetitorsSource=%22OrganicTraffic%22&generalCountriesSource=organic-traffic&generalEntitiesChartMetric=Traffic&generalPagesByTrafficChartMode=Percentage&generalPagesByTrafficSource=Traffic&highlightChanges=7d&intentsMainSource=informational&keywordsSource=all&mode=subdomains&organicChartBrandedTraffic=non-branded%7C%7Cother-brands%7C%7Ctarget-brand&organicChartMode=metrics&organicChartPerformanceSources=organicTraffic&organicCompetitorsSource=%22OrganicTraffic%22&organicCountriesSource=organic-traffic&organicEntitiesChartMetric=Traffic&organicPagesByTrafficChartMode=Percentage&organicPagesByTrafficSource=Pages%7C%7CTraffic&overviewSerpChartMode=Own&overviewSerpChartSpec=AIOverview%7C%7CAdwordsBottom%7C%7CAdwordsTop%7C%7CDiscussions%7C%7CFeaturedSnippet%7C%7CImagePack%7C%7CKnowledgeCard%7C%7CKnowledgePanel%7C%7CLocalPack%7C%7CPaidSiteLinks%7C%7CPeopleAlsoAsk%7C%7CShoppingAds%7C%7CShoppingOrganic%7C%7CSitelinks%7C%7CThumbnail%7C%7CTopStories%7C%7CTweets%7C%7CVideoPreview%7C%7CVideos&overviewSerpManyChartSpec=Own%7C%7CTotal&overview_tab=general&paidSearchPaidKeywordsByTopPositionsChartMode=Percentage&paidTrafficSources=cost%7C%7Ctraffic&target=${encodeURIComponent(domain)}&topLevelDomainFilter=all&topOrganicKeywordsMode=normal&topOrganicPagesMode=normal&trafficType=Organic&volume_type=monthly`;
+        }
+
+        function getAhrefsRefDomainsUrl(domain) {
+            return `https://app.ahrefs.com/v2-site-explorer/refdomains?anchorRules=&bestFilter=all&domainNameRules=&followType=all&highlightChanges=none&history=all&ipRules=&limit=50&mode=subdomains&offset=0&refPageAuthorRules=&refPageTitleRules=&refPageUrlRules=&sort=Dr&sortDirection=desc&surroundingRules=&target=${encodeURIComponent(domain + '/')}&targetUrlRules=`;
+        }
+
+        function getAhrefsTrafficUrl(domain) {
+            return `https://app.ahrefs.com/v2-site-explorer/organic-keywords?brandedMode=all&chartGranularity=daily&chartInterval=all&compareDate=dontCompare&country=allByLocation&currentDate=today&hiddenColumns=&intentsAttrs=&keywordRules=&limit=50&localMode=all&mainOnly=0&mode=subdomains&multipleUrlsOnly=0&offset=0&performanceChartTopPosition=top11_20%7C%7Ctop21_50%7C%7Ctop3%7C%7Ctop4_10%7C%7Ctop51&positionChanges=&sort=OrganicTrafficInitial&sortDirection=desc&target=${encodeURIComponent(domain + '/')}&urlRules=&volume_type=monthly`;
         }
 
         // Copy domain to clipboard
