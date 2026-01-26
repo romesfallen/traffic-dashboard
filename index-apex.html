@@ -964,9 +964,7 @@
             const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
-            // Filter out null Y values for RD to fix rendering issue
-            const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real)
-                .filter(p => p.y !== null && p.y !== undefined);
+            const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real);
             const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
             const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
@@ -1193,7 +1191,7 @@
                     dashArray: strokeDash
                 },
                 markers: {
-                    size: allSeries.map((s, i) => s.name === 'DR' ? 2 : 0), // Small markers for DR only
+                    size: allSeries.map((s, i) => (s.name === 'DR' || s.name === 'RD') ? 2 : 0), // Small markers for DR and RD
                     hover: { size: 5 },
                     strokeWidth: 0
                 },
