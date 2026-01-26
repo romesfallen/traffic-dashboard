@@ -918,12 +918,136 @@
             }
         }
 
-        // Load metrics data (DR, Traffic, RD) for all domains
-        async function loadMetricsData() {
+        // Helper: Find date columns with flexible regex (handles "Jan 1 - 2024" format)
+        function findDateColumns(headers) {
+            return headers.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
+        }
+
+        // Helper: Get last value for a domain from CSV row
+        function getLastMetricValue(row, dateCols) {
+            // Try columns from newest to oldest to find the last non-empty value
+            for (let i = dateCols.length - 1; i >= 0; i--) {
+                const col = dateCols[i];
+                const val = row[col];
+                if (val !== undefined && val !== null && val !== '') {
+                    return val;
+                }
+            }
+            return null;
+        }
+
+        // Parse metrics from CSV text and merge into metricsData
+        function parseMetricsCSV(csvText, metricType) {
+            const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+            const headers = parsed.meta.fields || [];
+            const dateCols = findDateColumns(headers);
+            console.log(`📊 ${metricType} columns found:`, dateCols.length, 'Last col:', dateCols[dateCols.length - 1] || 'none');
+            
+            parsed.data.forEach(row => {
+                const domain = (row.Website || '').toLowerCase();
+                if (!domain) return;
+                if (!metricsData[domain]) metricsData[domain] = {};
+                const rawVal = getLastMetricValue(row, dateCols);
+                
+                if (metricType === 'DR') {
+                    const val = rawVal !== null ? parseFloat(rawVal) : null;
+                    metricsData[domain].dr = isNaN(val) ? null : val;
+                } else {
+                    const valStr = rawVal !== null ? String(rawVal).replace(/,/g, '') : '';
+                    const val = parseInt(valStr, 10);
+                    if (metricType === 'Traffic') {
+                        metricsData[domain].traffic = isNaN(val) ? null : val;
+                    } else if (metricType === 'RD') {
+                        metricsData[domain].rd = isNaN(val) ? null : val;
+                    }
+                }
+            });
+            
+            return parsed.data.length;
+        }
+
+        // Stage 1: Load priority metrics (fast, ~1-2MB for top ~200 domains)
+        async function loadPriorityMetrics() {
             if (metricsLoaded) return;
             
             try {
-                // Load DR, Traffic, and RD data in parallel
+                console.log('🚀 Loading priority metrics (top ~200 domains)...');
+                
+                // Load priority endpoints in parallel
+                const [drResponse, trafficResponse, rdResponse] = await Promise.all([
+                    fetch('/api/data/dr-priority', { credentials: 'include' }),
+                    fetch('/api/data/traffic-priority', { credentials: 'include' }),
+                    fetch('/api/data/rd-priority', { credentials: 'include' })
+                ]);
+
+                const results = await Promise.all([
+                    drResponse.ok ? drResponse.text() : null,
+                    trafficResponse.ok ? trafficResponse.text() : null,
+                    rdResponse.ok ? rdResponse.text() : null
+                ]);
+
+                let domainsLoaded = 0;
+                if (results[0]) domainsLoaded = Math.max(domainsLoaded, parseMetricsCSV(results[0], 'DR'));
+                if (results[1]) domainsLoaded = Math.max(domainsLoaded, parseMetricsCSV(results[1], 'Traffic'));
+                if (results[2]) domainsLoaded = Math.max(domainsLoaded, parseMetricsCSV(results[2], 'RD'));
+
+                metricsLoaded = true;
+                console.log(`✅ Priority metrics loaded for ~${domainsLoaded} domains`);
+                
+                // Re-render if metrics toggle is on
+                if (showMetrics) {
+                    renderLeaderboard(currentPeriod);
+                }
+                
+                // Start loading full data in background
+                loadFullMetricsInBackground();
+            } catch (error) {
+                console.error('Error loading priority metrics:', error);
+                // Fall back to full load
+                loadFullMetrics();
+            }
+        }
+
+        // Stage 2: Load full metrics in background (all domains)
+        async function loadFullMetricsInBackground() {
+            try {
+                console.log('🔄 Loading full metrics in background...');
+                
+                const [drResponse, trafficResponse, rdResponse] = await Promise.all([
+                    fetch('/api/data/dr', { credentials: 'include' }),
+                    fetch('/api/data/traffic', { credentials: 'include' }),
+                    fetch('/api/data/rd', { credentials: 'include' })
+                ]);
+
+                const results = await Promise.all([
+                    drResponse.ok ? drResponse.text() : null,
+                    trafficResponse.ok ? trafficResponse.text() : null,
+                    rdResponse.ok ? rdResponse.text() : null
+                ]);
+
+                let domainsLoaded = 0;
+                if (results[0]) domainsLoaded = Math.max(domainsLoaded, parseMetricsCSV(results[0], 'DR'));
+                if (results[1]) domainsLoaded = Math.max(domainsLoaded, parseMetricsCSV(results[1], 'Traffic'));
+                if (results[2]) domainsLoaded = Math.max(domainsLoaded, parseMetricsCSV(results[2], 'RD'));
+
+                console.log(`✅ Full metrics loaded for ${domainsLoaded} domains`);
+                
+                // Re-render if metrics toggle is on to show newly loaded domains
+                if (showMetrics) {
+                    renderLeaderboard(currentPeriod);
+                }
+            } catch (error) {
+                console.warn('Background full metrics load failed:', error);
+            }
+        }
+
+        // Fallback: Load full metrics directly (if priority fails)
+        async function loadFullMetrics() {
+            if (metricsLoaded) return;
+            
+            try {
+                console.log('📊 Loading full metrics data...');
+                
                 const [drResponse, trafficResponse, rdResponse] = await Promise.all([
                     fetch('/api/data/dr', { credentials: 'include' }),
                     fetch('/api/data/traffic', { credentials: 'include' }),
@@ -940,79 +1064,29 @@
                     rdResponse.text()
                 ]);
 
-                // Helper: Find date columns with flexible regex (handles "Jan 1 - 2024" format)
-                function findDateColumns(headers) {
-                    return headers.filter(h => /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d+\s*-\s*\d{4}$/.test(h));
-                }
-
-                // Helper: Get last value for a domain from CSV row
-                function getLastMetricValue(row, dateCols) {
-                    // Try columns from newest to oldest to find the last non-empty value
-                    for (let i = dateCols.length - 1; i >= 0; i--) {
-                        const col = dateCols[i];
-                        const val = row[col];
-                        if (val !== undefined && val !== null && val !== '') {
-                            return val;
-                        }
-                    }
-                    return null;
-                }
-
-                // Parse DR data
-                const drParsed = Papa.parse(drText, { header: true, skipEmptyLines: true });
-                const drHeaders = drParsed.meta.fields || [];
-                const drDateCols = findDateColumns(drHeaders);
-                console.log('📊 DR columns found:', drDateCols.length, 'Last col:', drDateCols[drDateCols.length - 1] || 'none');
-                
-                drParsed.data.forEach(row => {
-                    const domain = (row.Website || '').toLowerCase();
-                    if (!domain) return;
-                    if (!metricsData[domain]) metricsData[domain] = {};
-                    const rawVal = getLastMetricValue(row, drDateCols);
-                    const val = rawVal !== null ? parseFloat(rawVal) : null;
-                    metricsData[domain].dr = isNaN(val) ? null : val;
-                });
-
-                // Parse Traffic data
-                const trafficParsed = Papa.parse(trafficText, { header: true, skipEmptyLines: true });
-                const trafficHeaders = trafficParsed.meta.fields || [];
-                const trafficDateCols = findDateColumns(trafficHeaders);
-                console.log('📊 Traffic columns found:', trafficDateCols.length, 'Last col:', trafficDateCols[trafficDateCols.length - 1] || 'none');
-                
-                trafficParsed.data.forEach(row => {
-                    const domain = (row.Website || '').toLowerCase();
-                    if (!domain) return;
-                    if (!metricsData[domain]) metricsData[domain] = {};
-                    const rawVal = getLastMetricValue(row, trafficDateCols);
-                    const valStr = rawVal !== null ? String(rawVal).replace(/,/g, '') : '';
-                    const val = parseInt(valStr, 10);
-                    metricsData[domain].traffic = isNaN(val) ? null : val;
-                });
-
-                // Parse RD data
-                const rdParsed = Papa.parse(rdText, { header: true, skipEmptyLines: true });
-                const rdHeaders = rdParsed.meta.fields || [];
-                const rdDateCols = findDateColumns(rdHeaders);
-                console.log('📊 RD columns found:', rdDateCols.length, 'Last col:', rdDateCols[rdDateCols.length - 1] || 'none');
-                
-                rdParsed.data.forEach(row => {
-                    const domain = (row.Website || '').toLowerCase();
-                    if (!domain) return;
-                    if (!metricsData[domain]) metricsData[domain] = {};
-                    const rawVal = getLastMetricValue(row, rdDateCols);
-                    const valStr = rawVal !== null ? String(rawVal).replace(/,/g, '') : '';
-                    const val = parseInt(valStr, 10);
-                    metricsData[domain].rd = isNaN(val) ? null : val;
-                });
+                parseMetricsCSV(drText, 'DR');
+                parseMetricsCSV(trafficText, 'Traffic');
+                parseMetricsCSV(rdText, 'RD');
 
                 metricsLoaded = true;
-                console.log('✅ Metrics data loaded for leaderboard');
+                console.log('✅ Full metrics data loaded for leaderboard');
                 
                 // Re-render to show metrics
-                renderLeaderboard(currentPeriod);
+                if (showMetrics) {
+                    renderLeaderboard(currentPeriod);
+                }
             } catch (error) {
-                console.error('Error loading metrics data:', error);
+                console.error('Error loading full metrics data:', error);
             }
+        }
+
+        // Legacy function name for compatibility
+        async function loadMetricsData() {
+            if (metricsLoaded) {
+                renderLeaderboard(currentPeriod);
+                return;
+            }
+            await loadPriorityMetrics();
         }
 
         // Format large numbers with K suffix
@@ -1433,6 +1507,10 @@
                 setupFilters();
                 setupMetricsToggle();
                 renderLeaderboard('lifetime');
+                
+                // Pre-load metrics in background (before user clicks toggle)
+                // This makes "Show Metrics" instant when clicked
+                loadPriorityMetrics();
             } catch (error) {
                 console.error('Error loading data:', error);
                 document.getElementById('leaderboardBody').innerHTML = `
