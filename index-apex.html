@@ -644,6 +644,10 @@
             <span>Revenue Labels</span>
             <div class="toggle-switch active" id="revenueLabelToggle"></div>
         </div>
+        <div class="toggle-container">
+            <span>Show Metrics</span>
+            <div class="toggle-switch active" id="metricsToggle"></div>
+        </div>
         <div class="view-toggle-group">
             <span>Traffic View:</span>
             <button class="view-btn active" data-view="monthly" id="viewMonthly">Monthly</button>
@@ -681,6 +685,9 @@
         let showRevenueLabels = true;
         let currentChart = null;
         let currentAnnotations = [];
+        
+        // METRICS CARDS: Track visibility of DR/RD/Traffic cards
+        let showMetricsCards = true;
         
         // VIEW TOGGLE: Track current view mode (monthly, average, both)
         let currentView = 'monthly';
@@ -1926,6 +1933,26 @@
             });
         }
         
+        // METRICS CARDS: Setup toggle to show/hide the metrics section
+        function setupMetricsCardsToggle() {
+            const toggle = document.getElementById('metricsToggle');
+            toggle.addEventListener('click', function() {
+                showMetricsCards = !showMetricsCards;
+                this.classList.toggle('active', showMetricsCards);
+                
+                // Show/hide metrics summary and period selector
+                const metricsSummary = document.getElementById('metricsSummary');
+                const metricsPeriod = document.getElementById('metricsPeriod');
+                
+                if (metricsSummary) {
+                    metricsSummary.style.display = showMetricsCards ? 'flex' : 'none';
+                }
+                if (metricsPeriod) {
+                    metricsPeriod.parentElement.style.display = showMetricsCards ? 'flex' : 'none';
+                }
+            });
+        }
+        
         // VIEW TOGGLE: Setup view toggle buttons (Monthly / Average / Both)
         function setupViewToggle() {
             const buttons = document.querySelectorAll('.view-btn');
@@ -2621,6 +2648,7 @@
             // Setup event listeners
             setupDomainSelector();
             setupRevenueToggle(); // REVENUE LABEL CHANGE
+            setupMetricsCardsToggle(); // METRICS CARDS TOGGLE
             setupViewToggle(); // VIEW TOGGLE
             
             // Check for URL parameter to pre-select domain
