@@ -640,6 +640,30 @@
                     <input type="number" id="filterPctMax" placeholder="Max" min="0" step="0.01">
                 </div>
             </div>
+            <div class="filter-group">
+                <label>DR (0-100)</label>
+                <div class="filter-range">
+                    <input type="number" id="filterDRMin" placeholder="Min" min="0" max="100">
+                    <span>to</span>
+                    <input type="number" id="filterDRMax" placeholder="Max" min="0" max="100">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Traffic</label>
+                <div class="filter-range">
+                    <input type="number" id="filterTrafficMin" placeholder="Min" min="0">
+                    <span>to</span>
+                    <input type="number" id="filterTrafficMax" placeholder="Max" min="0">
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Ref. Domains</label>
+                <div class="filter-range">
+                    <input type="number" id="filterRDMin" placeholder="Min" min="0">
+                    <span>to</span>
+                    <input type="number" id="filterRDMax" placeholder="Max" min="0">
+                </div>
+            </div>
         </div>
         <div class="filter-actions">
             <button class="filter-apply-btn" id="applyFilters">Apply Filters</button>
@@ -698,7 +722,13 @@
             revenueMax: null,
             agent: '',
             pctMin: null,
-            pctMax: null
+            pctMax: null,
+            drMin: null,
+            drMax: null,
+            trafficMin: null,
+            trafficMax: null,
+            rdMin: null,
+            rdMax: null
         };
 
         // Ahrefs URL Generator
@@ -1078,6 +1108,21 @@
                     if (filters.pctMin !== null && item._pct < filters.pctMin) return false;
                     if (filters.pctMax !== null && item._pct > filters.pctMax) return false;
                     
+                    // Metric filters (DR, Traffic, RD)
+                    const metrics = metricsData[item.domain.toLowerCase()] || {};
+                    
+                    // DR filter
+                    if (filters.drMin !== null && (metrics.dr === null || metrics.dr === undefined || metrics.dr < filters.drMin)) return false;
+                    if (filters.drMax !== null && (metrics.dr === null || metrics.dr === undefined || metrics.dr > filters.drMax)) return false;
+                    
+                    // Traffic filter
+                    if (filters.trafficMin !== null && (metrics.traffic === null || metrics.traffic === undefined || metrics.traffic < filters.trafficMin)) return false;
+                    if (filters.trafficMax !== null && (metrics.traffic === null || metrics.traffic === undefined || metrics.traffic > filters.trafficMax)) return false;
+                    
+                    // RD filter
+                    if (filters.rdMin !== null && (metrics.rd === null || metrics.rd === undefined || metrics.rd < filters.rdMin)) return false;
+                    if (filters.rdMax !== null && (metrics.rd === null || metrics.rd === undefined || metrics.rd > filters.rdMax)) return false;
+                    
                     return true;
                 });
             }
@@ -1254,9 +1299,30 @@
                 filters.agent = document.getElementById('filterAgent').value;
                 filters.pctMin = parseFloat(document.getElementById('filterPctMin').value) || null;
                 filters.pctMax = parseFloat(document.getElementById('filterPctMax').value) || null;
+                filters.drMin = parseFloat(document.getElementById('filterDRMin').value) || null;
+                filters.drMax = parseFloat(document.getElementById('filterDRMax').value) || null;
+                filters.trafficMin = parseFloat(document.getElementById('filterTrafficMin').value) || null;
+                filters.trafficMax = parseFloat(document.getElementById('filterTrafficMax').value) || null;
+                filters.rdMin = parseFloat(document.getElementById('filterRDMin').value) || null;
+                filters.rdMax = parseFloat(document.getElementById('filterRDMax').value) || null;
                 
                 updateFilterCount();
-                renderLeaderboard(currentPeriod);
+                
+                // Auto-load metrics if metric filters are used
+                const hasMetricFilters = filters.drMin !== null || filters.drMax !== null ||
+                                         filters.trafficMin !== null || filters.trafficMax !== null ||
+                                         filters.rdMin !== null || filters.rdMax !== null;
+                
+                if (hasMetricFilters && !metricsLoaded) {
+                    document.getElementById('metricsToggle').checked = true;
+                    showMetrics = true;
+                    document.querySelectorAll('th.metrics-col').forEach(el => {
+                        el.style.display = '';
+                    });
+                    loadMetricsData(); // This already calls renderLeaderboard
+                } else {
+                    renderLeaderboard(currentPeriod);
+                }
             });
             
             // Clear filters
@@ -1274,7 +1340,13 @@
                 revenueMax: null,
                 agent: '',
                 pctMin: null,
-                pctMax: null
+                pctMax: null,
+                drMin: null,
+                drMax: null,
+                trafficMin: null,
+                trafficMax: null,
+                rdMin: null,
+                rdMax: null
             };
             
             // Clear input fields
@@ -1286,6 +1358,12 @@
             document.getElementById('filterAgent').value = '';
             document.getElementById('filterPctMin').value = '';
             document.getElementById('filterPctMax').value = '';
+            document.getElementById('filterDRMin').value = '';
+            document.getElementById('filterDRMax').value = '';
+            document.getElementById('filterTrafficMin').value = '';
+            document.getElementById('filterTrafficMax').value = '';
+            document.getElementById('filterRDMin').value = '';
+            document.getElementById('filterRDMax').value = '';
             
             updateFilterCount();
             
@@ -1301,6 +1379,9 @@
             if (filters.revenueMin !== null || filters.revenueMax !== null) count++;
             if (filters.agent) count++;
             if (filters.pctMin !== null || filters.pctMax !== null) count++;
+            if (filters.drMin !== null || filters.drMax !== null) count++;
+            if (filters.trafficMin !== null || filters.trafficMax !== null) count++;
+            if (filters.rdMin !== null || filters.rdMax !== null) count++;
             
             const countEl = document.getElementById('filterCount');
             const filterBtn = document.getElementById('filterBtn');
