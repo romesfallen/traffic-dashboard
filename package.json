@@ -1,5 +1,11 @@
 {
   "name": "traffic-dashboard",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.490.0"
+  },
+  "devDependencies": {
+    "vercel": "^50.5.0"
+  }
 }

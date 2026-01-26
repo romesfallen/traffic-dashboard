@@ -666,7 +666,7 @@
 
         async function loadTrafficDomainsCSV() {
             try {
-                const response = await fetch('traffic-data.csv');
+                const response = await fetch('/api/data/traffic', { credentials: 'include' });
                 if (!response.ok) throw new Error('Failed to load traffic CSV');
                 
                 const text = await response.text();
@@ -694,7 +694,7 @@
 
         async function loadRevenueCSV() {
             try {
-                const response = await fetch('revenue-history.csv');
+                const response = await fetch('/api/data/revenue', { credentials: 'include' });
                 if (!response.ok) throw new Error('Failed to load revenue CSV');
                 
                 const text = await response.text();
@@ -756,6 +756,12 @@
                             if (header === previousMonth) {
                                 previousMonthTotal = value;
                             }
+                        }
+                        // Handle "Current" column as current month
+                        if (header.toLowerCase() === 'current') {
+                            const value = parseCurrency(row[header]);
+                            lifetimeTotal += value;
+                            currentMonthTotal = value;
                         }
                     });
                     
@@ -1105,6 +1111,7 @@
                 setupFilters();
                 renderLeaderboard('lifetime');
             } catch (error) {
+                console.error('Error loading data:', error);
                 document.getElementById('leaderboardBody').innerHTML = `
                     <tr>
                         <td colspan="6" class="loading" style="color: #c33;">

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A traffic comparison dashboard showing internal traffic data vs Ahrefs data, with revenue tracking and DR (Domain Rating) history. Built with ApexCharts for visualization.
+A traffic comparison dashboard showing internal traffic data vs Ahrefs data, with revenue tracking, DR (Domain Rating) and RD (Referring Domains) history. Built with ApexCharts for visualization.
 
 **Live URL:** https://traffic-dashboard-theta.vercel.app/
 **Main Dashboard:** /index-apex.html
@@ -55,6 +55,7 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Revenue bars (stepped area, bottom-third of chart)
 - [x] Revenue labels with toggle on/off
 - [x] DR (Domain Rating) line with dotted style
+- [x] RD (Referring Domains) line - pink dashed, hidden by default, toggle via legend
 - [x] Date range selector (7d, 30d, 90d, 6mo, 1yr, From Dec 2024, All time)
 - [x] Searchable domain dropdown with keyboard navigation
 - [x] Linear interpolation for missing data points
@@ -119,12 +120,69 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Similar structure to agent.html but filtered by niche
 - [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
 
-### Data Sources
-- `traffic-data.csv` - Internal traffic by date (~14MB)
-- `ahrefs_organic_traffic_results.csv` - Ahrefs organic traffic (~342KB)
-- `revenue-history.csv` - Monthly revenue by domain (~455KB)
-- `DR History.csv` - Domain Rating history (~7.5MB)
-- `ahrefs-data.csv` - Legacy Ahrefs data (deprecated)
+### Data Sources (S3-backed)
+Data is synced from Google Sheets to AWS S3 every 30 minutes via Lambda, then served through Vercel API endpoints.
+
+| Data | S3 File | API Endpoint | Source Google Sheet Tab |
+|------|---------|--------------|-------------------------|
+| Traffic Monthly | `traffic-data.csv` | `/api/data/traffic` | Traffic Monthly |
+| Traffic Average | `internal-average-traffic.csv` | `/api/data/average` | Traffic Average |
+| DR History | `DR History.csv` | `/api/data/dr` | DR |
+| RD History | `RD History.csv` | `/api/data/rd` | RD |
+| Revenue | `revenue-history.csv` | `/api/data/revenue` | Revenue |
+
+**Local files (not synced):**
+- `ahrefs_organic_traffic_results.csv` - Ahrefs organic traffic (loaded directly)
+- `ahrefs-average-traffic.csv` - Ahrefs average traffic (loaded directly)
+- `Site Agent & Niche.csv` - Agent/niche mappings (loaded directly)
+
+**Note:** Revenue CSV uses "Current" as column header for the current month instead of "Jan 2026" format. The dashboard dynamically maps "Current" to whatever the actual current month is.
+
+---
+
+## Data Sync Architecture
+
+Data flows from Google Sheets → AWS Lambda → S3 → Vercel API → Dashboard.
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Google Sheets  │────▶│   AWS Lambda    │────▶│     AWS S3      │
+│  (source data)  │     │ (every 30 min)  │     │  (CSV storage)  │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+                                                         ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│    Dashboard    │◀────│  Vercel API     │◀────│   S3 Bucket     │
+│   (frontend)    │     │ (/api/data/*)   │     │ (private read)  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### AWS Lambda Function
+- **Name:** `dashboard-data-sync`
+- **Region:** ap-southeast-2 (Sydney)
+- **Schedule:** EventBridge rule every 30 minutes
+- **Runtime:** Python 3.11
+- **Code location:** `lambda/sync-dashboard.py`
+- **What it does:** Reads 5 tabs from Google Sheets, converts to CSV, uploads to S3
+
+### S3 Bucket
+- **Name:** `traffic-dashboard-theta`
+- **Region:** ap-southeast-2
+- **Access:** Private (no public access)
+- **Files:** `traffic-data.csv`, `internal-average-traffic.csv`, `DR History.csv`, `RD History.csv`, `revenue-history.csv`
+
+### Vercel API Endpoints
+Protected by Google OAuth (checks `auth_session` cookie):
+- `GET /api/data/traffic` → S3 `traffic-data.csv`
+- `GET /api/data/average` → S3 `internal-average-traffic.csv`
+- `GET /api/data/dr` → S3 `DR History.csv`
+- `GET /api/data/rd` → S3 `RD History.csv`
+- `GET /api/data/revenue` → S3 `revenue-history.csv`
+
+### Google Sheets Source
+- **Sheet ID:** Configured in Lambda environment variable `TRAFFIC_DR_SHEET_ID`
+- **Tabs synced:** Traffic Monthly, Traffic Average, DR, RD, Revenue
+- **Access:** Via Google Service Account with viewer permissions
 
 ---
 
@@ -334,30 +392,45 @@ lyncconf.com,2024-01-02T00:00:00Z,1980
 traffic-dashboard/
 ├── index-apex.html          # Main dashboard (ApexCharts - production)
 ├── leaderboard.html         # Revenue leaderboard page
+├── agent.html               # Sites by Agent view
+├── niche.html               # Sites by Niche view
 ├── index.html               # Legacy Chart.js version (deprecated)
 ├── index-apex-annotations.html  # Experimental annotations version
+│
 ├── api/
-│   └── auth/
-│       ├── login.js         # Redirects to Google OAuth
-│       ├── callback.js      # Handles OAuth callback, validates email
-│       ├── logout.js        # Clears session cookie
-│       ├── me.js            # Returns current user info
-│       └── check.js         # Returns auth status for client-side check
+│   ├── auth/
+│   │   ├── login.js         # Redirects to Google OAuth
+│   │   ├── callback.js      # Handles OAuth callback, validates email
+│   │   ├── logout.js        # Clears session cookie
+│   │   ├── me.js            # Returns current user info
+│   │   └── check.js         # Returns auth status for client-side check
+│   └── data/
+│       ├── traffic.js       # Serves traffic-data.csv from S3
+│       ├── average.js       # Serves internal-average-traffic.csv from S3
+│       ├── dr.js            # Serves DR History.csv from S3
+│       ├── rd.js            # Serves RD History.csv from S3
+│       └── revenue.js       # Serves revenue-history.csv from S3
+│
+├── lambda/
+│   ├── sync-dashboard.py    # AWS Lambda function code
+│   ├── requirements.txt     # Python dependencies
+│   └── deploy.sh            # Deployment script
+│
 ├── vercel.json              # Vercel deployment config + headers
+├── package.json             # Node.js dependencies (@aws-sdk/client-s3)
 ├── robots.txt               # Blocks search engine crawlers
 ├── .cursorrules             # This file - KEEP UPDATED
 ├── .gitignore               # Git ignore rules
 │
-├── # Data Files
-├── traffic-data.csv         # Internal traffic data
-├── revenue-history.csv      # Monthly revenue by domain
+├── # Local Data Files (not synced from S3)
 ├── ahrefs_organic_traffic_results.csv  # Ahrefs organic traffic
-├── DR History.csv           # Domain Rating history
-├── ahrefs-data.csv          # Legacy (deprecated)
+├── ahrefs-average-traffic.csv          # Ahrefs average traffic
+├── Site Agent & Niche.csv              # Agent/niche mappings
 │
 ├── # Documentation
 ├── README.md                # Setup instructions
-└── PRD.md                   # Product requirements document
+├── PRD.md                   # Product requirements document
+└── SYNC-SETUP.md            # AWS/GCP/Vercel setup guide
 ```
 
 ---
@@ -409,6 +482,17 @@ No redeploy needed - changes take effect immediately.
 | `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth credentials |
 | `SESSION_SECRET` | Random 32+ char string for signing cookies |
 | `ALLOWED_EMAILS` | Comma-separated list of approved emails |
+| `AWS_ACCESS_KEY_ID` | IAM user credentials for S3 read access |
+| `AWS_SECRET_ACCESS_KEY` | IAM user credentials for S3 read access |
+| `AWS_REGION` | AWS region (ap-southeast-2) |
+| `S3_BUCKET_NAME` | S3 bucket name (traffic-dashboard-theta) |
+
+### Required AWS Lambda Environment Variables
+| Variable | Description |
+|----------|-------------|
+| `S3_BUCKET_NAME` | S3 bucket name (traffic-dashboard-theta) |
+| `TRAFFIC_DR_SHEET_ID` | Google Sheets ID for traffic/DR/revenue data |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Base64-encoded service account JSON |
 
 ---
 
@@ -466,12 +550,12 @@ python3 -m http.server 8000
 
 ## Pending / Future Features
 
+### Completed
+- [x] **Automated data updates** - ✅ DONE: AWS Lambda syncs Google Sheets → S3 every 30 minutes
+
 ### High Priority
-- [ ] **Automated daily data updates** - Currently manual CSV updates. Options discussed:
-  - **Option A: Airtable backend** - Store data in Airtable, dashboard fetches via Airtable API. Pros: easy to edit, no code to update data. Cons: API rate limits, potential cost at scale.
-  - **Option B: S3 + scheduled task** - CSVs stored in S3 bucket, scheduled Lambda/script updates them daily, dashboard fetches from S3. Pros: scalable, cheap. Cons: more setup, need AWS account.
-  - **Option C: GitHub Actions** - Scheduled workflow commits updated CSVs to repo daily. Pros: no extra services. Cons: need script to generate/fetch new data.
-  - **Decision needed:** Where does the source data come from? (Google Sheets? Database? API?)
+- [ ] **Ahrefs data sync (Phase 2)** - Sync `ahrefs_organic_traffic_results.csv` and `ahrefs-average-traffic.csv` from Ahrefs API or Google Sheets
+- [ ] **Slack notifications** - Alert on sync failures (Lambda has placeholder code)
 - [ ] **Staged CSV loading** - Load top 100 revenue domains first for fast initial render, then load rest in background. Options: (A) pre-split CSVs, (B) streaming parse, (C) sort CSVs by revenue rank + preview mode
 - [ ] **Sales manager assignment** - Add "Sales Manager" column to revenue-history.csv (e.g., "Rina", "Jack", etc.)
 - [ ] **Sales manager filter view** - Filter dashboard/leaderboard to show only sites owned by a specific sales manager. Could be dropdown filter or separate page like leaderboard
@@ -512,7 +596,11 @@ python3 -m http.server 8000
 | Jan 24, 2026 | Leaderboard rank change | Added Change column and sorting to leaderboard Current Month tab |
 | Jan 24, 2026 | Filter panel | Added filter button/panel to Current Month tab on leaderboard and agent pages |
 | Jan 24, 2026 | Table width increase | Increased max-width from 900px to 1100px, added nowrap to domain cells |
+| Jan 26, 2026 | S3 Data Sync | AWS Lambda syncs Google Sheets → S3 every 30 min |
+| Jan 26, 2026 | Vercel API Proxy | New /api/data/* endpoints serve S3 data securely |
+| Jan 26, 2026 | "Current" column fix | Revenue CSV "Current" header maps to current month dynamically |
+| Jan 26, 2026 | RD (Referring Domains) | Added RD metric to dashboard - pink dashed line, hidden by default, toggle via legend click |
 
 ---
 
-*Last updated: January 24, 2026 - Filter panel, sortable columns, wider tables*
+*Last updated: January 26, 2026 - Added RD (Referring Domains) metric*
