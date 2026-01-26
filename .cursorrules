@@ -412,6 +412,7 @@ traffic-dashboard/
 ├── leaderboard.html         # Revenue leaderboard page
 ├── agent.html               # Sites by Agent view
 ├── niche.html               # Sites by Niche view
+├── log.html                 # Sync log monitoring page
 ├── index.html               # Legacy Chart.js version (deprecated)
 ├── index-apex-annotations.html  # Experimental annotations version
 │
@@ -431,7 +432,8 @@ traffic-dashboard/
 │       ├── dr-priority.js   # Serves priority version
 │       ├── rd.js            # Serves RD History.csv from S3
 │       ├── rd-priority.js   # Serves priority version
-│       └── revenue.js       # Serves revenue-history.csv from S3
+│       ├── revenue.js       # Serves revenue-history.csv from S3
+│       └── sync-log.js      # Serves sync-log.json (sync status/history)
 │
 ├── lambda/
 │   ├── sync-dashboard.py    # AWS Lambda function code
@@ -626,7 +628,8 @@ python3 -m http.server 8000
 | Jan 26, 2026 | Leaderboard Show Metrics | Added toggle to show/hide DR, Traffic, RD columns in leaderboard table |
 | Jan 26, 2026 | Leaderboard Metric Filters | Added DR, Traffic, Ref. Domains filters to filter panel (auto-loads metrics when used) |
 | Jan 27, 2026 | Priority CSV Fast Loading | Lambda generates priority CSVs for top ~200 domains. Dashboard loads ~1-2MB instead of ~25MB for 5-10x faster initial render. New API endpoints: `/api/data/*-priority`. Frontend falls back to full files if priority not available. |
+| Jan 27, 2026 | Sync Log Monitoring | New `/log` page shows sync status, file sizes, and history. Lambda writes `sync-log.json` to S3 after each run. `/api/data/sync-log` endpoint serves the log. Auto-refresh toggle for real-time monitoring. |
 
 ---
 
-*Last updated: January 27, 2026 - Added Priority CSV Fast Loading for 5-10x faster dashboard load*
+*Last updated: January 27, 2026 - Added Sync Log Monitoring page at /log*
