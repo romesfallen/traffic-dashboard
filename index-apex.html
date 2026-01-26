@@ -2173,7 +2173,12 @@
             try {
                 // Use cache if available
                 if (!csvCache.dr) {
-                    const response = await fetch('/api/data/dr', { credentials: 'include' });
+                    // Try priority endpoint first, fall back to full data
+                    let response = await fetch('/api/data/dr-priority', { credentials: 'include' });
+                    if (!response.ok) {
+                        console.log('Priority DR not available, falling back to full data');
+                        response = await fetch('/api/data/dr', { credentials: 'include' });
+                    }
                     if (!response.ok) throw new Error('Failed to load DR History CSV');
                     
                     const text = await response.text();
@@ -2226,7 +2231,12 @@
             try {
                 // Use cache if available
                 if (!csvCache.rd) {
-                    const response = await fetch('/api/data/rd', { credentials: 'include' });
+                    // Try priority endpoint first, fall back to full data
+                    let response = await fetch('/api/data/rd-priority', { credentials: 'include' });
+                    if (!response.ok) {
+                        console.log('Priority RD not available, falling back to full data');
+                        response = await fetch('/api/data/rd', { credentials: 'include' });
+                    }
                     if (!response.ok) throw new Error('Failed to load RD History CSV');
                     
                     const text = await response.text();
@@ -2334,7 +2344,12 @@
             try {
                 // Use cache if available
                 if (!csvCache.internalAvg) {
-                    const response = await fetch('/api/data/average', { credentials: 'include' });
+                    // Try priority endpoint first, fall back to full data
+                    let response = await fetch('/api/data/average-priority', { credentials: 'include' });
+                    if (!response.ok) {
+                        console.log('Priority Average not available, falling back to full data');
+                        response = await fetch('/api/data/average', { credentials: 'include' });
+                    }
                     if (!response.ok) throw new Error('Failed to load Internal Average CSV');
                     
                     const text = await response.text();
@@ -2481,7 +2496,12 @@
             try {
                 // Use cache if available, otherwise load and cache
                 if (!csvCache.traffic) {
-                    const response = await fetch('/api/data/traffic', { credentials: 'include' });
+                    // Try priority endpoint first, fall back to full data
+                    let response = await fetch('/api/data/traffic-priority', { credentials: 'include' });
+                    if (!response.ok) {
+                        console.log('Priority Traffic not available, falling back to full data');
+                        response = await fetch('/api/data/traffic', { credentials: 'include' });
+                    }
                     if (!response.ok) throw new Error('Failed to load traffic CSV');
                     
                     const text = await response.text();

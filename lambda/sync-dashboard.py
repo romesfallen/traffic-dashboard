@@ -49,6 +49,14 @@ S3_FILES = {
     'revenue': 'revenue-history.csv'
 }
 
+# Priority CSV file names (smaller files with top domains only)
+S3_PRIORITY_FILES = {
+    'traffic_monthly': 'traffic-data-priority.csv',
+    'traffic_average': 'internal-average-traffic-priority.csv',
+    'dr': 'DR History-priority.csv',
+    'rd': 'RD History-priority.csv'
+}
+
 
 def get_google_sheets_service():
     """Initialize Google Sheets API service."""
@@ -125,6 +133,196 @@ def upload_to_s3(s3_client, file_name, content):
     except Exception as e:
         print(f"Error uploading {file_name} to S3: {e}")
         raise
+
+
+def parse_currency(value):
+    """Parse currency string like '$1,234.56' to float."""
+    if not value or value == '-' or value == 'x' or str(value).strip() == '':
+        return 0.0
+    try:
+        # Remove $ and commas, then convert to float
+        cleaned = str(value).replace('$', '').replace(',', '').strip()
+        return float(cleaned)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def compute_priority_domains(revenue_data):
+    """
+    Compute priority domains from revenue data.
+    Returns a set of domain names that are in the top 100 for:
+    - Lifetime revenue
+    - Last 3 months revenue
+    - Current month revenue
+    
+    Args:
+        revenue_data: 2D array with header row, containing revenue data
+    
+    Returns:
+        Set of priority domain names (lowercase)
+    """
+    import re
+    from datetime import datetime
+    
+    if not revenue_data or len(revenue_data) < 2:
+        print("No revenue data for priority computation")
+        return set()
+    
+    header = revenue_data[0]
+    
+    # Find Website column
+    website_col = None
+    for idx, cell in enumerate(header):
+        if cell and str(cell).strip().lower() == 'website':
+            website_col = idx
+            break
+    
+    if website_col is None:
+        print("Could not find Website column in revenue data")
+        return set()
+    
+    # Find month columns and categorize them
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    month_to_num = {name: idx + 1 for idx, name in enumerate(month_names)}
+    
+    now = datetime.utcnow()
+    current_year = now.year
+    current_month = now.month
+    
+    # Calculate last 3 complete months
+    last_3_months = []
+    for i in range(1, 4):
+        m = current_month - i
+        y = current_year
+        if m <= 0:
+            m += 12
+            y -= 1
+        last_3_months.append((y, m))
+    
+    # Find column indices for different periods
+    month_columns = {}  # (year, month) -> column_index
+    current_month_col = None
+    
+    for idx, col_name in enumerate(header):
+        if not col_name:
+            continue
+        col_str = str(col_name).strip()
+        
+        # Handle "Current" column as current month
+        if col_str.lower() == 'current':
+            current_month_col = idx
+            continue
+        
+        # Match "Mon YYYY" format
+        match = re.match(r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$', col_str)
+        if match:
+            month_name, year_str = match.groups()
+            month_num = month_to_num[month_name]
+            year = int(year_str)
+            month_columns[(year, month_num)] = idx
+    
+    # If we found a "Current" column, map it to current month
+    if current_month_col is not None:
+        month_columns[(current_year, current_month)] = current_month_col
+    
+    print(f"Found {len(month_columns)} month columns in revenue data")
+    
+    # Calculate revenue totals for each domain
+    domain_lifetime = {}  # domain -> total lifetime revenue
+    domain_last3 = {}     # domain -> last 3 months revenue
+    domain_current = {}   # domain -> current month revenue
+    
+    for row in revenue_data[1:]:
+        if len(row) <= website_col:
+            continue
+        
+        domain = str(row[website_col]).strip().lower() if row[website_col] else ''
+        if not domain or domain == 'website' or domain == 'unmatched payments':
+            continue
+        
+        # Calculate lifetime (sum all months)
+        lifetime_total = 0.0
+        for (year, month), col_idx in month_columns.items():
+            if col_idx < len(row):
+                lifetime_total += parse_currency(row[col_idx])
+        domain_lifetime[domain] = lifetime_total
+        
+        # Calculate last 3 months
+        last3_total = 0.0
+        for (y, m) in last_3_months:
+            if (y, m) in month_columns:
+                col_idx = month_columns[(y, m)]
+                if col_idx < len(row):
+                    last3_total += parse_currency(row[col_idx])
+        domain_last3[domain] = last3_total
+        
+        # Calculate current month
+        current_total = 0.0
+        if (current_year, current_month) in month_columns:
+            col_idx = month_columns[(current_year, current_month)]
+            if col_idx < len(row):
+                current_total = parse_currency(row[col_idx])
+        domain_current[domain] = current_total
+    
+    # Get top 100 from each category
+    top_lifetime = sorted(domain_lifetime.items(), key=lambda x: x[1], reverse=True)[:100]
+    top_last3 = sorted(domain_last3.items(), key=lambda x: x[1], reverse=True)[:100]
+    top_current = sorted(domain_current.items(), key=lambda x: x[1], reverse=True)[:100]
+    
+    # Union all top domains
+    priority_set = set()
+    priority_set.update(d for d, _ in top_lifetime)
+    priority_set.update(d for d, _ in top_last3)
+    priority_set.update(d for d, _ in top_current)
+    
+    print(f"Priority domains computed: {len(priority_set)} unique domains")
+    print(f"  - Top 100 lifetime: {len(top_lifetime)} domains")
+    print(f"  - Top 100 last 3 months: {len(top_last3)} domains")
+    print(f"  - Top 100 current month: {len(top_current)} domains")
+    
+    return priority_set
+
+
+def filter_csv_to_priority(csv_data, priority_domains, website_col_name='Website'):
+    """
+    Filter CSV data to only include rows for priority domains.
+    
+    Args:
+        csv_data: 2D array with header row
+        priority_domains: Set of domain names (lowercase)
+        website_col_name: Name of the column containing domain names
+    
+    Returns:
+        Filtered 2D array with header and priority domain rows only
+    """
+    if not csv_data or len(csv_data) < 2:
+        return csv_data
+    
+    header = csv_data[0]
+    
+    # Find Website column
+    website_col = None
+    for idx, cell in enumerate(header):
+        if cell and str(cell).strip().lower() == website_col_name.lower():
+            website_col = idx
+            break
+    
+    if website_col is None:
+        print(f"Could not find {website_col_name} column, returning full data")
+        return csv_data
+    
+    # Filter rows
+    filtered = [header]
+    for row in csv_data[1:]:
+        if len(row) <= website_col:
+            continue
+        domain = str(row[website_col]).strip().lower() if row[website_col] else ''
+        if domain in priority_domains:
+            filtered.append(row)
+    
+    print(f"Filtered CSV: {len(csv_data)} rows -> {len(filtered)} rows (priority only)")
+    return filtered
 
 
 def read_existing_s3_csv(s3_client, file_name):
@@ -407,13 +605,18 @@ def find_header_row(data):
 
 
 def sync_sheet_to_s3(service, s3_client, spreadsheet_id, tab_name, s3_file_name, 
-                     find_date_header=False, preserve_history=False):
+                     find_date_header=False, preserve_history=False, return_data=False):
     """
     Sync a single sheet tab to S3.
     
     Args:
         preserve_history: If True, merge with existing S3 data to preserve 
                          historical columns that may have been archived from Sheets.
+        return_data: If True, return the merged data (for priority domain computation)
+    
+    Returns:
+        If return_data is False: True on success, False on failure
+        If return_data is True: (success: bool, data: list) tuple
     """
     print(f"\n--- Syncing {tab_name} -> {s3_file_name} ---")
     
@@ -422,7 +625,7 @@ def sync_sheet_to_s3(service, s3_client, spreadsheet_id, tab_name, s3_file_name,
     
     if not new_data:
         print(f"Warning: No data found in {tab_name}")
-        return False
+        return (False, None) if return_data else False
     
     # Find header row by looking for date columns (for sheets with metadata rows at top)
     if find_date_header:
@@ -436,14 +639,48 @@ def sync_sheet_to_s3(service, s3_client, spreadsheet_id, tab_name, s3_file_name,
         existing_data = read_existing_s3_csv(s3_client, s3_file_name)
         if existing_data:
             merged_data = merge_wide_format_data(existing_data, new_data)
-            csv_content = convert_to_csv(merged_data)
         else:
-            csv_content = convert_to_csv(new_data)
+            merged_data = new_data
     else:
-        csv_content = convert_to_csv(new_data)
+        merged_data = new_data
+    
+    csv_content = convert_to_csv(merged_data)
     
     # Upload to S3
     upload_to_s3(s3_client, s3_file_name, csv_content)
+    
+    if return_data:
+        return (True, merged_data)
+    return True
+
+
+def sync_sheet_to_s3_with_priority(service, s3_client, spreadsheet_id, tab_name, 
+                                    s3_file_name, s3_priority_file_name, priority_domains,
+                                    find_date_header=False, preserve_history=False):
+    """
+    Sync a sheet to S3 and also generate a priority-filtered version.
+    
+    Args:
+        priority_domains: Set of domain names to include in priority CSV
+    
+    Returns:
+        True on success, False on failure
+    """
+    # First sync the full data
+    success, merged_data = sync_sheet_to_s3(
+        service, s3_client, spreadsheet_id, tab_name, s3_file_name,
+        find_date_header=find_date_header, preserve_history=preserve_history,
+        return_data=True
+    )
+    
+    if not success or not merged_data:
+        return False
+    
+    # Generate and upload priority CSV
+    print(f"\n--- Generating priority CSV: {s3_priority_file_name} ---")
+    priority_data = filter_csv_to_priority(merged_data, priority_domains)
+    priority_csv_content = convert_to_csv(priority_data)
+    upload_to_s3(s3_client, s3_priority_file_name, priority_csv_content)
     
     return True
 
@@ -458,69 +695,130 @@ def lambda_handler(event, context):
         'traffic_average': False,
         'dr': False,
         'rd': False,
-        'revenue': False
+        'revenue': False,
+        'priority_csvs': False
     }
     errors = []
+    priority_domains = set()
     
     try:
         # Initialize services
         sheets_service = get_google_sheets_service()
         s3_client = get_s3_client()
         
-        # Sync Traffic Monthly (preserve historical data)
+        # STEP 1: Sync Revenue FIRST to compute priority domains
+        print("\n=== STEP 1: Sync Revenue and Compute Priority Domains ===")
+        revenue_data = None
         try:
-            results['traffic_monthly'] = sync_sheet_to_s3(
+            success, revenue_data = sync_sheet_to_s3(
                 sheets_service, s3_client,
-                TRAFFIC_DR_SHEET_ID, TRAFFIC_MONTHLY_TAB,
-                S3_FILES['traffic_monthly'],
-                preserve_history=True
+                REVENUE_SHEET_ID, REVENUE_TAB,
+                S3_FILES['revenue'],
+                return_data=True
             )
+            results['revenue'] = success
+            
+            if success and revenue_data:
+                # Compute priority domains from revenue data
+                priority_domains = compute_priority_domains(revenue_data)
+                print(f"✅ Computed {len(priority_domains)} priority domains")
+            else:
+                print("⚠️ Could not compute priority domains - revenue sync failed")
+        except Exception as e:
+            errors.append(f"Revenue: {str(e)}")
+        
+        # STEP 2: Sync other sheets with priority CSV generation
+        print("\n=== STEP 2: Sync Data Sheets with Priority CSVs ===")
+        
+        # Sync Traffic Monthly (preserve historical data) + priority CSV
+        try:
+            if priority_domains:
+                results['traffic_monthly'] = sync_sheet_to_s3_with_priority(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, TRAFFIC_MONTHLY_TAB,
+                    S3_FILES['traffic_monthly'],
+                    S3_PRIORITY_FILES['traffic_monthly'],
+                    priority_domains,
+                    preserve_history=True
+                )
+            else:
+                # Fallback: sync without priority if we couldn't compute domains
+                results['traffic_monthly'] = sync_sheet_to_s3(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, TRAFFIC_MONTHLY_TAB,
+                    S3_FILES['traffic_monthly'],
+                    preserve_history=True
+                )
         except Exception as e:
             errors.append(f"Traffic Monthly: {str(e)}")
         
-        # Sync Traffic Average (find header row, preserve historical data)
+        # Sync Traffic Average (find header row, preserve historical data) + priority CSV
         try:
-            results['traffic_average'] = sync_sheet_to_s3(
-                sheets_service, s3_client,
-                TRAFFIC_DR_SHEET_ID, TRAFFIC_AVERAGE_TAB,
-                S3_FILES['traffic_average'],
-                find_date_header=True,
-                preserve_history=True
-            )
+            if priority_domains:
+                results['traffic_average'] = sync_sheet_to_s3_with_priority(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, TRAFFIC_AVERAGE_TAB,
+                    S3_FILES['traffic_average'],
+                    S3_PRIORITY_FILES['traffic_average'],
+                    priority_domains,
+                    find_date_header=True,
+                    preserve_history=True
+                )
+            else:
+                results['traffic_average'] = sync_sheet_to_s3(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, TRAFFIC_AVERAGE_TAB,
+                    S3_FILES['traffic_average'],
+                    find_date_header=True,
+                    preserve_history=True
+                )
         except Exception as e:
             errors.append(f"Traffic Average: {str(e)}")
         
-        # Sync DR (preserve historical data)
+        # Sync DR (preserve historical data) + priority CSV
         try:
-            results['dr'] = sync_sheet_to_s3(
-                sheets_service, s3_client,
-                TRAFFIC_DR_SHEET_ID, DR_TAB,
-                S3_FILES['dr'],
-                preserve_history=True
-            )
+            if priority_domains:
+                results['dr'] = sync_sheet_to_s3_with_priority(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, DR_TAB,
+                    S3_FILES['dr'],
+                    S3_PRIORITY_FILES['dr'],
+                    priority_domains,
+                    preserve_history=True
+                )
+            else:
+                results['dr'] = sync_sheet_to_s3(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, DR_TAB,
+                    S3_FILES['dr'],
+                    preserve_history=True
+                )
         except Exception as e:
             errors.append(f"DR: {str(e)}")
         
-        # Sync RD (no archived data, fresh sync each time)
+        # Sync RD (no archived data, fresh sync each time) + priority CSV
         try:
-            results['rd'] = sync_sheet_to_s3(
-                sheets_service, s3_client,
-                TRAFFIC_DR_SHEET_ID, RD_TAB,
-                S3_FILES['rd'],
-                preserve_history=False
-            )
+            if priority_domains:
+                results['rd'] = sync_sheet_to_s3_with_priority(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, RD_TAB,
+                    S3_FILES['rd'],
+                    S3_PRIORITY_FILES['rd'],
+                    priority_domains,
+                    preserve_history=False
+                )
+            else:
+                results['rd'] = sync_sheet_to_s3(
+                    sheets_service, s3_client,
+                    TRAFFIC_DR_SHEET_ID, RD_TAB,
+                    S3_FILES['rd'],
+                    preserve_history=False
+                )
         except Exception as e:
             errors.append(f"RD: {str(e)}")
         
-        # Sync Revenue
-        try:
-            results['revenue'] = sync_sheet_to_s3(
-                sheets_service, s3_client,
-                REVENUE_SHEET_ID, REVENUE_TAB,
-                S3_FILES['revenue']
-            )
-        except Exception as e:
-            errors.append(f"Revenue: {str(e)}")
+        # Mark priority CSVs as successful if we generated them
+        results['priority_csvs'] = len(priority_domains) > 0
         
         # Calculate duration
         duration = (datetime.utcnow() - start_time).total_seconds()

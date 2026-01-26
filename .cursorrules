@@ -137,6 +137,18 @@ Data is synced from Google Sheets to AWS S3 every 30 minutes via Lambda, then se
 | RD History | `RD History.csv` | `/api/data/rd` | RD |
 | Revenue | `revenue-history.csv` | `/api/data/revenue` | Revenue |
 
+**Priority CSV files (for faster dashboard load):**
+Lambda also generates filtered versions containing only top ~200 domains (by revenue):
+
+| Data | S3 File | API Endpoint | Size Reduction |
+|------|---------|--------------|----------------|
+| Traffic Priority | `traffic-data-priority.csv` | `/api/data/traffic-priority` | ~14MB → ~500KB |
+| Average Priority | `internal-average-traffic-priority.csv` | `/api/data/average-priority` | Similar |
+| DR Priority | `DR History-priority.csv` | `/api/data/dr-priority` | ~7.5MB → ~300KB |
+| RD Priority | `RD History-priority.csv` | `/api/data/rd-priority` | Similar |
+
+The main dashboard (`index-apex.html`) fetches priority files first with fallback to full files. Leaderboard/agent/niche pages still use full files since they display all domains.
+
 **Local files (not synced):**
 - `ahrefs_organic_traffic_results.csv` - Ahrefs organic traffic (loaded directly)
 - `ahrefs-average-traffic.csv` - Ahrefs average traffic (loaded directly)
@@ -412,9 +424,13 @@ traffic-dashboard/
 │   │   └── check.js         # Returns auth status for client-side check
 │   └── data/
 │       ├── traffic.js       # Serves traffic-data.csv from S3
+│       ├── traffic-priority.js  # Serves priority version (top ~200 domains)
 │       ├── average.js       # Serves internal-average-traffic.csv from S3
+│       ├── average-priority.js  # Serves priority version
 │       ├── dr.js            # Serves DR History.csv from S3
+│       ├── dr-priority.js   # Serves priority version
 │       ├── rd.js            # Serves RD History.csv from S3
+│       ├── rd-priority.js   # Serves priority version
 │       └── revenue.js       # Serves revenue-history.csv from S3
 │
 ├── lambda/
@@ -558,11 +574,11 @@ python3 -m http.server 8000
 
 ### Completed
 - [x] **Automated data updates** - ✅ DONE: AWS Lambda syncs Google Sheets → S3 every 30 minutes
+- [x] **Priority CSV loading** - ✅ DONE: Lambda generates priority CSVs (~200 top domains) for 5-10x faster initial load. Full CSVs still available for leaderboard/agent pages.
 
 ### High Priority
 - [ ] **Ahrefs data sync (Phase 2)** - Sync `ahrefs_organic_traffic_results.csv` and `ahrefs-average-traffic.csv` from Ahrefs API or Google Sheets
 - [ ] **Slack notifications** - Alert on sync failures (Lambda has placeholder code)
-- [ ] **Staged CSV loading** - Load top 100 revenue domains first for fast initial render, then load rest in background. Options: (A) pre-split CSVs, (B) streaming parse, (C) sort CSVs by revenue rank + preview mode
 - [ ] **Sales manager assignment** - Add "Sales Manager" column to revenue-history.csv (e.g., "Rina", "Jack", etc.)
 - [ ] **Sales manager filter view** - Filter dashboard/leaderboard to show only sites owned by a specific sales manager. Could be dropdown filter or separate page like leaderboard
 
@@ -609,7 +625,8 @@ python3 -m http.server 8000
 | Jan 26, 2026 | DR Circle Progress Ring | Added Ahrefs-style circular progress indicator to DR metric card on main dashboard |
 | Jan 26, 2026 | Leaderboard Show Metrics | Added toggle to show/hide DR, Traffic, RD columns in leaderboard table |
 | Jan 26, 2026 | Leaderboard Metric Filters | Added DR, Traffic, Ref. Domains filters to filter panel (auto-loads metrics when used) |
+| Jan 27, 2026 | Priority CSV Fast Loading | Lambda generates priority CSVs for top ~200 domains. Dashboard loads ~1-2MB instead of ~25MB for 5-10x faster initial render. New API endpoints: `/api/data/*-priority`. Frontend falls back to full files if priority not available. |
 
 ---
 
-*Last updated: January 26, 2026 - Added DR circle progress, leaderboard metrics toggle and filters*
+*Last updated: January 27, 2026 - Added Priority CSV Fast Loading for 5-10x faster dashboard load*
