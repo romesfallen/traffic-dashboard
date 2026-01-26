@@ -964,7 +964,9 @@
             const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
-            const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real);
+            // Filter out null Y values for RD to fix rendering issue
+            const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real)
+                .filter(p => p.y !== null && p.y !== undefined);
             const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
             const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
