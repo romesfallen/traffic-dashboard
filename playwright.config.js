@@ -1,8 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import fs from 'fs';
 
 // Support testing against production via PLAYWRIGHT_BASE_URL environment variable
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3456';
 const isProduction = baseURL.includes('vercel.app') || baseURL.includes('https://');
+
+// Auth state file for production testing
+const authFile = path.join(process.cwd(), '.auth', 'user.json');
+const hasAuthFile = fs.existsSync(authFile);
 
 /**
  * Playwright configuration for E2E testing
@@ -52,9 +58,21 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
+    // Setup project for authentication (only for production)
+    ...(isProduction && !hasAuthFile ? [{
+      name: 'setup',
+      testDir: './tests',
+      testMatch: /auth\.setup\.js/,
+    }] : []),
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Use saved auth state for production testing (if available)
+        ...(isProduction && hasAuthFile ? { storageState: authFile } : {}),
+      },
+      // Depend on setup if we need to authenticate
+      ...(isProduction && !hasAuthFile ? { dependencies: ['setup'] } : {}),
     },
     // Uncomment to test on more browsers:
     // {

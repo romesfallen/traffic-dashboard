@@ -3,3 +3,10 @@ node_modules/
 *.log
 .vercel
 .env*.local
+
+# Playwright auth state (contains session cookies - never commit!)
+.auth/
+
+# Playwright test artifacts
+test-results/
+playwright-report/
