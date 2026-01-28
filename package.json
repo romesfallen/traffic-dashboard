@@ -11,7 +11,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:prod": "PLAYWRIGHT_BASE_URL=https://traffic-dashboard-theta.vercel.app playwright test --grep-invert @local-only",
-    "test:e2e:auth": "PLAYWRIGHT_BASE_URL=https://traffic-dashboard-theta.vercel.app playwright test tests/e2e/auth.setup.js --headed --project=chromium",
+    "test:e2e:auth": "PLAYWRIGHT_BASE_URL=https://traffic-dashboard-theta.vercel.app playwright test auth.setup --headed --project=chromium",
     "test:all": "npm test && npm run test:e2e",
     "dev": "python3 -m http.server 3000"
   },

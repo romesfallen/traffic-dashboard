@@ -11,13 +11,13 @@
  * 4. Tests will then use these cookies automatically
  */
 
-import { test as setup, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 
 const authFile = path.join(process.cwd(), '.auth', 'user.json');
 
-setup('authenticate', async ({ page }) => {
+test('Save authentication session', async ({ page }) => {
   // Ensure .auth directory exists
   const authDir = path.dirname(authFile);
   if (!fs.existsSync(authDir)) {
