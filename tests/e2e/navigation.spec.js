@@ -23,13 +23,7 @@ test.describe('Dashboard Navigation', () => {
     await expect(page).toHaveURL(/leaderboard/);
   });
 
-  test('View Logs link is visible', async ({ page }) => {
-    await page.goto(DASHBOARD_URL);
-    await waitForPageLoad(page);
-    
-    const logsLink = page.locator('a:has-text("Logs")');
-    await expect(logsLink).toBeVisible();
-  });
+  // Note: Logs link removed - feature doesn't exist on dashboard
 });
 
 test.describe('Leaderboard Page', () => {

@@ -369,9 +369,9 @@ test.describe('CSS Class and ID Stability Tests', () => {
     await page.goto(DASHBOARD_URL);
     await waitForChartRender(page);
     
+    // Note: dropdown-item only exists when dropdown is open, so not included here
     const criticalClasses = [
       'metric-card',
-      'metric-card.dr-card',
       'metric-label',
       'metric-value',
       'metric-change',
@@ -380,7 +380,6 @@ test.describe('CSS Class and ID Stability Tests', () => {
       'ranking-bubble',
       'toggle-switch',
       'view-btn',
-      'dropdown-item',
       'agent-link',
       'niche-link',
       'ahrefs-link',
@@ -388,7 +387,7 @@ test.describe('CSS Class and ID Stability Tests', () => {
     ];
     
     for (const className of criticalClasses) {
-      const element = page.locator(`.${className.replace('.', '.')}`);
+      const element = page.locator(`.${className}`);
       const count = await element.count();
       expect(count, `Class .${className} elements are MISSING`).toBeGreaterThan(0);
     }

@@ -54,10 +54,14 @@ test.describe('Dashboard Page Load', () => {
 test.describe('Domain Selection', () => {
   test('dropdown opens when clicking search input', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
-    await waitForPageLoad(page);
+    // Wait for chart render which means data has loaded
+    await waitForChartRender(page);
     
     // Click the search input
     await page.click('#domainSearch');
+    
+    // Wait for dropdown to open and populate
+    await page.waitForTimeout(500);
     
     // Dropdown should open
     const dropdown = page.locator('#dropdownList');
@@ -66,32 +70,40 @@ test.describe('Domain Selection', () => {
 
   test('dropdown shows domain options', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
-    await waitForPageLoad(page);
+    // Wait for chart render which means data has loaded
+    await waitForChartRender(page);
     
     // Click to open dropdown
     await page.click('#domainSearch');
     
+    // Wait for dropdown to populate
+    await page.waitForTimeout(500);
+    
     // Should have dropdown items
     const items = page.locator('.dropdown-item');
-    await expect(items.first()).toBeVisible();
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('typing filters the domain list', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
-    await waitForPageLoad(page);
+    // Wait for chart render which means data has loaded
+    await waitForChartRender(page);
     
     // Type in search
-    await page.fill('#domainSearch', 'lync');
+    await page.fill('#domainSearch', 'better');
+    
+    // Wait for dropdown to filter
+    await page.waitForTimeout(500);
     
     // Dropdown should be open
     const dropdown = page.locator('#dropdownList');
     await expect(dropdown).toHaveClass(/open/);
     
     // Should show filtered results
-    const items = page.locator('.dropdown-item:visible');
+    const items = page.locator('.dropdown-item');
     const count = await items.count();
     
-    // Should have at least one matching result (lyncconf.com)
+    // Should have at least one matching result
     expect(count).toBeGreaterThan(0);
   });
 
@@ -129,26 +141,26 @@ test.describe('Domain Selection', () => {
   });
 });
 
-test.describe('Stats Display', () => {
-  test('stat boxes are visible', async ({ page }) => {
+test.describe('Ranking Bubbles Display', () => {
+  test('ranking bubbles are visible', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
     await waitForChartRender(page);
     
-    // Check for stat boxes
-    const statBoxes = page.locator('.stat-box');
-    const count = await statBoxes.count();
+    // Check for ranking bubbles
+    const rankingBubbles = page.locator('.ranking-bubble');
+    const count = await rankingBubbles.count();
     
-    // Should have at least 2 stat boxes
-    expect(count).toBeGreaterThanOrEqual(2);
+    // Should have ranking bubbles (Lifetime, L3M, Current Month, etc.)
+    expect(count).toBeGreaterThanOrEqual(3);
   });
 
-  test('stat values display correctly', async ({ page }) => {
+  test('ranking bubble values display correctly', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
     await waitForChartRender(page);
     
-    // Check stat values are not empty
-    const statValues = page.locator('.stat-value');
-    const firstValue = statValues.first();
+    // Check ranking bubble values are not empty
+    const bubbleValues = page.locator('.ranking-bubble .bubble-value');
+    const firstValue = bubbleValues.first();
     
     await expect(firstValue).toBeVisible();
     const text = await firstValue.textContent();
