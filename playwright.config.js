@@ -1,9 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
-import os from 'os';
-
-// Set browser path to user's home directory cache
-process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(os.homedir(), 'Library/Caches/ms-playwright');
 
 // Support testing against production via PLAYWRIGHT_BASE_URL environment variable
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3456';
