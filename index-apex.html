@@ -417,7 +417,7 @@
             text-decoration: underline;
         }
 
-        /* Ahrefs-style Metric Cards */
+        /* Metrics Panel Styles */
         .metrics-summary {
             display: flex;
             justify-content: center;
@@ -687,10 +687,6 @@
         </div>
     </div>
 
-    <div style="text-align: center; padding: 24px 0 40px 0;">
-        <a href="/log" style="color: #f97316; text-decoration: none; font-size: 13px; font-weight: 500;">View Logs →</a>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script>
@@ -700,9 +696,6 @@
         let showRevenueLabels = true;
         let currentChart = null;
         let currentAnnotations = [];
-        
-        // X-AXIS LABEL DENSITY: Store all x-axis annotations for dynamic filtering based on zoom level
-        let allXAxisAnnotations = [];
         
         // METRICS CARDS: Track visibility of DR/RD/Traffic cards
         let showMetricsCards = true;
@@ -720,7 +713,6 @@
                 "ourData": [21181, 12214, 14683, 14853, 14853, 15828, 16243, 15436, 14741, 14591, 14727, 13648, 13652, 13630, 12950, 12785, 12250, 12168, 12758, 14113, 13908, 14377, 15564, 15544, 31400, 18697, 17470, 17697, 17702, 17436, 17045, null, null, null, 16256, 15751, 16753, 16786, 18064, 18444, 18560, 18826, 18574, 17890, null, 17453, 17140, 17515, 17472, 17966, 17692, 17796, 17788, 17691, 17966, 18013, 17807, 18917, 18062, 19593, 19893, 19857, 20241, 21025, 20957, 20979, 20757, 21519, 21324, 21689, 21238, 22351, 22236, 22078, 22354, 22372, 22572, 22134, 25845, 25669, 25275, 25641, 25896, 27240, 26132, 25311, 27678, 26710, 22632, 22060, 21772, 20044, 19439, 20014, 20337, 20468, 22754, 22839, 22863, 22027, 23249, 23045, 20593, 20627, 19835, 19944, 20549, 22075, 22146, 21869, 22935, 22359, 21876, 21857, 22162, 21277, 20967, 20787, 21752, 21080, 21134, 35709, 34312, 39097, 38726, 38991, 38769, 38588, 38377, 42276, 41954, 41584, 42779, 42335, 41994, 41333, 41222, 41196, 41253, 41331, 40501, 40914, 39037, 36227, 35709, 36243, 37719, 37708, 37206, 37153, 36398, 35574, 34636, 34273, 33938, 33092, 33291, 37877, 37846, 40497, 41423, 37901, 37756, 34484, 32813, 32759, 31730, 31411, 31133, 35860, 35727, 35466, 35534, 33597, 33725, 33969, 33876, 33239, 29435, 29435, 29435, 29499, 29318, 29332, 29060, 29056, 33879, 32360, 31831, 32154, 31830, 32360, 32273, 30332, 26822, 25631, 25645, 27155, 26979, 27054, 28928, 28757, 29755, 29266, 29757, 29253, 29255, 33132, 33346, 33206, 33196, 31908, 31758, 31450, 31720, 31528, 31688, 33221],
                 "ahrefsData": [17528, 17527, 17186, 17523, 18024, 17792, 17977, 17593, 17404, 17257, 17189, 17204, 17218, 17231, 16822, 16528, 16154, 16641, 16946, 17137, 17012, 17271, 18026, 17927, 18299, 17851, 17701, 17802, 17731, 17337, 16765, 16442, 15874, 15386, 15074, 14772, 14817, 14566, 14575, 14401, 14444, 14705, 14532, 14530, 14220, 14379, 14276, 14016, 13828, 14019, 14058, 14039, 14200, 14291, 14674, 15683, 16767, 16973, 16861, 16951, 17571, 17970, 17935, 18359, 18498, 17629, 18192, 18461, 18206, 18342, 18807, 18556, 18453, 18828, 18855, 18331, 18499, 18902, 19215, 19260, 18655, 18479, 19183, 26261, 27209, 31515, 32057, 37858, 39789, 41136, 43910, 43490, 44102, 44949, 49039, 53254, 54810, 55483, 55860, 59064, 59505, 60087, 59502, 59714, 61523, 62437, 66084, 66295, 65929, 66803, 67012, 66667, 65457, 65294, 77416, 78362, 80187, 82054, 82102, 83507, 85663, 85012, 84857, 87302, 86783, 90198, 89738, 89679, 89303, 89287, 88653, 89210, 89792, 89049, 89206, 89521, 89308, 89491, 89589, 89437, 90023, 87930, 87415, 87761, 87824, 83780, 80815, 81108, 81137, 80606, 78352, 76677, 75936, 74946, 75697, 75902, 72775, 72194, 71603, 72297, 63810, 64307, 62909, 61219, 59119, 59079, 59178, 58832, 58824, 58272, 58092, 57793, 56335, 55104, 54808, 54797, 52267, 49815, 49815, 49815, 49804, 49030, 47758, 47372, 47377, 47392, 44775, 43091, 44252, 43685, 44094, 44010, 41503, 39458, 37858, 37163, 37451, 37281, 37832, 37197, 37162, 36846, 35246, 34897, 34439, 34555, 34444, 34729, 34686, 34582, 33974, 33946, 33551, 33270, 33193, 33178, 33322, 33180],
                 "drData": [67, 67, 67, 68, 68, 69, 70, 71, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 72, 71, 72, 72, 72, 71, 71, 71, 71, 71, 71, 72, 72, 72, 72, 72, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 72, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 70, 70, 70, 70, 70, 70, 70, 70, 70, 69, 70, 70, 70, 69, 69, 69, 69, 69, 69, 68, 68, 68, 68, 68, 68, 68, 70, 70, 70, 70, 70, 70, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71, 71],
-                "rdData": [],
                 "internalAvgData": [],
                 "ahrefsAvgData": [],
                 "ourChange": "+56.8%",
@@ -777,161 +769,6 @@
             return { real, estimated, isEstimated };
         }
 
-        // Format large numbers with K/M suffix
-        function formatMetricValue(value) {
-            if (value === null || value === undefined) return '--';
-            if (value >= 1000000) {
-                return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-            }
-            if (value >= 1000) {
-                return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-            }
-            return value.toLocaleString();
-        }
-
-        // Format change value with +/- prefix and K suffix
-        function formatChangeValue(change) {
-            if (change === null || change === undefined) return '--';
-            const prefix = change > 0 ? '+' : '';
-            if (Math.abs(change) >= 1000000) {
-                return prefix + (change / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-            }
-            if (Math.abs(change) >= 1000) {
-                return prefix + (change / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-            }
-            return prefix + change.toLocaleString();
-        }
-
-        // Calculate metric current value and change over period
-        function calculateMetricChange(dataArray, datesArray, periodDays) {
-            if (!dataArray || dataArray.length === 0) {
-                return { current: null, previous: null, change: null };
-            }
-
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            
-            // Parse date string to timestamp
-            function parseDateStr(dateStr) {
-                const parts = dateStr.split(' ');
-                if (parts.length !== 3) return null;
-                const [month, day, year] = parts;
-                const monthIndex = monthNames.indexOf(month);
-                if (monthIndex === -1) return null;
-                return new Date(parseInt(year), monthIndex, parseInt(day)).getTime();
-            }
-
-            // Find most recent non-null value (current)
-            let currentValue = null;
-            let currentIdx = -1;
-            for (let i = dataArray.length - 1; i >= 0; i--) {
-                if (dataArray[i] !== null && dataArray[i] !== undefined) {
-                    currentValue = dataArray[i];
-                    currentIdx = i;
-                    break;
-                }
-            }
-
-            if (currentValue === null || currentIdx === -1) {
-                return { current: null, previous: null, change: null };
-            }
-
-            // Get current date timestamp
-            const currentDateStr = datesArray[currentIdx];
-            const currentTimestamp = parseDateStr(currentDateStr);
-            if (!currentTimestamp) {
-                return { current: currentValue, previous: null, change: null };
-            }
-
-            // Calculate target date (periodDays ago)
-            const targetTimestamp = currentTimestamp - (periodDays * 24 * 60 * 60 * 1000);
-
-            // Find nearest non-null value to target date
-            let previousValue = null;
-            let closestDiff = Infinity;
-
-            for (let i = 0; i < dataArray.length; i++) {
-                if (dataArray[i] !== null && dataArray[i] !== undefined && datesArray[i]) {
-                    const timestamp = parseDateStr(datesArray[i]);
-                    if (timestamp) {
-                        const diff = Math.abs(timestamp - targetTimestamp);
-                        if (diff < closestDiff) {
-                            closestDiff = diff;
-                            previousValue = dataArray[i];
-                        }
-                    }
-                }
-            }
-
-            // If closest match is the current value itself (no historical data), return null change
-            if (previousValue === currentValue && closestDiff > periodDays * 24 * 60 * 60 * 1000 * 0.5) {
-                return { current: currentValue, previous: null, change: null };
-            }
-
-            const change = previousValue !== null ? currentValue - previousValue : null;
-            return { current: currentValue, previous: previousValue, change: change };
-        }
-
-        // Update metric cards with calculated values
-        function updateMetricCards(data, periodDays) {
-            // DR with circular progress
-            const drResult = calculateMetricChange(data.drData, data.dates, periodDays);
-            document.getElementById('metricDR').textContent = drResult.current !== null ? drResult.current : '--';
-            
-            // Update DR circle progress (circumference = 2 * PI * 34 ≈ 213.63)
-            const drCircle = document.getElementById('drCircleProgress');
-            if (drCircle) {
-                const circumference = 213.63;
-                const drValue = drResult.current !== null ? drResult.current : 0;
-                const offset = circumference * (1 - drValue / 100);
-                drCircle.style.strokeDashoffset = offset;
-            }
-            
-            const drChangeEl = document.getElementById('metricDRChange');
-            if (drResult.change !== null) {
-                drChangeEl.textContent = formatChangeValue(drResult.change);
-                drChangeEl.className = 'metric-change ' + (drResult.change > 0 ? 'positive' : drResult.change < 0 ? 'negative' : 'neutral');
-            } else {
-                drChangeEl.textContent = '--';
-                drChangeEl.className = 'metric-change neutral';
-            }
-
-            // RD (Referring Domains)
-            const rdResult = calculateMetricChange(data.rdData, data.dates, periodDays);
-            document.getElementById('metricRD').textContent = formatMetricValue(rdResult.current);
-            const rdChangeEl = document.getElementById('metricRDChange');
-            if (rdResult.change !== null) {
-                rdChangeEl.textContent = formatChangeValue(rdResult.change);
-                rdChangeEl.className = 'metric-change ' + (rdResult.change > 0 ? 'positive' : rdResult.change < 0 ? 'negative' : 'neutral');
-            } else {
-                rdChangeEl.textContent = '--';
-                rdChangeEl.className = 'metric-change neutral';
-            }
-            
-            // Update RD Ahrefs link
-            const rdLink = document.getElementById('metricRDLink');
-            if (rdLink && currentDomainName) {
-                rdLink.href = getAhrefsRefDomainsUrl(currentDomainName);
-            }
-
-            // Traffic (Internal Monthly)
-            const trafficResult = calculateMetricChange(data.ourData, data.dates, periodDays);
-            document.getElementById('metricTraffic').textContent = formatMetricValue(trafficResult.current);
-            const trafficChangeEl = document.getElementById('metricTrafficChange');
-            if (trafficResult.change !== null) {
-                trafficChangeEl.textContent = formatChangeValue(trafficResult.change);
-                trafficChangeEl.className = 'metric-change ' + (trafficResult.change > 0 ? 'positive' : trafficResult.change < 0 ? 'negative' : 'neutral');
-            } else {
-                trafficChangeEl.textContent = '--';
-                trafficChangeEl.className = 'metric-change neutral';
-            }
-            
-            // Update Traffic Ahrefs link
-            const trafficLink = document.getElementById('metricTrafficLink');
-            if (trafficLink && currentDomainName) {
-                trafficLink.href = getAhrefsTrafficUrl(currentDomainName);
-            }
-        }
-
         // Calculate x-axis range for initial zoom (returns min/max timestamps)
         // Returns null for 'all' to show full range
         function getDateRangeBounds(data, days) {
@@ -981,47 +818,6 @@
                 drData: data.drData || [],
                 rdData: data.rdData || []
             };
-        }
-
-        // X-AXIS LABEL DENSITY: Filter annotations based on visible date range
-        // Shows quarterly labels (Jan, Apr, Jul, Oct) when zoomed out, all months when zoomed in
-        function getFilteredXAxisAnnotations(minTimestamp, maxTimestamp, annotations) {
-            const monthsVisible = (maxTimestamp - minTimestamp) / (30 * 24 * 60 * 60 * 1000);
-            const quarterlyMonths = ['Jan', 'Apr', 'Jul', 'Oct'];
-            
-            if (monthsVisible > 12) {
-                // Zoomed out (>12 months): show only quarterly labels to prevent overlap
-                return annotations.filter(ann => quarterlyMonths.includes(ann.month));
-            }
-            // Zoomed in (12 months or less): show all monthly labels
-            return annotations;
-        }
-        
-        // X-AXIS LABEL DENSITY: Build ApexCharts annotation config from annotation data
-        function buildXAxisAnnotationConfig(annotations) {
-            return annotations.map(ann => {
-                const isJanuary = ann.month === 'Jan';
-                return {
-                    x: ann.x,
-                    borderColor: 'transparent',
-                    label: {
-                        borderColor: 'transparent',
-                        borderWidth: 0,
-                        text: ann.monthLabel,
-                        orientation: 'horizontal',
-                        position: 'bottom',
-                        style: {
-                            background: 'transparent',
-                            color: '#333333',
-                            fontSize: '11px',
-                            fontWeight: isJanuary ? 700 : 500,
-                            fontFamily: 'Inter, sans-serif',
-                            padding: { left: 0, right: 0, top: 0, bottom: 0 }
-                        },
-                        offsetY: 20
-                    }
-                };
-            });
         }
 
         // REVENUE LABEL CHANGE: Modified to also return annotation data for labels
@@ -1244,8 +1040,9 @@
                         <div class="metric-change neutral" id="metricTrafficChange">--</div>
                     </div>
                 </div>
-                <div class="metrics-period-selector" style="display: ${showMetricsCards ? 'flex' : 'none'}">
+                <div class="metrics-period-selector" id="metricsPeriodSelector" style="display: ${showMetricsCards ? 'flex' : 'none'}">
                     <select id="metricsPeriod">
+                        <option value="1">Changes: Last 24 hours</option>
                         <option value="7">Changes: Last 7 days</option>
                         <option value="30" selected>Changes: Last month</option>
                         <option value="90">Changes: Last 3 months</option>
@@ -1306,42 +1103,15 @@
                 createChart(domain, data, this.value);
             });
 
-            // Update metric cards with current data
-            const metricsPeriodEl = document.getElementById('metricsPeriod');
-            const currentPeriod = parseInt(metricsPeriodEl.value);
-            updateMetricCards(data, currentPeriod);
-
-            // Add event listener for metrics period dropdown
-            metricsPeriodEl.addEventListener('change', function() {
-                updateMetricCards(data, parseInt(this.value));
-            });
-
             const ourProcessed = interpolateData(filtered.ourData);
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const drProcessed = interpolateData(filtered.drData || []);
-            const rdProcessed = interpolateData(filtered.rdData || []);
             const internalAvgProcessed = interpolateData(data.internalAvgData || []);
             const ahrefsAvgProcessed = interpolateData(data.ahrefsAvgData || []);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
             
             // Get x-axis bounds for initial zoom (allows zooming out beyond this range)
             const xAxisBounds = getDateRangeBounds(data, dateRange);
-            
-            // X-AXIS LABEL DENSITY: Store all annotations globally and filter based on initial view
-            allXAxisAnnotations = revenueResult.revenueAnnotations;
-            
-            // Calculate initial date range for filtering (use bounds if set, otherwise use full data range)
-            let initialMinTimestamp, initialMaxTimestamp;
-            if (xAxisBounds.min !== undefined && xAxisBounds.max !== undefined) {
-                initialMinTimestamp = xAxisBounds.min;
-                initialMaxTimestamp = xAxisBounds.max;
-            } else {
-                // Use full data range
-                const allTimestamps = allXAxisAnnotations.map(ann => ann.x);
-                initialMinTimestamp = Math.min(...allTimestamps);
-                initialMaxTimestamp = Math.max(...allTimestamps);
-            }
-            const initialFilteredAnnotations = getFilteredXAxisAnnotations(initialMinTimestamp, initialMaxTimestamp, allXAxisAnnotations);
             
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             
@@ -1361,7 +1131,6 @@
             const ourDataPoints = convertToTimestampData(filtered.dates, ourProcessed.real);
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
-            const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real);
             const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
             const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
@@ -1456,13 +1225,6 @@
                 data: drDataPoints
             });
             
-            // RD (hidden by default, can be toggled via legend click)
-            allSeries.push({
-                name: 'RD',
-                type: 'line',
-                data: rdDataPoints
-            });
-            
             // Build colors array based on visible series
             const allColors = [];
             if (showMonthly) {
@@ -1475,7 +1237,6 @@
             }
             allColors.push('#10b981'); // Revenue - Green
             allColors.push('#a855f7'); // DR - Purple
-            allColors.push('#ec4899'); // RD - Pink
             
             // Build stroke config based on visible series
             const strokeCurve = [];
@@ -1505,11 +1266,6 @@
             strokeWidth.push(3);
             strokeDash.push(6);
             fillOpacity.push(0);
-            // RD
-            strokeCurve.push('straight');
-            strokeWidth.push(3);
-            strokeDash.push(4);
-            fillOpacity.push(0);
             
             const options = {
                 series: allSeries,
@@ -1538,37 +1294,35 @@
                         easing: 'easeinout',
                         speed: 800
                     },
-                    stacked: false,
-                    events: {
-                        legendClick: function(chartContext, seriesIndex, config) {
-                            // Force chart to recalculate axes after legend toggle
-                            // This fixes RD not rendering when it's the only visible series
-                            setTimeout(() => {
-                                chartContext.windowResizeHandler();
-                            }, 50);
-                        },
-                        // X-AXIS LABEL DENSITY: Update labels when user zooms
-                        zoomed: function(chartContext, { xaxis }) {
-                            const filtered = getFilteredXAxisAnnotations(xaxis.min, xaxis.max, allXAxisAnnotations);
-                            chartContext.updateOptions({
-                                annotations: {
-                                    xaxis: buildXAxisAnnotationConfig(filtered),
-                                    points: showRevenueLabels ? currentAnnotations : []
-                                }
-                            }, false, false); // redrawPaths=false, animate=false for instant update
-                        },
-                        // X-AXIS LABEL DENSITY: Reset labels when user resets zoom
-                        beforeResetZoom: function(chartContext, opts) {
-                            // Will be handled by the subsequent zoomed event after reset
-                            return undefined;
-                        }
-                    }
+                    stacked: false
                 },
                 // REVENUE LABEL CHANGE: Add annotations section
-                // X-AXIS LABEL DENSITY: Use buildXAxisAnnotationConfig with filtered annotations
+                // Build xaxis annotations for centered month labels
                 annotations: {
                     points: pointAnnotations,
-                    xaxis: buildXAxisAnnotationConfig(initialFilteredAnnotations)
+                    xaxis: revenueResult.revenueAnnotations.map(ann => {
+                        const isJanuary = ann.month === 'Jan';
+                        return {
+                            x: ann.x,
+                            borderColor: 'transparent',
+                            label: {
+                                borderColor: 'transparent',
+                                borderWidth: 0,
+                                text: ann.monthLabel,
+                                orientation: 'horizontal',
+                                position: 'bottom',
+                                style: {
+                                    background: 'transparent',
+                                    color: '#333333',
+                                    fontSize: '11px',
+                                    fontWeight: isJanuary ? 700 : 500, // Bold for January to mark year start
+                                    fontFamily: 'Inter, sans-serif',
+                                    padding: { left: 0, right: 0, top: 0, bottom: 0 }
+                                },
+                                offsetY: 20
+                            }
+                        };
+                    })
                 },
                 colors: allColors,
                 fill: {
@@ -1581,7 +1335,7 @@
                     dashArray: strokeDash
                 },
                 markers: {
-                    size: allSeries.map((s, i) => (s.name === 'DR' || s.name === 'RD') ? 2 : 0), // Small markers for DR and RD
+                    size: allSeries.map((s, i) => s.name === 'DR' ? 2 : 0), // Small markers for DR only
                     hover: { size: 5 },
                     strokeWidth: 0
                 },
@@ -1705,30 +1459,6 @@
                         }
                     });
                     
-                    // RD - separate axis (values can be in thousands)
-                    yaxisConfig.push({
-                        seriesName: 'RD',
-                        opposite: true,
-                        show: true, // Show axis when series is visible
-                        title: {
-                            text: 'RD',
-                            style: { color: '#ec4899', fontSize: '12px' },
-                            offsetX: -20
-                        },
-                        labels: {
-                            style: { colors: '#ec4899' },
-                            formatter: val => val ? val.toLocaleString() : '',
-                            offsetX: -20
-                        },
-                        min: 0,
-                        axisBorder: {
-                            show: true,
-                            color: '#ec4899',
-                            offsetX: -15
-                        }
-                        // No max - let it auto-scale based on data
-                    });
-                    
                     return yaxisConfig;
                 })(),
                 grid: {
@@ -1806,8 +1536,6 @@
                                     displayValue = '$' + value.toLocaleString();
                                 } else if (seriesName === 'DR') {
                                     displayValue = value.toFixed(0);
-                                } else if (seriesName === 'RD') {
-                                    displayValue = value.toLocaleString() + ' domains';
                                 } else if (value !== 0) {
                                     displayValue = value.toLocaleString() + ' visits';
                                 }
@@ -1837,6 +1565,18 @@
             
             // REVENUE LABEL CHANGE: Store chart instance for dynamic updates
             currentChart = chart;
+            
+            // METRICS CARDS: Update metric values with default period (30 days = last month)
+            const currentPeriod = parseInt(document.getElementById('metricsPeriod')?.value || '30');
+            updateMetricCards(data, currentPeriod);
+            
+            // METRICS CARDS: Setup period selector event listener
+            const periodSelect = document.getElementById('metricsPeriod');
+            if (periodSelect) {
+                periodSelect.addEventListener('change', function() {
+                    updateMetricCards(data, parseInt(this.value));
+                });
+            }
             
             // Make tooltip follow cursor on Y axis
             const chartEl = document.querySelector('#apex-chart');
@@ -2020,19 +1760,21 @@
         // METRICS CARDS: Setup toggle to show/hide the metrics section
         function setupMetricsCardsToggle() {
             const toggle = document.getElementById('metricsToggle');
+            if (!toggle) return;
+            
             toggle.addEventListener('click', function() {
                 showMetricsCards = !showMetricsCards;
                 this.classList.toggle('active', showMetricsCards);
                 
                 // Show/hide metrics summary and period selector
                 const metricsSummary = document.getElementById('metricsSummary');
-                const metricsPeriod = document.getElementById('metricsPeriod');
+                const metricsPeriodSelector = document.getElementById('metricsPeriodSelector');
                 
                 if (metricsSummary) {
                     metricsSummary.style.display = showMetricsCards ? 'flex' : 'none';
                 }
-                if (metricsPeriod) {
-                    metricsPeriod.parentElement.style.display = showMetricsCards ? 'flex' : 'none';
+                if (metricsPeriodSelector) {
+                    metricsPeriodSelector.style.display = showMetricsCards ? 'flex' : 'none';
                 }
             });
         }
@@ -2129,12 +1871,182 @@
             return `https://app.ahrefs.com/v2-site-explorer/overview?backlinksChartMode=metrics&backlinksChartPerformanceSources=domainRating%7C%7CurlRating&backlinksCompetitorsSource=%22UrlRating%22&backlinksRefdomainsSource=%22RefDomainsNew%22&bestFilter=all&brandedTrafficSource=target-brand&chartGranularity=daily&chartInterval=all&competitors=&countries=&country=all&entitiesCategory=organisations&generalChartBrandedTraffic=other-brands&generalChartMode=metrics&generalChartPerformanceSources=organicTraffic&generalCompetitorsSource=%22OrganicTraffic%22&generalCountriesSource=organic-traffic&generalEntitiesChartMetric=Traffic&generalPagesByTrafficChartMode=Percentage&generalPagesByTrafficSource=Traffic&highlightChanges=7d&intentsMainSource=informational&keywordsSource=all&mode=subdomains&organicChartBrandedTraffic=non-branded%7C%7Cother-brands%7C%7Ctarget-brand&organicChartMode=metrics&organicChartPerformanceSources=organicTraffic&organicCompetitorsSource=%22OrganicTraffic%22&organicCountriesSource=organic-traffic&organicEntitiesChartMetric=Traffic&organicPagesByTrafficChartMode=Percentage&organicPagesByTrafficSource=Pages%7C%7CTraffic&overviewSerpChartMode=Own&overviewSerpChartSpec=AIOverview%7C%7CAdwordsBottom%7C%7CAdwordsTop%7C%7CDiscussions%7C%7CFeaturedSnippet%7C%7CImagePack%7C%7CKnowledgeCard%7C%7CKnowledgePanel%7C%7CLocalPack%7C%7CPaidSiteLinks%7C%7CPeopleAlsoAsk%7C%7CShoppingAds%7C%7CShoppingOrganic%7C%7CSitelinks%7C%7CThumbnail%7C%7CTopStories%7C%7CTweets%7C%7CVideoPreview%7C%7CVideos&overviewSerpManyChartSpec=Own%7C%7CTotal&overview_tab=general&paidSearchPaidKeywordsByTopPositionsChartMode=Percentage&paidTrafficSources=cost%7C%7Ctraffic&target=${encodeURIComponent(domain)}&topLevelDomainFilter=all&topOrganicKeywordsMode=normal&topOrganicPagesMode=normal&trafficType=Organic&volume_type=monthly`;
         }
 
+        // Ahrefs Ref. Domains URL
         function getAhrefsRefDomainsUrl(domain) {
             return `https://app.ahrefs.com/v2-site-explorer/refdomains?anchorRules=&bestFilter=all&domainNameRules=&followType=all&highlightChanges=none&history=all&ipRules=&limit=50&mode=subdomains&offset=0&refPageAuthorRules=&refPageTitleRules=&refPageUrlRules=&sort=Dr&sortDirection=desc&surroundingRules=&target=${encodeURIComponent(domain + '/')}&targetUrlRules=`;
         }
 
+        // Ahrefs Traffic/Organic Keywords URL
         function getAhrefsTrafficUrl(domain) {
-            return `https://app.ahrefs.com/v2-site-explorer/organic-keywords?brandedMode=all&chartGranularity=daily&chartInterval=all&compareDate=dontCompare&country=allByLocation&currentDate=today&hiddenColumns=&intentsAttrs=&keywordRules=&limit=50&localMode=all&mainOnly=0&mode=subdomains&multipleUrlsOnly=0&offset=0&performanceChartTopPosition=top11_20%7C%7Ctop21_50%7C%7Ctop3%7C%7Ctop4_10%7C%7Ctop51&positionChanges=&sort=OrganicTrafficInitial&sortDirection=desc&target=${encodeURIComponent(domain + '/')}&urlRules=&volume_type=monthly`;
+            return `https://app.ahrefs.com/v2-site-explorer/organic-keywords?compareDate=dontCompare&country=allGlobal&mode=subdomains&target=${encodeURIComponent(domain + '/')}`;
+        }
+
+        // Format metric value with K/M suffix
+        function formatMetricValue(value) {
+            if (value === null || value === undefined) return '--';
+            if (value >= 1000000) {
+                return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            }
+            if (value >= 1000) {
+                return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            }
+            return value.toLocaleString();
+        }
+
+        // Format change value with +/- prefix and K suffix
+        function formatChangeValue(change) {
+            if (change === null || change === undefined) return '--';
+            const prefix = change > 0 ? '+' : '';
+            if (Math.abs(change) >= 1000000) {
+                return prefix + (change / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            }
+            if (Math.abs(change) >= 1000) {
+                return prefix + (change / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+            }
+            return prefix + change.toLocaleString();
+        }
+
+        // Calculate metric current value and change over period with smart fallback
+        function calculateMetricChange(dataArray, datesArray, periodDays) {
+            if (!dataArray || dataArray.length === 0) {
+                return { current: null, previous: null, change: null };
+            }
+
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            // Parse date string to timestamp
+            function parseDateStr(dateStr) {
+                const parts = dateStr.split(' ');
+                if (parts.length !== 3) return null;
+                const [month, day, year] = parts;
+                const monthIndex = monthNames.indexOf(month);
+                if (monthIndex === -1) return null;
+                return new Date(parseInt(year), monthIndex, parseInt(day)).getTime();
+            }
+
+            // Find most recent non-null value (current)
+            let currentValue = null;
+            let currentIdx = -1;
+            for (let i = dataArray.length - 1; i >= 0; i--) {
+                if (dataArray[i] !== null && dataArray[i] !== undefined) {
+                    currentValue = dataArray[i];
+                    currentIdx = i;
+                    break;
+                }
+            }
+
+            if (currentValue === null || currentIdx === -1) {
+                return { current: null, previous: null, change: null };
+            }
+
+            // Get current date timestamp
+            const currentDateStr = datesArray[currentIdx];
+            const currentTimestamp = parseDateStr(currentDateStr);
+            if (!currentTimestamp) {
+                return { current: currentValue, previous: null, change: null };
+            }
+
+            // Calculate target date (periodDays ago)
+            const targetTimestamp = currentTimestamp - (periodDays * 24 * 60 * 60 * 1000);
+
+            // Smart fallback: Define tolerance based on period (from plan)
+            // Last 24 hours (1 day): ±1 day, Last 7 days: ±3 days, Last month (30): ±7 days
+            // Last 3 months (90): ±10 days, Last 6 months (180): ±14 days, Last year (365): ±14 days
+            let toleranceDays;
+            if (periodDays <= 1) toleranceDays = 1;
+            else if (periodDays <= 7) toleranceDays = 3;
+            else if (periodDays <= 30) toleranceDays = 7;
+            else if (periodDays <= 90) toleranceDays = 10;
+            else if (periodDays <= 180) toleranceDays = 14;
+            else toleranceDays = 14; // Last year - strict
+
+            const toleranceMs = toleranceDays * 24 * 60 * 60 * 1000;
+
+            // Find nearest non-null value to target date within tolerance
+            let previousValue = null;
+            let closestDiff = Infinity;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                if (dataArray[i] !== null && dataArray[i] !== undefined && datesArray[i]) {
+                    const timestamp = parseDateStr(datesArray[i]);
+                    if (timestamp) {
+                        const diff = Math.abs(timestamp - targetTimestamp);
+                        if (diff < closestDiff && diff <= toleranceMs) {
+                            closestDiff = diff;
+                            previousValue = dataArray[i];
+                        }
+                    }
+                }
+            }
+
+            // If closest match is the current value itself (no historical data), return null change
+            if (previousValue === currentValue && closestDiff > periodDays * 24 * 60 * 60 * 1000 * 0.5) {
+                return { current: currentValue, previous: null, change: null };
+            }
+
+            const change = previousValue !== null ? currentValue - previousValue : null;
+            return { current: currentValue, previous: previousValue, change: change };
+        }
+
+        // Update metric cards with calculated values
+        function updateMetricCards(data, periodDays) {
+            // DR with circular progress
+            const drResult = calculateMetricChange(data.drData, data.dates, periodDays);
+            document.getElementById('metricDR').textContent = drResult.current !== null ? drResult.current : '--';
+            
+            // Update DR circle progress (circumference = 2 * PI * 34 ≈ 213.63)
+            const drCircle = document.getElementById('drCircleProgress');
+            if (drCircle) {
+                const circumference = 213.63;
+                const drValue = drResult.current !== null ? drResult.current : 0;
+                const offset = circumference * (1 - drValue / 100);
+                drCircle.style.strokeDashoffset = offset;
+            }
+            
+            const drChangeEl = document.getElementById('metricDRChange');
+            if (drResult.change !== null) {
+                drChangeEl.textContent = formatChangeValue(drResult.change);
+                drChangeEl.className = 'metric-change ' + (drResult.change > 0 ? 'positive' : drResult.change < 0 ? 'negative' : 'neutral');
+            } else {
+                drChangeEl.textContent = '--';
+                drChangeEl.className = 'metric-change neutral';
+            }
+
+            // RD (Referring Domains)
+            const rdResult = calculateMetricChange(data.rdData, data.dates, periodDays);
+            document.getElementById('metricRD').textContent = formatMetricValue(rdResult.current);
+            const rdChangeEl = document.getElementById('metricRDChange');
+            if (rdResult.change !== null) {
+                rdChangeEl.textContent = formatChangeValue(rdResult.change);
+                rdChangeEl.className = 'metric-change ' + (rdResult.change > 0 ? 'positive' : rdResult.change < 0 ? 'negative' : 'neutral');
+            } else {
+                rdChangeEl.textContent = '--';
+                rdChangeEl.className = 'metric-change neutral';
+            }
+            
+            // Update RD Ahrefs link
+            const rdLink = document.getElementById('metricRDLink');
+            if (rdLink && currentDomainName) {
+                rdLink.href = getAhrefsRefDomainsUrl(currentDomainName);
+            }
+
+            // Traffic (Internal Monthly)
+            const trafficResult = calculateMetricChange(data.ourData, data.dates, periodDays);
+            document.getElementById('metricTraffic').textContent = formatMetricValue(trafficResult.current);
+            const trafficChangeEl = document.getElementById('metricTrafficChange');
+            if (trafficResult.change !== null) {
+                trafficChangeEl.textContent = formatChangeValue(trafficResult.change);
+                trafficChangeEl.className = 'metric-change ' + (trafficResult.change > 0 ? 'positive' : trafficResult.change < 0 ? 'negative' : 'neutral');
+            } else {
+                trafficChangeEl.textContent = '--';
+                trafficChangeEl.className = 'metric-change neutral';
+            }
+            
+            // Update Traffic Ahrefs link
+            const trafficLink = document.getElementById('metricTrafficLink');
+            if (trafficLink && currentDomainName) {
+                trafficLink.href = getAhrefsTrafficUrl(currentDomainName);
+            }
         }
 
         // Copy domain to clipboard
@@ -2197,8 +2109,9 @@
         // Load ALL revenue data and compute priority domains
         async function loadRevenueCSVAndComputePriority() {
             try {
+                // Fetch from S3 via API endpoint (not local static file)
                 const response = await fetch('/api/data/revenue', { credentials: 'include' });
-                if (!response.ok) throw new Error('Failed to load revenue CSV');
+                if (!response.ok) throw new Error('Failed to load revenue CSV from S3');
                 
                 const text = await response.text();
                 const parsed = Papa.parse(text, { 
@@ -2223,7 +2136,7 @@
                     const monthlyRevenue = {};
                     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                     const now = new Date();
-                    const currentMonthKey = monthNames[now.getMonth()] + now.getFullYear();
+                    const currentMonthKey = monthNames[now.getMonth()] + now.getFullYear(); // e.g., "Jan2026"
                     
                     headers.forEach(header => {
                         const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
@@ -2292,13 +2205,9 @@
             try {
                 // Use cache if available
                 if (!csvCache.dr) {
-                    // Try priority endpoint first, fall back to full data
-                    let response = await fetch('/api/data/dr-priority', { credentials: 'include' });
-                    if (!response.ok) {
-                        console.log('Priority DR not available, falling back to full data');
-                        response = await fetch('/api/data/dr', { credentials: 'include' });
-                    }
-                    if (!response.ok) throw new Error('Failed to load DR History CSV');
+                    // Fetch from S3 via API endpoint (not local static file)
+                    const response = await fetch('/api/data/dr', { credentials: 'include' });
+                    if (!response.ok) throw new Error('Failed to load DR History CSV from S3');
                     
                     const text = await response.text();
                     const parsed = Papa.parse(text, { 
@@ -2350,13 +2259,9 @@
             try {
                 // Use cache if available
                 if (!csvCache.rd) {
-                    // Try priority endpoint first, fall back to full data
-                    let response = await fetch('/api/data/rd-priority', { credentials: 'include' });
-                    if (!response.ok) {
-                        console.log('Priority RD not available, falling back to full data');
-                        response = await fetch('/api/data/rd', { credentials: 'include' });
-                    }
-                    if (!response.ok) throw new Error('Failed to load RD History CSV');
+                    // Fetch from S3 via API endpoint
+                    const response = await fetch('/api/data/rd', { credentials: 'include' });
+                    if (!response.ok) throw new Error('Failed to load RD History CSV from S3');
                     
                     const text = await response.text();
                     const parsed = Papa.parse(text, { 
@@ -2400,29 +2305,44 @@
                 return rdByDomain;
             } catch (error) {
                 console.error('Error loading RD History CSV:', error);
-                throw error;
+                // Return empty maps on error (non-critical)
+                const emptyResult = {};
+                domainList.forEach(domain => emptyResult[domain] = new Map());
+                return emptyResult;
             }
         }
 
         async function loadAhrefsCSV(domainList) {
+            // TEMPORARILY DISABLED - Ahrefs data being updated with new methodology
+            // TODO: Re-enable with new S3 API endpoint when ready
+            const ahrefsByDomain = {};
+            domainList.forEach(domain => {
+                ahrefsByDomain[domain] = new Map();
+            });
+            console.log('⏸️ Ahrefs Monthly data disabled (new methodology pending)');
+            return ahrefsByDomain;
+        }
+
+        async function loadInternalAverageCSV(domainList) {
             try {
                 // Use cache if available
-                if (!csvCache.ahrefs) {
-                    const response = await fetch('ahrefs_organic_traffic_results.csv');
-                    if (!response.ok) throw new Error('Failed to load Ahrefs CSV');
+                if (!csvCache.internalAvg) {
+                    // Fetch from S3 via API endpoint (not local static file)
+                    const response = await fetch('/api/data/average', { credentials: 'include' });
+                    if (!response.ok) throw new Error('Failed to load Internal Average CSV from S3');
                     
                     const text = await response.text();
                     const parsed = Papa.parse(text, { 
                         header: true,
                         skipEmptyLines: true
                     });
-                    csvCache.ahrefs = { parsed };
+                    csvCache.internalAvg = { parsed };
                 }
                 
-                const { parsed } = csvCache.ahrefs;
+                const { parsed } = csvCache.internalAvg;
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const ahrefsByDomain = {};
+                const internalAvgByDomain = {};
                 
                 // Process each domain in the list
                 domainList.forEach(domain => {
@@ -2430,9 +2350,9 @@
                         row.domain && row.domain.toLowerCase() === domain.toLowerCase()
                     );
                     
-                    const ahrefsDataMap = new Map();
+                    const dataMap = new Map();
                     domainRows.forEach(row => {
-                        if (!row.date || !row.organic_traffic) return;
+                        if (!row.date || !row.average_traffic) return;
                         
                         const isoDate = new Date(row.date);
                         if (isNaN(isoDate.getTime())) return;
@@ -2442,70 +2362,11 @@
                         const year = isoDate.getFullYear();
                         const dateStr = `${month} ${day} ${year}`;
                         
-                        const value = parseNumber(row.organic_traffic);
+                        const value = parseNumber(row.average_traffic);
                         if (value !== null && value !== undefined) {
-                            ahrefsDataMap.set(dateStr, value);
+                            dataMap.set(dateStr, value);
                         }
                     });
-                    
-                    ahrefsByDomain[domain] = ahrefsDataMap;
-                });
-                
-                console.log('✅ Ahrefs data loaded for', domainList.length, 'domains');
-                return ahrefsByDomain;
-            } catch (error) {
-                console.error('Error loading Ahrefs CSV:', error);
-                throw error;
-            }
-        }
-
-        async function loadInternalAverageCSV(domainList) {
-            try {
-                // Use cache if available
-                if (!csvCache.internalAvg) {
-                    // Try priority endpoint first, fall back to full data
-                    let response = await fetch('/api/data/average-priority', { credentials: 'include' });
-                    if (!response.ok) {
-                        console.log('Priority Average not available, falling back to full data');
-                        response = await fetch('/api/data/average', { credentials: 'include' });
-                    }
-                    if (!response.ok) throw new Error('Failed to load Internal Average CSV');
-                    
-                    const text = await response.text();
-                    const parsed = Papa.parse(text, { 
-                        header: true,
-                        skipEmptyLines: true
-                    });
-                    csvCache.internalAvg = { parsed, headers: parsed.meta.fields || [] };
-                }
-                
-                const { parsed, headers } = csvCache.internalAvg;
-                const internalAvgByDomain = {};
-                
-                // Process each domain in the list (wide format - dates as column headers)
-                domainList.forEach(domain => {
-                    const row = parsed.data.find(r => 
-                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
-                    );
-                    
-                    const dataMap = new Map();
-                    
-                    if (row) {
-                        headers.forEach(header => {
-                            // Match date format: "Jan 1 - 2025"
-                            const dateMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)\s*-\s*(\d{4})$/);
-                            if (dateMatch) {
-                                const [, month, day, year] = dateMatch;
-                                const dateStr = `${month} ${day} ${year}`;
-                                const value = parseNumber(row[header]);
-                                if (value !== null && value !== undefined) {
-                                    if (!dataMap.has(dateStr)) {
-                                        dataMap.set(dateStr, value);
-                                    }
-                                }
-                            }
-                        });
-                    }
                     
                     internalAvgByDomain[domain] = dataMap;
                 });
@@ -2525,8 +2386,9 @@
 
         async function loadAgentNicheCSV() {
             try {
-                const response = await fetch('Site Agent & Niche.csv');
-                if (!response.ok) throw new Error('Failed to load Agent & Niche CSV');
+                // Fetch from S3 via API endpoint (not local static file)
+                const response = await fetch('/api/data/agent-niche', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load Agent & Niche CSV from S3');
                 
                 const text = await response.text();
                 const parsed = Papa.parse(text, { 
@@ -2555,73 +2417,23 @@
         }
 
         async function loadAhrefsAverageCSV(domainList) {
-            try {
-                // Use cache if available
-                if (!csvCache.ahrefsAvg) {
-                    const response = await fetch('ahrefs-average-traffic.csv');
-                    if (!response.ok) throw new Error('Failed to load Ahrefs Average CSV');
-                    
-                    const text = await response.text();
-                    const parsed = Papa.parse(text, { 
-                        header: true,
-                        skipEmptyLines: true
-                    });
-                    csvCache.ahrefsAvg = { parsed };
-                }
-                
-                const { parsed } = csvCache.ahrefsAvg;
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const ahrefsAvgByDomain = {};
-                
-                // Process each domain in the list
-                domainList.forEach(domain => {
-                    const domainRows = parsed.data.filter(row => 
-                        row.domain && row.domain.toLowerCase() === domain.toLowerCase()
-                    );
-                    
-                    const dataMap = new Map();
-                    domainRows.forEach(row => {
-                        if (!row.date || !row.average_traffic) return;
-                        
-                        const isoDate = new Date(row.date);
-                        if (isNaN(isoDate.getTime())) return;
-                        
-                        const month = monthNames[isoDate.getMonth()];
-                        const day = isoDate.getDate();
-                        const year = isoDate.getFullYear();
-                        const dateStr = `${month} ${day} ${year}`;
-                        
-                        const value = parseNumber(row.average_traffic);
-                        if (value !== null && value !== undefined) {
-                            dataMap.set(dateStr, value);
-                        }
-                    });
-                    
-                    ahrefsAvgByDomain[domain] = dataMap;
-                });
-                
-                console.log('✅ Ahrefs Average data loaded for', domainList.length, 'domains');
-                return ahrefsAvgByDomain;
-            } catch (error) {
-                console.warn('Warning loading Ahrefs Average CSV:', error);
-                const emptyResult = {};
-                domainList.forEach(domain => emptyResult[domain] = new Map());
-                return emptyResult;
-            }
+            // TEMPORARILY DISABLED - Ahrefs data being updated with new methodology
+            // TODO: Re-enable with new S3 API endpoint when ready
+            const ahrefsAvgByDomain = {};
+            domainList.forEach(domain => {
+                ahrefsAvgByDomain[domain] = new Map();
+            });
+            console.log('⏸️ Ahrefs Average data disabled (new methodology pending)');
+            return ahrefsAvgByDomain;
         }
 
         async function loadTrafficCSV(domainList) {
             try {
                 // Use cache if available, otherwise load and cache
                 if (!csvCache.traffic) {
-                    // Try priority endpoint first, fall back to full data
-                    let response = await fetch('/api/data/traffic-priority', { credentials: 'include' });
-                    if (!response.ok) {
-                        console.log('Priority Traffic not available, falling back to full data');
-                        response = await fetch('/api/data/traffic', { credentials: 'include' });
-                    }
-                    if (!response.ok) throw new Error('Failed to load traffic CSV');
+                    // Fetch from S3 via API endpoint (not local static file)
+                    const response = await fetch('/api/data/traffic', { credentials: 'include' });
+                    if (!response.ok) throw new Error('Failed to load traffic CSV from S3');
                     
                     const text = await response.text();
                     const parsed = Papa.parse(text, { 
@@ -2800,7 +2612,7 @@
             trafficData.dates.forEach(d => allDatesSet.add(d));
             ahrefsDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
             drDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
-            rdDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
+            if (rdDataMap) rdDataMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
             internalAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
             ahrefsAvgMap.forEach((value, dateStr) => allDatesSet.add(dateStr));
             
@@ -2832,7 +2644,7 @@
                 mergedOurData.push(ourDataMap.get(dateStr) || null);
                 mergedAhrefsData.push(ahrefsDataMap.get(dateStr) || null);
                 mergedDRData.push(drDataMap.get(dateStr) || null);
-                mergedRDData.push(rdDataMap.get(dateStr) || null);
+                mergedRDData.push(rdDataMap ? (rdDataMap.get(dateStr) || null) : null);
                 mergedInternalAvgData.push(internalAvgMap.get(dateStr) || null);
                 mergedAhrefsAvgData.push(ahrefsAvgMap.get(dateStr) || null);
             });
@@ -2875,106 +2687,6 @@
             };
         }
         
-        // Load full domain list in background for search (after priority load completes)
-        async function loadFullDomainListInBackground() {
-            try {
-                console.log('🔄 Loading full data in background for on-demand search...');
-                
-                // Fetch all full CSVs in parallel (not priority versions)
-                const [trafficRes, drRes, rdRes, avgRes] = await Promise.all([
-                    fetch('/api/data/traffic', { credentials: 'include' }),
-                    fetch('/api/data/dr', { credentials: 'include' }),
-                    fetch('/api/data/rd', { credentials: 'include' }),
-                    fetch('/api/data/average', { credentials: 'include' })
-                ]);
-                
-                // Process traffic data (required for domain list)
-                if (trafficRes.ok) {
-                    const text = await trafficRes.text();
-                    const parsed = Papa.parse(text, { 
-                        header: true,
-                        skipEmptyLines: false,
-                        transformHeader: (header) => header.trim()
-                    });
-                    
-                    // Populate allAvailableDomains with ALL domains
-                    const previousCount = allAvailableDomains.size;
-                    parsed.data.forEach(row => {
-                        if (row.Website && row.Website.trim() !== '') {
-                            allAvailableDomains.add(row.Website.toLowerCase());
-                        }
-                    });
-                    
-                    // Update the traffic cache with full data for on-demand loading
-                    const headers = parsed.meta.fields || [];
-                    const dateColumns = headers.slice(6);
-                    
-                    // Build date info
-                    const seenDates = new Map();
-                    dateColumns.forEach((header, idx) => {
-                        if (!header || header.trim() === '') return;
-                        const dateStr = parseDate(header);
-                        if (!dateStr || dateStr === '') return;
-                        if (!seenDates.has(dateStr)) {
-                            seenDates.set(dateStr, { firstIndex: idx, secondIndex: -1, headers: [header] });
-                        } else {
-                            const entry = seenDates.get(dateStr);
-                            if (entry.secondIndex === -1) entry.secondIndex = idx;
-                            entry.headers.push(header);
-                        }
-                    });
-                    
-                    let splitPoint = -1;
-                    seenDates.forEach((entry) => {
-                        if (entry.secondIndex !== -1 && (splitPoint === -1 || entry.secondIndex < splitPoint)) {
-                            splitPoint = entry.secondIndex;
-                        }
-                    });
-                    
-                    csvCache.traffic = { parsed, headers, dateColumns, seenDates, splitPoint };
-                    console.log(`✅ Full traffic data loaded: ${allAvailableDomains.size} domains (was ${previousCount})`);
-                }
-                
-                // Process DR data
-                if (drRes.ok) {
-                    const text = await drRes.text();
-                    const parsed = Papa.parse(text, { 
-                        header: true,
-                        skipEmptyLines: true
-                    });
-                    csvCache.dr = { parsed, headers: parsed.meta.fields || [] };
-                    console.log('✅ Full DR data loaded');
-                }
-                
-                // Process RD data
-                if (rdRes.ok) {
-                    const text = await rdRes.text();
-                    const parsed = Papa.parse(text, { 
-                        header: true,
-                        skipEmptyLines: true
-                    });
-                    csvCache.rd = { parsed, headers: parsed.meta.fields || [] };
-                    console.log('✅ Full RD data loaded');
-                }
-                
-                // Process Internal Average data
-                if (avgRes.ok) {
-                    const text = await avgRes.text();
-                    const parsed = Papa.parse(text, { 
-                        header: true,
-                        skipEmptyLines: true,
-                        transformHeader: (header) => header.trim()
-                    });
-                    csvCache.internalAvg = { parsed, headers: parsed.meta.fields || [] };
-                    console.log('✅ Full Internal Average data loaded');
-                }
-                
-                console.log('✅ Background loading complete - all domains now searchable');
-            } catch (error) {
-                console.warn('Background loading of full data failed:', error);
-            }
-        }
-
         // On-demand loader for domains not in priority list
         async function loadDomainOnDemand(domain) {
             console.log(`🔄 Loading domain on-demand: ${domain}`);
@@ -3011,10 +2723,6 @@
                         if (!row) return {};
                         
                         const monthlyRevenue = {};
-                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const now = new Date();
-                        const currentMonthKey = monthNames[now.getMonth()] + now.getFullYear();
-                        
                         csvCache.revenue.headers.forEach(header => {
                             const monthMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})$/);
                             if (monthMatch) {
@@ -3023,13 +2731,6 @@
                                 const value = parseCurrency(row[header]);
                                 if (value >= 0 && row[header] && row[header] !== '-') {
                                     monthlyRevenue[key] = value;
-                                }
-                            }
-                            // Handle "Current" column as current month
-                            if (header.toLowerCase() === 'current') {
-                                const value = parseCurrency(row[header]);
-                                if (value >= 0 && row[header] && row[header] !== '-') {
-                                    monthlyRevenue[currentMonthKey] = value;
                                 }
                             }
                         });
@@ -3130,9 +2831,6 @@
                 
                 loadingEl.style.display = 'none';
                 initializeDashboard(domains);
-                
-                // STEP 4: Load full domain list in background for search functionality
-                loadFullDomainListInBackground();
             } catch (error) {
                 console.warn('CSV loading failed, using fallback data:', error);
                 loadingEl.style.display = 'none';
