@@ -1,28 +1,10 @@
 import { test as base } from '@playwright/test';
-import crypto from 'crypto';
 
 /**
- * Test secret for generating mock auth tokens
- * In real tests, this would need to match the server's SESSION_SECRET
- * For static file serving (python http.server), auth is bypassed anyway
+ * E2E Test Token for bypassing authentication
+ * Set via environment variable: E2E_TEST_TOKEN
  */
-const TEST_SECRET = 'test-secret-for-e2e-testing';
-
-/**
- * Create a mock JWT token for testing
- */
-function createMockToken(payload) {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64url');
-  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  
-  const signature = crypto
-    .createHmac('sha256', TEST_SECRET)
-    .update(`${headerB64}.${payloadB64}`)
-    .digest('base64url');
-  
-  return `${headerB64}.${payloadB64}.${signature}`;
-}
+const E2E_TEST_TOKEN = process.env.E2E_TEST_TOKEN || '';
 
 /**
  * Default test user
@@ -31,7 +13,6 @@ const TEST_USER = {
   email: 'test@example.com',
   name: 'Test User',
   picture: 'https://example.com/photo.jpg',
-  exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours from now
 };
 
 /**
@@ -39,24 +20,20 @@ const TEST_USER = {
  */
 export const test = base.extend({
   /**
-   * Authenticated page - has auth cookie set
+   * Override the default page fixture to intercept API requests
+   * and add the X-Test-Token header for authentication bypass
    */
-  authenticatedPage: async ({ page }, use) => {
-    // Create mock auth token
-    const token = createMockToken(TEST_USER);
-    
-    // Set the auth cookie before navigating
-    await page.context().addCookies([
-      {
-        name: 'auth_session',
-        value: token,
-        domain: 'localhost',
-        path: '/',
-        httpOnly: true,
-        secure: false, // localhost doesn't use HTTPS
-        sameSite: 'Lax',
-      },
-    ]);
+  page: async ({ page }, use) => {
+    // Intercept all API requests and add the test token header
+    if (E2E_TEST_TOKEN) {
+      await page.route('**/api/**', async (route) => {
+        const headers = {
+          ...route.request().headers(),
+          'X-Test-Token': E2E_TEST_TOKEN,
+        };
+        await route.continue({ headers });
+      });
+    }
     
     await use(page);
   },
