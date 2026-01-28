@@ -5,9 +5,18 @@ import os from 'os';
 // Set browser path to user's home directory cache
 process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(os.homedir(), 'Library/Caches/ms-playwright');
 
+// Support testing against production via PLAYWRIGHT_BASE_URL environment variable
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3456';
+const isProduction = baseURL.includes('vercel.app') || baseURL.includes('https://');
+
 /**
  * Playwright configuration for E2E testing
  * @see https://playwright.dev/docs/test-configuration
+ * 
+ * To test against production:
+ *   PLAYWRIGHT_BASE_URL=https://traffic-dashboard-theta.vercel.app npx playwright test
+ * Or use the npm script:
+ *   npm run test:e2e:prod
  */
 export default defineConfig({
   // Test directory
@@ -19,8 +28,8 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only
-  retries: process.env.CI ? 2 : 0,
+  // Retry on CI only (or when testing production)
+  retries: process.env.CI ? 2 : (isProduction ? 1 : 0),
 
   // Opt out of parallel tests on CI
   workers: process.env.CI ? 1 : undefined,
@@ -33,8 +42,8 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    // Base URL for navigation
-    baseURL: 'http://localhost:3456',
+    // Base URL for navigation (supports production override)
+    baseURL,
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -63,8 +72,8 @@ export default defineConfig({
     // },
   ],
 
-  // Run local dev server before starting the tests
-  webServer: {
+  // Run local dev server before starting the tests (skip for production testing)
+  webServer: isProduction ? undefined : {
     command: 'python3 -m http.server 3456',
     url: 'http://localhost:3456',
     reuseExistingServer: true,

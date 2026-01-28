@@ -102,7 +102,22 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
    ```
 5. Push to origin master: `git push origin master`
 6. Vercel auto-deploys from GitHub
-7. Provide URL: https://traffic-dashboard-theta.vercel.app/
+7. **WAIT for deployment to complete** (~1-2 minutes)
+8. **Run production tests to verify deployment:**
+   ```bash
+   npm run test:e2e:prod
+   ```
+   - This runs tests against the LIVE production site
+   - Catches issues like missing API files, broken features
+   - If tests fail, investigate and fix before considering deployment complete
+9. Provide URL: https://traffic-dashboard-theta.vercel.app/
+
+### Automated CI Testing
+
+GitHub Actions runs E2E tests automatically on every push to master:
+- Tests run BEFORE Vercel deploys
+- If tests fail, check the Actions tab on GitHub for details
+- Fix failing tests before pushing again
 
 ---
 
