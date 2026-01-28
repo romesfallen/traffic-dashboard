@@ -2334,39 +2334,42 @@
                     const text = await response.text();
                     const parsed = Papa.parse(text, { 
                         header: true,
-                        skipEmptyLines: true
+                        skipEmptyLines: false,
+                        transformHeader: (header) => header.trim()
                     });
-                    csvCache.internalAvg = { parsed };
+                    
+                    const headers = parsed.meta.fields || [];
+                    csvCache.internalAvg = { parsed, headers };
                 }
                 
-                const { parsed } = csvCache.internalAvg;
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const { parsed, headers } = csvCache.internalAvg;
                 const internalAvgByDomain = {};
                 
                 // Process each domain in the list
                 domainList.forEach(domain => {
-                    const domainRows = parsed.data.filter(row => 
-                        row.domain && row.domain.toLowerCase() === domain.toLowerCase()
+                    const row = parsed.data.find(r => 
+                        r.Website && r.Website.toLowerCase() === domain.toLowerCase()
                     );
                     
                     const dataMap = new Map();
-                    domainRows.forEach(row => {
-                        if (!row.date || !row.average_traffic) return;
-                        
-                        const isoDate = new Date(row.date);
-                        if (isNaN(isoDate.getTime())) return;
-                        
-                        const month = monthNames[isoDate.getMonth()];
-                        const day = isoDate.getDate();
-                        const year = isoDate.getFullYear();
-                        const dateStr = `${month} ${day} ${year}`;
-                        
-                        const value = parseNumber(row.average_traffic);
-                        if (value !== null && value !== undefined) {
-                            dataMap.set(dateStr, value);
-                        }
-                    });
+                    
+                    if (row) {
+                        // Parse date columns (format: "Jan 1 - 2025" or similar)
+                        headers.forEach(header => {
+                            // Match date patterns like "Jan 1 - 2025"
+                            const dateMatch = header.match(/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)\s*-\s*(\d{4})$/);
+                            if (dateMatch) {
+                                const [, month, day, year] = dateMatch;
+                                const dateStr = `${month} ${day} ${year}`;
+                                const value = parseNumber(row[header]);
+                                if (value !== null && value !== undefined) {
+                                    if (!dataMap.has(dateStr)) {
+                                        dataMap.set(dateStr, value);
+                                    }
+                                }
+                            }
+                        });
+                    }
                     
                     internalAvgByDomain[domain] = dataMap;
                 });
