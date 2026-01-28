@@ -568,6 +568,7 @@
     <div class="header">
         <h1>Revenue Leaderboard</h1>
         <p>All Sites with Revenue > $0.01 — <span id="siteCount">Loading...</span></p>
+        <p class="sync-status" id="syncStatus" style="font-size: 12px; color: #999; margin-top: 4px;">Loading sync status...</p>
         <a href="index-apex.html" class="nav-link">← Back to Dashboard</a>
     </div>
 
@@ -757,8 +758,9 @@
 
         async function loadAgentNicheCSV() {
             try {
-                const response = await fetch('Site Agent & Niche.csv');
-                if (!response.ok) throw new Error('Failed to load Agent & Niche CSV');
+                // Fetch from S3 via API endpoint (not local static file)
+                const response = await fetch('/api/data/agent-niche', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load Agent & Niche CSV from S3');
                 
                 const text = await response.text();
                 const parsed = Papa.parse(text, { 
@@ -1552,6 +1554,48 @@
             }
         }
         checkAuthAndLoadUser();
+
+        // Fetch and display sync status
+        async function loadSyncStatus() {
+            try {
+                const response = await fetch('/api/data/sync-status', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to fetch sync status');
+                
+                const data = await response.json();
+                const syncStatusEl = document.getElementById('syncStatus');
+                
+                if (data.last_sync) {
+                    const lastSync = new Date(data.last_sync);
+                    const now = new Date();
+                    const diffMs = now - lastSync;
+                    const diffMins = Math.floor(diffMs / (1000 * 60));
+                    
+                    let timeAgo;
+                    if (diffMins < 1) {
+                        timeAgo = 'just now';
+                    } else if (diffMins === 1) {
+                        timeAgo = '1 minute ago';
+                    } else if (diffMins < 60) {
+                        timeAgo = `${diffMins} minutes ago`;
+                    } else {
+                        const diffHours = Math.floor(diffMins / 60);
+                        timeAgo = diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+                    }
+                    
+                    syncStatusEl.textContent = `Last synced: ${timeAgo}`;
+                    syncStatusEl.style.color = diffMins > 60 ? '#f97316' : '#999'; // Orange if stale
+                } else {
+                    syncStatusEl.textContent = 'Sync status unavailable';
+                }
+            } catch (error) {
+                console.warn('Could not load sync status:', error);
+                document.getElementById('syncStatus').textContent = '';
+            }
+        }
+        
+        // Load sync status on page load and refresh every 60 seconds
+        loadSyncStatus();
+        setInterval(loadSyncStatus, 60000);
     </script>
 </body>
 </html>
