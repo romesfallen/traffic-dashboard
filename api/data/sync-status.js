@@ -1,6 +1,6 @@
 /**
- * API endpoint to serve traffic-data-priority.csv from S3
- * Protected by existing Google OAuth
+ * API endpoint to serve sync-log.json from S3
+ * Returns the last sync timestamp and status
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -14,9 +14,10 @@ const s3Client = new S3Client({
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'traffic-dashboard-theta';
-const S3_KEY = 'traffic-data-priority.csv';
+const S3_KEY = 'sync-log.json';
 
 export default async function handler(req, res) {
+  // Check authentication
   const cookies = req.headers.cookie || '';
   const sessionMatch = cookies.match(/auth_session=([^;]+)/);
   
@@ -31,23 +32,30 @@ export default async function handler(req, res) {
     });
 
     const response = await s3Client.send(command);
-    const csvContent = await streamToString(response.Body);
+    const jsonContent = await streamToString(response.Body);
+    const syncLog = JSON.parse(jsonContent);
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Cache-Control', 'public, max-age=300');
+    // Return relevant sync info
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=60'); // Cache for 1 minute
     
-    return res.status(200).send(csvContent);
+    return res.status(200).json({
+      last_sync: syncLog.last_sync,
+      status: syncLog.status,
+      duration_seconds: syncLog.duration_seconds,
+    });
   } catch (error) {
-    console.error('Error fetching from S3:', error);
+    console.error('Error fetching sync status from S3:', error);
     
     if (error.name === 'NoSuchKey') {
-      return res.status(404).json({ error: 'Data not found' });
+      return res.status(404).json({ error: 'Sync log not found' });
     }
     
-    return res.status(500).json({ error: 'Failed to fetch data' });
+    return res.status(500).json({ error: 'Failed to fetch sync status' });
   }
 }
 
+// Helper to convert stream to string
 async function streamToString(stream) {
   const chunks = [];
   for await (const chunk of stream) {

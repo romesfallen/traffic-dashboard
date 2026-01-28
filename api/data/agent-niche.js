@@ -1,6 +1,8 @@
 /**
- * API endpoint to serve traffic-data-priority.csv from S3
+ * API endpoint to serve site-agent-niche.csv from S3
  * Protected by existing Google OAuth
+ * 
+ * Note: This file is manually uploaded to S3 (~monthly updates)
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -14,9 +16,10 @@ const s3Client = new S3Client({
 });
 
 const S3_BUCKET = process.env.S3_BUCKET_NAME || 'traffic-dashboard-theta';
-const S3_KEY = 'traffic-data-priority.csv';
+const S3_KEY = 'site-agent-niche.csv';
 
 export default async function handler(req, res) {
+  // Check authentication
   const cookies = req.headers.cookie || '';
   const sessionMatch = cookies.match(/auth_session=([^;]+)/);
   
@@ -33,21 +36,23 @@ export default async function handler(req, res) {
     const response = await s3Client.send(command);
     const csvContent = await streamToString(response.Body);
 
+    // Set CSV headers - longer cache since this data updates infrequently
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
     
     return res.status(200).send(csvContent);
   } catch (error) {
-    console.error('Error fetching from S3:', error);
+    console.error('Error fetching agent-niche from S3:', error);
     
     if (error.name === 'NoSuchKey') {
-      return res.status(404).json({ error: 'Data not found' });
+      return res.status(404).json({ error: 'Agent/Niche data not found' });
     }
     
-    return res.status(500).json({ error: 'Failed to fetch data' });
+    return res.status(500).json({ error: 'Failed to fetch agent/niche data' });
   }
 }
 
+// Helper to convert stream to string
 async function streamToString(stream) {
   const chunks = [];
   for await (const chunk of stream) {
