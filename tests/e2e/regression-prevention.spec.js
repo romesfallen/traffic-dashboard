@@ -434,3 +434,46 @@ test.describe('Chart Date Range Options Completeness', () => {
     }
   });
 });
+
+test.describe('Sync Status Feature - Leaderboard', () => {
+  const LEADERBOARD_URL = '/leaderboard.html';
+  
+  test('CRITICAL: Sync status element exists', async ({ page }) => {
+    await page.goto(LEADERBOARD_URL);
+    await waitForPageLoad(page);
+    
+    const syncStatus = page.locator('#syncStatus');
+    await expect(syncStatus, 'Sync status element #syncStatus is MISSING').toBeAttached();
+  });
+
+  test('CRITICAL: Sync status API endpoint responds', async ({ page }) => {
+    await page.goto(LEADERBOARD_URL);
+    
+    const response = await page.request.get('/api/data/sync-status');
+    expect(response.status(), 'Sync status API should return 200').toBe(200);
+    
+    const data = await response.json();
+    expect(data, 'Sync status should have last_sync field').toHaveProperty('last_sync');
+  });
+
+  test('Sync status shows time ago text', async ({ page }) => {
+    await page.goto(LEADERBOARD_URL);
+    await waitForPageLoad(page);
+    
+    // Wait for sync status to load
+    await page.waitForTimeout(2000);
+    
+    const syncStatus = page.locator('#syncStatus');
+    const text = await syncStatus.textContent();
+    
+    // Should show either "Last synced: X ago" or status message
+    const hasExpectedText = 
+      text.includes('Last synced') || 
+      text.includes('minute') || 
+      text.includes('hour') ||
+      text.includes('just now') ||
+      text.includes('Sync status');
+    
+    expect(hasExpectedText, `Sync status should show time info, got: "${text}"`).toBe(true);
+  });
+});

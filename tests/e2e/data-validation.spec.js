@@ -77,6 +77,21 @@ test.describe('API Endpoint Availability', () => {
     expect(text.length).toBeGreaterThan(100);
     expect(text).toContain('Website');
   });
+
+  test('sync-status API returns data', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    
+    const response = await page.request.get('/api/data/sync-status');
+    expect(response.status()).toBe(200);
+    
+    const data = await response.json();
+    expect(data).toHaveProperty('last_sync');
+    expect(data).toHaveProperty('status');
+    
+    // last_sync should be a valid date string
+    const lastSync = new Date(data.last_sync);
+    expect(lastSync.getTime()).not.toBeNaN();
+  });
 });
 
 test.describe('Chart Data Validation - Monthly View', () => {

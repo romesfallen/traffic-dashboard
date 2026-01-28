@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A traffic comparison dashboard showing internal traffic data vs Ahrefs data, with revenue tracking, DR (Domain Rating) and RD (Referring Domains) history. Built with ApexCharts for visualization.
+A traffic comparison dashboard showing internal traffic data vs Ahrefs data, with revenue tracking and DR (Domain Rating) history. Built with ApexCharts for visualization.
 
 **Live URL:** https://traffic-dashboard-theta.vercel.app/
 **Main Dashboard:** /index-apex.html
@@ -12,13 +12,86 @@ A traffic comparison dashboard showing internal traffic data vs Ahrefs data, wit
 
 ---
 
+## CRITICAL: Pre-Change Checklist (MUST FOLLOW)
+
+> **This checklist prevents accidental feature removal. Follow EVERY time before making changes.**
+
+### BEFORE Making Any Edit
+
+1. **Check for untracked files that should be committed:**
+   ```bash
+   git status
+   ```
+   - Look for API files in `api/data/` that are untracked
+   - Look for test files that haven't been committed
+   - **If files are untracked but needed for features, commit them FIRST**
+
+2. **Understand what the file currently does:**
+   - Read the file (or relevant sections)
+   - List the features it provides
+   - Note all CSS classes, IDs, and function names used by other files
+
+3. **Check if the feature has tests:**
+   - Search in `tests/` folder for related test coverage
+   - If no tests exist, consider adding them FIRST
+
+### AFTER Making Changes
+
+4. **Verify no features were removed:**
+   ```bash
+   git diff HEAD -- <filename>
+   ```
+   - Check lines starting with `-` (deletions)
+   - Ask: "Was this deletion intentional?"
+   - Look for removed functions, CSS classes, HTML elements
+
+5. **Check for new untracked files:**
+   ```bash
+   git status
+   ```
+   - Any new API endpoints created? They need to be committed!
+   - Any new test files? Commit them!
+
+6. **Run tests if available:**
+   ```bash
+   npx playwright test
+   ```
+
+### BEFORE Committing
+
+7. **Review the full diff:**
+   ```bash
+   git diff --staged
+   ```
+   - Ensure only intended changes are included
+   - Check for accidentally removed code
+
+8. **Check all API endpoints are committed:**
+   ```bash
+   ls api/data/
+   git status api/data/
+   ```
+   - Every `.js` file in `api/data/` should be tracked
+
+### Common Mistakes to Avoid
+
+| Mistake | Prevention |
+|---------|------------|
+| Feature removed in edit | Always `git diff` before commit |
+| New API file not committed | Always `git status` to check untracked files |
+| Test using wrong selector | Verify selectors match actual HTML IDs/classes |
+| CSV parsing uses wrong column | Check actual CSV structure before writing parser |
+
+---
+
 ## Deployment Instructions
 
 When asked to "push", "deploy", "push live", or "push to Vercel":
 
-1. Check git status for changes
-2. Stage relevant files with `git add`
-3. Commit with descriptive message using HEREDOC format:
+1. **Follow Pre-Change Checklist above FIRST**
+2. Check git status for changes AND untracked files
+3. Stage relevant files with `git add` (including any untracked API files!)
+4. Commit with descriptive message using HEREDOC format:
    ```bash
    git commit -m "$(cat <<'EOF'
    Commit title here
@@ -27,9 +100,77 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
    EOF
    )"
    ```
-4. Push to origin master: `git push origin master`
-5. Vercel auto-deploys from GitHub
-6. Provide URL: https://traffic-dashboard-theta.vercel.app/
+5. Push to origin master: `git push origin master`
+6. Vercel auto-deploys from GitHub
+7. Provide URL: https://traffic-dashboard-theta.vercel.app/
+
+---
+
+## Data Architecture (CRITICAL)
+
+> **ALL DATA IS HOSTED ON AWS S3** - There are NO local CSV files in this project.
+
+### Data Flow
+```
+Google Sheets → Lambda (every 15 min) → S3 Bucket → Vercel API → Dashboard
+```
+
+### S3 Bucket: `traffic-dashboard-theta`
+| S3 File | API Endpoint | Sync Frequency |
+|---------|--------------|----------------|
+| `traffic-data.csv` | `/api/data/traffic` | Every 15 min (Lambda) |
+| `traffic-data-priority.csv` | `/api/data/traffic-priority` | Every 15 min (Lambda) |
+| `revenue-history.csv` | `/api/data/revenue` | Every 15 min (Lambda) |
+| `DR History.csv` | `/api/data/dr` | Every 15 min (Lambda) |
+| `DR History-priority.csv` | `/api/data/dr-priority` | Every 15 min (Lambda) |
+| `internal-average-traffic.csv` | `/api/data/average` | Every 15 min (Lambda) |
+| `site-agent-niche.csv` | `/api/data/agent-niche` | Manual upload (~monthly) |
+| `sync-log.json` | `/api/data/sync-status` | Every 15 min (Lambda) |
+
+### NEVER use local CSV files
+- All `fetch()` calls MUST use `/api/data/*` endpoints
+- Local CSV files were deleted to prevent stale data issues
+- If you see `fetch('*.csv')` without `/api/data/`, it's a BUG
+
+### Revenue "Current" Column
+- Google Sheet uses "Current" header for current month (not "Jan 2026")
+- Frontend dynamically maps "Current" → current month key (e.g., "Jan2026")
+- This happens automatically based on system date
+
+---
+
+## Debugging Guidelines
+
+> **When encountering data issues, ADD EXTENSIVE CONSOLE LOGGING FIRST**
+
+### Standard Debugging Process
+1. **Add console.log statements** at key data processing points
+2. **Deploy to production** (debugging often requires live S3 data)
+3. **Check browser console** for the debug output
+4. **Identify the issue** from the logs
+5. **Fix the root cause**
+6. **Remove debug logging** before final commit
+
+### Recommended Debug Points
+- After fetching CSV: log row count, column count, sample data
+- During data parsing: log parsed values, date formats
+- Before chart rendering: log data points, date ranges
+- For specific domains: add conditional logging (e.g., `if (domain === 'betterthisworld.com')`)
+
+### Example Debug Pattern
+```javascript
+console.log('🔍 DEBUG [SECTION]:', {
+    totalRows: data.length,
+    sampleRow: data[0],
+    expectedValue: someVar,
+    actualValue: otherVar
+});
+```
+
+### Debug Logging Rules
+- Use emoji prefixes for visibility: 🔍 DEBUG, ✅ SUCCESS, ❌ ERROR
+- Always remove debug logs after issue is resolved
+- Never commit extensive debug logging to production permanently
 
 ---
 
@@ -55,8 +196,6 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Revenue bars (stepped area, bottom-third of chart)
 - [x] Revenue labels with toggle on/off
 - [x] DR (Domain Rating) line with dotted style
-- [x] DR metric card with Ahrefs-style circular progress ring (purple, fills based on 0-100 value)
-- [x] RD (Referring Domains) line - pink dashed, hidden by default, toggle via legend
 - [x] Date range selector (7d, 30d, 90d, 6mo, 1yr, From Dec 2024, All time)
 - [x] Searchable domain dropdown with keyboard navigation
 - [x] Linear interpolation for missing data points
@@ -82,20 +221,15 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Back to Dashboard link
 - [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
 - [x] Rank change column on Current Month tab (separate sortable column)
-- [x] Show Metrics toggle - displays DR, Traffic, RD columns when enabled
 - [x] Filter panel on Current Month tab:
   - Rank (min/max range)
   - Change (Up only, Down only, New only, Unchanged)
   - Revenue (min/max range)
   - Agent (dropdown)
   - % of Portfolio (min/max range)
-  - DR (min/max range, 0-100)
-  - Traffic (min/max range)
-  - Ref. Domains (min/max range)
   - Filters are combinable
   - Active filter count badge
   - Clear All button
-  - Using metric filters auto-enables Show Metrics toggle
 - [x] Table max-width 1100px for better domain/icon fit
 
 ### Sites by Agent (agent.html)
@@ -126,81 +260,9 @@ When asked to "push", "deploy", "push live", or "push to Vercel":
 - [x] Similar structure to agent.html but filtered by niche
 - [x] Dynamic month calculations (Last 3 Months uses complete calendar months only)
 
-### Data Sources (S3-backed)
-Data is synced from Google Sheets to AWS S3 every 30 minutes via Lambda, then served through Vercel API endpoints.
-
-| Data | S3 File | API Endpoint | Source Google Sheet Tab |
-|------|---------|--------------|-------------------------|
-| Traffic Monthly | `traffic-data.csv` | `/api/data/traffic` | Traffic Monthly |
-| Traffic Average | `internal-average-traffic.csv` | `/api/data/average` | Traffic Average |
-| DR History | `DR History.csv` | `/api/data/dr` | DR |
-| RD History | `RD History.csv` | `/api/data/rd` | RD |
-| Revenue | `revenue-history.csv` | `/api/data/revenue` | Revenue |
-
-**Priority CSV files (for faster dashboard load):**
-Lambda also generates filtered versions containing only top ~200 domains (by revenue):
-
-| Data | S3 File | API Endpoint | Size Reduction |
-|------|---------|--------------|----------------|
-| Traffic Priority | `traffic-data-priority.csv` | `/api/data/traffic-priority` | ~14MB → ~500KB |
-| Average Priority | `internal-average-traffic-priority.csv` | `/api/data/average-priority` | Similar |
-| DR Priority | `DR History-priority.csv` | `/api/data/dr-priority` | ~7.5MB → ~300KB |
-| RD Priority | `RD History-priority.csv` | `/api/data/rd-priority` | Similar |
-
-The main dashboard (`index-apex.html`) fetches priority files first with fallback to full files. Leaderboard/agent/niche pages still use full files since they display all domains.
-
-**Local files (not synced):**
-- `ahrefs_organic_traffic_results.csv` - Ahrefs organic traffic (loaded directly)
-- `ahrefs-average-traffic.csv` - Ahrefs average traffic (loaded directly)
-- `Site Agent & Niche.csv` - Agent/niche mappings (loaded directly)
-
-**Note:** Revenue CSV uses "Current" as column header for the current month instead of "Jan 2026" format. The dashboard dynamically maps "Current" to whatever the actual current month is.
-
----
-
-## Data Sync Architecture
-
-Data flows from Google Sheets → AWS Lambda → S3 → Vercel API → Dashboard.
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Google Sheets  │────▶│   AWS Lambda    │────▶│     AWS S3      │
-│  (source data)  │     │ (every 30 min)  │     │  (CSV storage)  │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                         │
-                                                         ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│    Dashboard    │◀────│  Vercel API     │◀────│   S3 Bucket     │
-│   (frontend)    │     │ (/api/data/*)   │     │ (private read)  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-```
-
-### AWS Lambda Function
-- **Name:** `dashboard-data-sync`
-- **Region:** ap-southeast-2 (Sydney)
-- **Schedule:** EventBridge rule every 30 minutes
-- **Runtime:** Python 3.11
-- **Code location:** `lambda/sync-dashboard.py`
-- **What it does:** Reads 5 tabs from Google Sheets, converts to CSV, uploads to S3
-
-### S3 Bucket
-- **Name:** `traffic-dashboard-theta`
-- **Region:** ap-southeast-2
-- **Access:** Private (no public access)
-- **Files:** `traffic-data.csv`, `internal-average-traffic.csv`, `DR History.csv`, `RD History.csv`, `revenue-history.csv`
-
-### Vercel API Endpoints
-Protected by Google OAuth (checks `auth_session` cookie):
-- `GET /api/data/traffic` → S3 `traffic-data.csv`
-- `GET /api/data/average` → S3 `internal-average-traffic.csv`
-- `GET /api/data/dr` → S3 `DR History.csv`
-- `GET /api/data/rd` → S3 `RD History.csv`
-- `GET /api/data/revenue` → S3 `revenue-history.csv`
-
-### Google Sheets Source
-- **Sheet ID:** Configured in Lambda environment variable `TRAFFIC_DR_SHEET_ID`
-- **Tabs synced:** Traffic Monthly, Traffic Average, DR, RD, Revenue
-- **Access:** Via Google Service Account with viewer permissions
+### Data Sources
+> See **Data Architecture** section above for complete S3/API mapping.
+- Ahrefs Monthly/Average Traffic - TEMPORARILY DISABLED (new methodology pending, UI infrastructure kept)
 
 ---
 
@@ -410,51 +472,26 @@ lyncconf.com,2024-01-02T00:00:00Z,1980
 traffic-dashboard/
 ├── index-apex.html          # Main dashboard (ApexCharts - production)
 ├── leaderboard.html         # Revenue leaderboard page
-├── agent.html               # Sites by Agent view
-├── niche.html               # Sites by Niche view
-├── log.html                 # Sync log monitoring page
 ├── index.html               # Legacy Chart.js version (deprecated)
 ├── index-apex-annotations.html  # Experimental annotations version
-│
 ├── api/
-│   ├── auth/
-│   │   ├── login.js         # Redirects to Google OAuth
-│   │   ├── callback.js      # Handles OAuth callback, validates email
-│   │   ├── logout.js        # Clears session cookie
-│   │   ├── me.js            # Returns current user info
-│   │   └── check.js         # Returns auth status for client-side check
-│   └── data/
-│       ├── traffic.js       # Serves traffic-data.csv from S3
-│       ├── traffic-priority.js  # Serves priority version (top ~200 domains)
-│       ├── average.js       # Serves internal-average-traffic.csv from S3
-│       ├── average-priority.js  # Serves priority version
-│       ├── dr.js            # Serves DR History.csv from S3
-│       ├── dr-priority.js   # Serves priority version
-│       ├── rd.js            # Serves RD History.csv from S3
-│       ├── rd-priority.js   # Serves priority version
-│       ├── revenue.js       # Serves revenue-history.csv from S3
-│       └── sync-log.js      # Serves sync-log.json (sync status/history)
-│
-├── lambda/
-│   ├── sync-dashboard.py    # AWS Lambda function code
-│   ├── requirements.txt     # Python dependencies
-│   └── deploy.sh            # Deployment script
-│
+│   └── auth/
+│       ├── login.js         # Redirects to Google OAuth
+│       ├── callback.js      # Handles OAuth callback, validates email
+│       ├── logout.js        # Clears session cookie
+│       ├── me.js            # Returns current user info
+│       └── check.js         # Returns auth status for client-side check
 ├── vercel.json              # Vercel deployment config + headers
-├── package.json             # Node.js dependencies (@aws-sdk/client-s3)
 ├── robots.txt               # Blocks search engine crawlers
 ├── .cursorrules             # This file - KEEP UPDATED
 ├── .gitignore               # Git ignore rules
 │
-├── # Local Data Files (not synced from S3)
-├── ahrefs_organic_traffic_results.csv  # Ahrefs organic traffic
-├── ahrefs-average-traffic.csv          # Ahrefs average traffic
-├── Site Agent & Niche.csv              # Agent/niche mappings
+├── # Data Files (all now served from S3 via /api/data/* endpoints)
+├── # Local CSVs removed - data fetched from S3 to prevent stale data issues
 │
 ├── # Documentation
 ├── README.md                # Setup instructions
-├── PRD.md                   # Product requirements document
-└── SYNC-SETUP.md            # AWS/GCP/Vercel setup guide
+└── PRD.md                   # Product requirements document
 ```
 
 ---
@@ -506,17 +543,6 @@ No redeploy needed - changes take effect immediately.
 | `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth credentials |
 | `SESSION_SECRET` | Random 32+ char string for signing cookies |
 | `ALLOWED_EMAILS` | Comma-separated list of approved emails |
-| `AWS_ACCESS_KEY_ID` | IAM user credentials for S3 read access |
-| `AWS_SECRET_ACCESS_KEY` | IAM user credentials for S3 read access |
-| `AWS_REGION` | AWS region (ap-southeast-2) |
-| `S3_BUCKET_NAME` | S3 bucket name (traffic-dashboard-theta) |
-
-### Required AWS Lambda Environment Variables
-| Variable | Description |
-|----------|-------------|
-| `S3_BUCKET_NAME` | S3 bucket name (traffic-dashboard-theta) |
-| `TRAFFIC_DR_SHEET_ID` | Google Sheets ID for traffic/DR/revenue data |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | Base64-encoded service account JSON |
 
 ---
 
@@ -574,15 +600,107 @@ python3 -m http.server 8000
 
 ## Pending / Future Features
 
-### Completed
-- [x] **Automated data updates** - ✅ DONE: AWS Lambda syncs Google Sheets → S3 every 30 minutes
-- [x] **Priority CSV loading** - ✅ DONE: Lambda generates priority CSVs (~200 top domains) for 5-10x faster initial load. Full CSVs still available for leaderboard/agent pages.
-
 ### High Priority
-- [ ] **Ahrefs data sync (Phase 2)** - Sync `ahrefs_organic_traffic_results.csv` and `ahrefs-average-traffic.csv` from Ahrefs API or Google Sheets
-- [ ] **Slack notifications** - Alert on sync failures (Lambda has placeholder code)
+
+- [ ] **Slack Alerting System** - Proactive monitoring via Slack notifications
+  
+  **Environment Setup:**
+  - Add `SLACK_WEBHOOK_URL` to Lambda environment variables
+  - Create dedicated Slack channel (e.g., #dashboard-alerts)
+  
+  **Alert Types:**
+  
+  1. **Sync Summary** (sent after every successful sync)
+     - Files synced with row/column counts
+     - Latest date with actual data per file
+     - Sync duration
+     - Any warnings encountered
+  
+  2. **Data Freshness Alert** (threshold: 26 hours)
+     - Triggers if latest data date is older than threshold
+     - Checked per metric: Traffic, DR, Revenue
+     - Example: "Traffic data is stale - latest date is Jan 25, 2026 (32 hours old)"
+  
+  3. **Sync Error Alert** (immediate)
+     - Triggers on any sync failure
+     - Includes: error type, message, affected file, stack trace
+     - Example: "Sync failed: Google Sheets API rate limit exceeded"
+  
+  4. **Data Quality Alert** (immediate)
+     - Row count dropped by >10% vs previous sync
+     - Expected columns missing
+     - Example: "traffic-data.csv row count dropped from 5072 to 4500 (-11%)"
+  
+  5. **Value Change Monitor** (checks after each sync)
+     - Stores MD5 hash of each CSV after sync
+     - Compares to previous sync's hash
+     - Alerts if same file unchanged for 3+ consecutive syncs (45 min at 15-min intervals)
+     - Tracks per-file: traffic, DR, revenue separately
+     - Catches scenario where syncs run but source data (Ahrefs/Google Sheets) hasn't actually updated
+     - Example: "DR History.csv unchanged for 3 syncs (45 min) - source data may not be updating"
+  
+  **Implementation in sync-dashboard.py:**
+  ```python
+  import hashlib
+  import requests
+  
+  def send_slack_alert(webhook_url, message, alert_type='info'):
+      # Format with Slack Block Kit
+      # alert_type: 'info', 'warning', 'error'
+      pass
+  
+  def compute_data_hash(csv_content):
+      return hashlib.md5(csv_content.encode()).hexdigest()[:12]
+  
+  # In sync-log.json, store:
+  # {
+  #   "last_sync": "...",
+  #   "data_hashes": {
+  #     "traffic-data.csv": {"hash": "abc123", "unchanged_count": 0},
+  #     "DR History.csv": {"hash": "def456", "unchanged_count": 2},
+  #     ...
+  #   }
+  # }
+  ```
+
+- [x] **Automated data sync** - Lambda syncs Google Sheets to S3 every 15 minutes (EventBridge schedule)
+
+- [ ] **Dashboard Warning Banner** - Visual alert when data is stale
+  - Show banner at top of page: "Warning: Traffic data may be stale (last update: Jan 25)"
+  - Check latest date in each dataset vs current date
+  - Thresholds: Traffic/DR >26 hours, Revenue >2 days
+  - Implementation: Add `checkDataFreshness()` function in index-apex.html
+
+- [ ] **Lambda Validation Layer** - Verify data before S3 upload
+  - Check row counts match expected range
+  - Verify latest date columns have data (not all empty)
+  - Validate column count matches expected format
+  - Log warnings to CloudWatch if validation fails
+  - Still upload data but flag as potentially incomplete
+
+- [ ] **Staged CSV loading** - Load top 100 revenue domains first for fast initial render, then load rest in background. Options: (A) pre-split CSVs, (B) streaming parse, (C) sort CSVs by revenue rank + preview mode
 - [ ] **Sales manager assignment** - Add "Sales Manager" column to revenue-history.csv (e.g., "Rina", "Jack", etc.)
 - [ ] **Sales manager filter view** - Filter dashboard/leaderboard to show only sites owned by a specific sales manager. Could be dropdown filter or separate page like leaderboard
+
+### Lessons Learned (Jan 28, 2026)
+
+> **Root causes of data sync issues encountered:**
+
+1. **Google Sheets API trailing empty cells** - API omits trailing empty cells from rows, causing Lambda merge to skip new date columns. Fixed by iterating over header length, not row length.
+
+2. **Frontend using local CSV files** - Dashboard was fetching stale local files instead of S3 API endpoints. Fixed by changing all `fetch('*.csv')` to `fetch('/api/data/*')`.
+
+3. **Revenue "Current" column not mapped** - Google Sheet uses "Current" header for current month revenue, but frontend expected "Jan 2026" format. Fixed by adding dynamic mapping of "Current" to current month.
+
+4. **Empty API file** - `traffic-priority.js` was accidentally emptied, causing 500 errors. No automated detection caught this.
+
+5. **No data freshness visibility** - Users had no way to know if displayed data was stale until manually checking.
+
+> **Preventive measures:**
+- All data now fetched from S3 via API endpoints (no local CSVs)
+- "Last synced X minutes ago" indicator added to leaderboard
+- Slack alerting system spec'd (pending implementation)
+- Lambda fixes for Google Sheets API quirks
 
 
 ---
@@ -620,16 +738,16 @@ python3 -m http.server 8000
 | Jan 24, 2026 | Leaderboard rank change | Added Change column and sorting to leaderboard Current Month tab |
 | Jan 24, 2026 | Filter panel | Added filter button/panel to Current Month tab on leaderboard and agent pages |
 | Jan 24, 2026 | Table width increase | Increased max-width from 900px to 1100px, added nowrap to domain cells |
-| Jan 26, 2026 | S3 Data Sync | AWS Lambda syncs Google Sheets → S3 every 30 min |
-| Jan 26, 2026 | Vercel API Proxy | New /api/data/* endpoints serve S3 data securely |
-| Jan 26, 2026 | "Current" column fix | Revenue CSV "Current" header maps to current month dynamically |
-| Jan 26, 2026 | RD (Referring Domains) | Added RD metric to dashboard - pink dashed line, hidden by default, toggle via legend click |
-| Jan 26, 2026 | DR Circle Progress Ring | Added Ahrefs-style circular progress indicator to DR metric card on main dashboard |
-| Jan 26, 2026 | Leaderboard Show Metrics | Added toggle to show/hide DR, Traffic, RD columns in leaderboard table |
-| Jan 26, 2026 | Leaderboard Metric Filters | Added DR, Traffic, Ref. Domains filters to filter panel (auto-loads metrics when used) |
-| Jan 27, 2026 | Priority CSV Fast Loading | Lambda generates priority CSVs for top ~200 domains. Dashboard loads ~1-2MB instead of ~25MB for 5-10x faster initial render. New API endpoints: `/api/data/*-priority`. Frontend falls back to full files if priority not available. |
-| Jan 27, 2026 | Sync Log Monitoring | New `/log` page shows sync status, file sizes, and history. Lambda writes `sync-log.json` to S3 after each run. `/api/data/sync-log` endpoint serves the log. Auto-refresh toggle for real-time monitoring. |
+| Jan 27, 2026 | S3 sync bug fix | Fixed Google Sheets API empty cell bug overwriting good data |
+| Jan 27, 2026 | Sync status indicator | Added "Last synced X minutes ago" to leaderboard page |
+| Jan 27, 2026 | 15-min sync interval | Changed EventBridge from 30 min to 15 min for faster updates |
+| Jan 27, 2026 | Slack alerting spec | Documented full Slack notification system in High Priority |
+| Jan 28, 2026 | S3 data migration | All data now fetched from S3 via API endpoints, deleted local CSVs |
+| Jan 28, 2026 | Site Agent & Niche to S3 | Moved to S3 with new /api/data/agent-niche endpoint (manual upload ~monthly) |
+| Jan 28, 2026 | Ahrefs data disabled | Temporarily disabled pending new methodology (UI infrastructure kept) |
+| Jan 28, 2026 | Revenue "Current" fix | Map Google Sheet "Current" column to dynamic current month (Jan2026, Feb2026, etc.) |
+| Jan 28, 2026 | Monitoring plan documented | Added Dashboard Warning Banner, Lambda Validation, Lessons Learned sections |
 
 ---
 
-*Last updated: January 27, 2026 - Added Sync Log Monitoring page at /log*
+*Last updated: January 28, 2026 - S3 migration, Revenue "Current" column fix, comprehensive monitoring plan documented*
