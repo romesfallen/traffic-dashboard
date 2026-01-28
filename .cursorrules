@@ -84,6 +84,70 @@ A traffic comparison dashboard showing internal traffic data vs Ahrefs data, wit
 
 ---
 
+## CRITICAL: New Features Must Have Tests
+
+> **Every new feature MUST have corresponding E2E tests before being considered complete.**
+
+### When Adding a New Feature
+
+1. **Write tests FIRST or IMMEDIATELY after** implementing the feature
+2. **Test location:** `tests/e2e/` directory
+3. **Test types to include:**
+   - Feature existence test (element exists on page)
+   - Feature functionality test (clicking/interacting works)
+   - Data validation test (if feature displays data)
+   - Regression test in `regression-prevention.spec.js` for critical features
+
+### Test File Structure
+
+| Feature Type | Where to Add Tests |
+|--------------|-------------------|
+| New UI element | `feature-combinations.spec.js` or new spec file |
+| New API endpoint | `data-validation.spec.js` |
+| Critical feature | `regression-prevention.spec.js` |
+| Navigation change | `navigation.spec.js` |
+
+### Example: Adding a New Toggle
+
+```javascript
+// In feature-combinations.spec.js or filters.spec.js
+test.describe('New Feature Toggle', () => {
+  test('toggle exists and is visible', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await expect(page.locator('#newFeatureToggle')).toBeVisible();
+  });
+  
+  test('clicking toggle changes state', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    const toggle = page.locator('#newFeatureToggle');
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+  });
+});
+```
+
+### Running Tests
+
+```bash
+# Run all tests locally
+npm run test:e2e
+
+# Run tests against production (requires E2E_TEST_TOKEN)
+E2E_TEST_TOKEN=<token> npm run test:e2e:prod
+
+# Run specific test file
+npx playwright test tests/e2e/filters.spec.js
+```
+
+### E2E Test Token (for production tests)
+
+Production tests require the `E2E_TEST_TOKEN` environment variable to bypass Google OAuth.
+- Token is stored in Vercel environment variables (marked as Sensitive)
+- Also in GitHub Secrets for CI/CD
+- Never commit the token to code
+
+---
+
 ## Deployment Instructions
 
 When asked to "push", "deploy", "push live", or "push to Vercel":
