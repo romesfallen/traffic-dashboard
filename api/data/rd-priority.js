@@ -1,10 +1,11 @@
 /**
  * API endpoint to serve RD History-priority.csv from S3
  * Priority version contains only top ~200 domains for faster initial load
- * Protected by existing Google OAuth
+ * Protected by Google OAuth + test bypass token
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { isAuthenticated, sendUnauthorized } from '../lib/auth.js';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'ap-southeast-2',
@@ -18,12 +19,8 @@ const S3_BUCKET = process.env.S3_BUCKET_NAME || 'traffic-dashboard-theta';
 const S3_KEY = 'RD History-priority.csv';
 
 export default async function handler(req, res) {
-  // Check authentication
-  const cookies = req.headers.cookie || '';
-  const sessionMatch = cookies.match(/auth_session=([^;]+)/);
-  
-  if (!sessionMatch) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!isAuthenticated(req)) {
+    return sendUnauthorized(res);
   }
 
   try {

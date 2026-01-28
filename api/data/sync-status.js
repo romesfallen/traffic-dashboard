@@ -1,9 +1,11 @@
 /**
  * API endpoint to serve sync-log.json from S3
  * Returns the last sync timestamp and status
+ * Protected by Google OAuth + test bypass token
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { isAuthenticated, sendUnauthorized } from '../lib/auth.js';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'ap-southeast-2',
@@ -17,12 +19,8 @@ const S3_BUCKET = process.env.S3_BUCKET_NAME || 'traffic-dashboard-theta';
 const S3_KEY = 'sync-log.json';
 
 export default async function handler(req, res) {
-  // Check authentication
-  const cookies = req.headers.cookie || '';
-  const sessionMatch = cookies.match(/auth_session=([^;]+)/);
-  
-  if (!sessionMatch) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!isAuthenticated(req)) {
+    return sendUnauthorized(res);
   }
 
   try {

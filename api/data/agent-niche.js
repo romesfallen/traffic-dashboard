@@ -1,11 +1,12 @@
 /**
  * API endpoint to serve site-agent-niche.csv from S3
- * Protected by existing Google OAuth
+ * Protected by Google OAuth + test bypass token
  * 
  * Note: This file is manually uploaded to S3 (~monthly updates)
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { isAuthenticated, sendUnauthorized } from '../lib/auth.js';
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'ap-southeast-2',
@@ -19,12 +20,8 @@ const S3_BUCKET = process.env.S3_BUCKET_NAME || 'traffic-dashboard-theta';
 const S3_KEY = 'site-agent-niche.csv';
 
 export default async function handler(req, res) {
-  // Check authentication
-  const cookies = req.headers.cookie || '';
-  const sessionMatch = cookies.match(/auth_session=([^;]+)/);
-  
-  if (!sessionMatch) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!isAuthenticated(req)) {
+    return sendUnauthorized(res);
   }
 
   try {

@@ -1,23 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
-import fs from 'fs';
 
 // Support testing against production via PLAYWRIGHT_BASE_URL environment variable
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3456';
 const isProduction = baseURL.includes('vercel.app') || baseURL.includes('https://');
 
-// Auth state file for production testing
-const authFile = path.join(process.cwd(), '.auth', 'user.json');
-const hasAuthFile = fs.existsSync(authFile);
+// Test bypass token for E2E testing (bypasses Google OAuth)
+const testToken = process.env.E2E_TEST_TOKEN || '';
 
 /**
  * Playwright configuration for E2E testing
  * @see https://playwright.dev/docs/test-configuration
  * 
  * To test against production:
- *   PLAYWRIGHT_BASE_URL=https://traffic-dashboard-theta.vercel.app npx playwright test
- * Or use the npm script:
- *   npm run test:e2e:prod
+ *   E2E_TEST_TOKEN=your_token npm run test:e2e:prod
+ * 
+ * The E2E_TEST_TOKEN header bypasses Google OAuth authentication.
  */
 export default defineConfig({
   // Test directory
@@ -46,6 +43,11 @@ export default defineConfig({
     // Base URL for navigation (supports production override)
     baseURL,
 
+    // Send test bypass token with all API requests
+    extraHTTPHeaders: {
+      'X-Test-Token': testToken,
+    },
+
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
 
@@ -58,24 +60,9 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
-    // Auth check runs first for production tests
-    ...(isProduction ? [{
-      name: 'auth-check',
-      testMatch: /auth-check\.spec\.js/,
-      use: { 
-        ...devices['Desktop Chrome'],
-        ...(hasAuthFile ? { storageState: authFile } : {}),
-      },
-    }] : []),
     {
       name: 'chromium',
-      use: { 
-        ...devices['Desktop Chrome'],
-        // Use saved auth state for production testing (if available)
-        ...(isProduction && hasAuthFile ? { storageState: authFile } : {}),
-      },
-      // Depend on auth-check for production
-      ...(isProduction ? { dependencies: ['auth-check'] } : {}),
+      use: { ...devices['Desktop Chrome'] },
     },
     // Uncomment to test on more browsers:
     // {
