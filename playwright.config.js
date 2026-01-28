@@ -58,11 +58,14 @@ export default defineConfig({
 
   // Configure projects for major browsers
   projects: [
-    // Setup project for authentication (only for production)
-    ...(isProduction && !hasAuthFile ? [{
-      name: 'setup',
-      testDir: './tests',
-      testMatch: /auth\.setup\.js/,
+    // Auth check runs first for production tests
+    ...(isProduction ? [{
+      name: 'auth-check',
+      testMatch: /auth-check\.spec\.js/,
+      use: { 
+        ...devices['Desktop Chrome'],
+        ...(hasAuthFile ? { storageState: authFile } : {}),
+      },
     }] : []),
     {
       name: 'chromium',
@@ -71,8 +74,8 @@ export default defineConfig({
         // Use saved auth state for production testing (if available)
         ...(isProduction && hasAuthFile ? { storageState: authFile } : {}),
       },
-      // Depend on setup if we need to authenticate
-      ...(isProduction && !hasAuthFile ? { dependencies: ['setup'] } : {}),
+      // Depend on auth-check for production
+      ...(isProduction ? { dependencies: ['auth-check'] } : {}),
     },
     // Uncomment to test on more browsers:
     // {
