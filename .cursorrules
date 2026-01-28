@@ -12,6 +12,77 @@ A traffic comparison dashboard showing internal traffic data vs Ahrefs data, wit
 
 ---
 
+## CRITICAL: Cursor Workflow Best Practices
+
+> **Follow these practices for EVERY significant task.**
+
+### 1. ALWAYS Use Plan Mode First
+
+For any non-trivial task, **start in Plan Mode** before making changes:
+
+1. **Switch to Plan Mode** before implementing
+2. **Discuss the approach** - outline what will be changed
+3. **Get approval** on the plan before writing code
+4. **Then switch to Agent Mode** to implement
+
+**When to use Plan Mode:**
+- Adding new features
+- Refactoring existing code
+- Fixing complex bugs
+- Any change touching multiple files
+
+**Exceptions (can skip Plan Mode):**
+- Simple typo fixes
+- Single-line changes
+- Adding console.log for debugging
+
+### 2. Debugging - Add Extensive Logging
+
+When troubleshooting issues:
+
+1. **Add console.log statements liberally** at every step
+2. **Deploy to production** if needed (some issues only appear with live data)
+3. **Check browser console** for the debug output
+4. **Fix the root cause** once identified
+5. **Remove debug logging** before final commit
+
+See "Debugging Guidelines" section below for patterns.
+
+### 3. Testing - Cover All Combinations
+
+Every feature needs E2E tests that cover:
+
+1. **Feature existence** - element appears on page
+2. **Feature functionality** - interactions work correctly
+3. **Feature combinations** - works with other features on/off
+4. **Data validation** - real data displays correctly
+5. **Regression prevention** - critical elements don't disappear
+
+See "New Features Must Have Tests" section below.
+
+### 4. Push Testing - Verify Deployment
+
+After every push:
+
+1. **Wait for Vercel deployment** (~1-2 minutes)
+2. **Run production tests:**
+   ```bash
+   E2E_TEST_TOKEN=<token> npm run test:e2e:prod
+   ```
+3. **Check for missing files** - API endpoints not committed is a common issue
+4. **Verify in browser** - manually check critical features work
+
+### 5. Keep This File Updated
+
+After completing any task:
+
+1. **Add new features** to "Current Features" section
+2. **Document failures** in "Things That Didn't Work" section
+3. **Update Session Log** with date and changes
+4. **Add new data sources** to Data Architecture if applicable
+
+---
+
 ## CRITICAL: Pre-Change Checklist (MUST FOLLOW)
 
 > **This checklist prevents accidental feature removal. Follow EVERY time before making changes.**
