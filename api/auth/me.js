@@ -2,6 +2,18 @@ import crypto from 'crypto';
 
 // Return current user info
 export default function handler(req, res) {
+  // Check for E2E test bypass token first
+  const testToken = req.headers['x-test-token'];
+  const validToken = process.env.E2E_TEST_TOKEN;
+  if (testToken && validToken && testToken === validToken) {
+    return res.json({
+      authenticated: true,
+      email: 'e2e-test@example.com',
+      name: 'E2E Test User',
+      picture: null,
+    });
+  }
+
   const cookies = req.headers.cookie || '';
   const sessionMatch = cookies.match(/auth_session=([^;]+)/);
   

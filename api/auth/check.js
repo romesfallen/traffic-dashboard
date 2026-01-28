@@ -2,6 +2,13 @@ import crypto from 'crypto';
 
 // Check authentication and redirect if not authenticated
 export default function handler(req, res) {
+  // Check for E2E test bypass token first
+  const testToken = req.headers['x-test-token'];
+  const validToken = process.env.E2E_TEST_TOKEN;
+  if (testToken && validToken && testToken === validToken) {
+    return res.json({ authenticated: true });
+  }
+
   const cookies = req.headers.cookie || '';
   const sessionMatch = cookies.match(/auth_session=([^;]+)/);
   
