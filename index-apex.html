@@ -1598,9 +1598,9 @@
 
             // DEBUG: Log final chart config
             console.log('🔍 CHART CONFIG DEBUG - Series names:', allSeries.map(s => s.name));
-            console.log('🔍 CHART CONFIG DEBUG - Y-axis seriesNames:', yaxisConfig.map(y => y.seriesName));
+            console.log('🔍 CHART CONFIG DEBUG - Y-axis seriesNames:', options.yaxis.map(y => y.seriesName));
             console.log('🔍 CHART CONFIG DEBUG - RD series index:', allSeries.findIndex(s => s.name === 'RD'));
-            console.log('🔍 CHART CONFIG DEBUG - RD yaxis index:', yaxisConfig.findIndex(y => y.seriesName === 'RD'));
+            console.log('🔍 CHART CONFIG DEBUG - RD yaxis index:', options.yaxis.findIndex(y => y.seriesName === 'RD'));
             
             const chart = new ApexCharts(document.querySelector('#apex-chart'), options);
             chart.render();
