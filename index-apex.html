@@ -1113,10 +1113,12 @@
             // DEBUG: Compare RD vs DR data points
             console.log('🔍 RD POINTS DEBUG - rdDataPoints length:', rdDataPoints.length);
             console.log('🔍 RD POINTS DEBUG - rdDataPoints with y value:', rdDataPoints.filter(p => p.y !== null && p.y !== undefined).length);
-            console.log('🔍 RD POINTS DEBUG - Sample rdDataPoints (last 5):', rdDataPoints.slice(-5));
+            console.log('🔍 RD POINTS DEBUG - Sample rdDataPoints (last 5):', JSON.stringify(rdDataPoints.slice(-5)));
+            console.log('🔍 RD POINTS DEBUG - Sample rdDataPoints WITH values:', JSON.stringify(rdDataPoints.filter(p => p.y !== null).slice(-5)));
             console.log('🔍 DR POINTS DEBUG - drDataPoints length:', drDataPoints.length);
             console.log('🔍 DR POINTS DEBUG - drDataPoints with y value:', drDataPoints.filter(p => p.y !== null && p.y !== undefined).length);
-            console.log('🔍 DR POINTS DEBUG - Sample drDataPoints (last 5):', drDataPoints.slice(-5));
+            console.log('🔍 DR POINTS DEBUG - Sample drDataPoints (last 5):', JSON.stringify(drDataPoints.slice(-5)));
+            console.log('🔍 DR POINTS DEBUG - Sample drDataPoints WITH values:', JSON.stringify(drDataPoints.filter(p => p.y !== null).slice(-5)));
             
             const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
             const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
