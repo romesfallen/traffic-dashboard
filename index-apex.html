@@ -1076,6 +1076,13 @@
             const ahrefsProcessed = interpolateData(filtered.ahrefsData);
             const drProcessed = interpolateData(filtered.drData || []);
             const rdProcessed = interpolateData(filtered.rdData || []);
+            
+            // DEBUG: Log RD data at chart creation time
+            console.log('🔍 RD CHART DEBUG - filtered.rdData length:', (filtered.rdData || []).length);
+            console.log('🔍 RD CHART DEBUG - Non-null values in rdData:', (filtered.rdData || []).filter(v => v !== null).length);
+            console.log('🔍 RD CHART DEBUG - rdProcessed.real non-null:', rdProcessed.real.filter(v => v !== null).length);
+            console.log('🔍 RD CHART DEBUG - Sample rdData (last 10):', (filtered.rdData || []).slice(-10));
+            
             const internalAvgProcessed = interpolateData(data.internalAvgData || []);
             const ahrefsAvgProcessed = interpolateData(data.ahrefsAvgData || []);
             const revenueResult = generateMonthlyRevenue(filtered.dates, data.monthlyRevenue);
@@ -2283,6 +2290,23 @@
                         skipEmptyLines: true
                     });
                     csvCache.rd = { parsed, headers: parsed.meta.fields || [] };
+                    
+                    // DEBUG: Log CSV structure
+                    console.log('🔍 RD CSV DEBUG - Total columns:', parsed.meta.fields.length);
+                    console.log('🔍 RD CSV DEBUG - First 5 headers:', parsed.meta.fields.slice(0, 5));
+                    console.log('🔍 RD CSV DEBUG - Last 5 headers:', parsed.meta.fields.slice(-5));
+                    
+                    // Count date columns that match regex
+                    const dateRegex = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d+)\s*-\s*(\d{4})$/;
+                    const matchingCols = parsed.meta.fields.filter(h => dateRegex.test(h));
+                    console.log('🔍 RD CSV DEBUG - Date columns matching regex:', matchingCols.length);
+                    console.log('🔍 RD CSV DEBUG - Sample matching columns:', matchingCols.slice(0, 3), '...', matchingCols.slice(-3));
+                    
+                    // Show columns that DON'T match (might reveal format issues)
+                    const nonMatchingCols = parsed.meta.fields.filter(h => h !== 'Website' && !dateRegex.test(h));
+                    if (nonMatchingCols.length > 0) {
+                        console.log('⚠️ RD CSV DEBUG - Non-matching columns:', nonMatchingCols.slice(0, 10));
+                    }
                 }
                 
                 const { parsed, headers } = csvCache.rd;
@@ -2295,6 +2319,8 @@
                     );
                     
                     const rdDataMap = new Map();
+                    let valuesFound = 0;
+                    let nullValues = 0;
                     
                     if (row) {
                         headers.forEach(header => {
@@ -2304,12 +2330,23 @@
                                 const dateStr = `${month} ${day} ${year}`;
                                 const value = parseNumber(row[header]);
                                 if (value !== null && value !== undefined) {
+                                    valuesFound++;
                                     if (!rdDataMap.has(dateStr)) {
                                         rdDataMap.set(dateStr, value);
                                     }
+                                } else {
+                                    nullValues++;
                                 }
                             }
                         });
+                        
+                        // DEBUG: Log per-domain stats for first domain
+                        if (domainList.indexOf(domain) === 0) {
+                            console.log(`🔍 RD DEBUG - Domain "${domain}": ${valuesFound} values found, ${nullValues} null values`);
+                            console.log('🔍 RD DEBUG - Sample values from map:', Array.from(rdDataMap.entries()).slice(-5));
+                        }
+                    } else {
+                        console.log(`⚠️ RD DEBUG - Domain "${domain}" not found in RD CSV`);
                     }
                     
                     rdByDomain[domain] = rdDataMap;
