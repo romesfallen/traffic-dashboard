@@ -1109,6 +1109,15 @@
             const ahrefsDataPoints = convertToTimestampData(filtered.dates, ahrefsProcessed.real);
             const drDataPoints = convertToTimestampData(filtered.dates, drProcessed.real);
             const rdDataPoints = convertToTimestampData(filtered.dates, rdProcessed.real);
+            
+            // DEBUG: Compare RD vs DR data points
+            console.log('🔍 RD POINTS DEBUG - rdDataPoints length:', rdDataPoints.length);
+            console.log('🔍 RD POINTS DEBUG - rdDataPoints with y value:', rdDataPoints.filter(p => p.y !== null && p.y !== undefined).length);
+            console.log('🔍 RD POINTS DEBUG - Sample rdDataPoints (last 5):', rdDataPoints.slice(-5));
+            console.log('🔍 DR POINTS DEBUG - drDataPoints length:', drDataPoints.length);
+            console.log('🔍 DR POINTS DEBUG - drDataPoints with y value:', drDataPoints.filter(p => p.y !== null && p.y !== undefined).length);
+            console.log('🔍 DR POINTS DEBUG - Sample drDataPoints (last 5):', drDataPoints.slice(-5));
+            
             const internalAvgDataPoints = convertToTimestampData(filtered.dates, internalAvgProcessed.real);
             const ahrefsAvgDataPoints = convertToTimestampData(filtered.dates, ahrefsAvgProcessed.real);
             const revenuePoints = revenueResult.revenuePoints;
@@ -1120,6 +1129,10 @@
             // Calculate max RD for dynamic axis scaling
             const maxRD = Math.max(...rdDataPoints.map(p => p.y || 0), 1);
             const rdAxisMax = Math.ceil(maxRD * 1.1); // Add 10% padding
+            
+            // DEBUG: Check axis values
+            console.log('🔍 AXIS DEBUG - maxRD:', maxRD, 'rdAxisMax:', rdAxisMax);
+            console.log('🔍 AXIS DEBUG - maxDR:', Math.max(...drDataPoints.map(p => p.y || 0), 1));
             
             // REVENUE LABEL CHANGE: Build point annotations and store globally for toggle
             // Use uniform Y position for all labels so they appear at same height near bottom of bars
