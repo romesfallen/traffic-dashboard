@@ -115,6 +115,20 @@ test.describe('Chart Data Validation - Monthly View', () => {
     expect(firstPath.length).toBeGreaterThan(20);
   });
 
+  test('Ahrefs Monthly Traffic series has data points', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await waitForChartRender(page);
+    
+    // Check legend contains the series
+    const legend = page.locator('.apexcharts-legend');
+    await expect(legend).toContainText('Ahrefs Monthly');
+    
+    // Verify chart has area series with data (both traffic series are area type)
+    const chartPaths = page.locator('.apexcharts-area-series path');
+    const pathCount = await chartPaths.count();
+    expect(pathCount).toBeGreaterThan(0);
+  });
+
   test('DR series has data points', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
     await waitForChartRender(page);
@@ -136,6 +150,39 @@ test.describe('Chart Data Validation - Monthly View', () => {
     // Check legend contains Revenue
     const legend = page.locator('.apexcharts-legend');
     await expect(legend).toContainText('Revenue');
+    
+    // Revenue is an area series, check it has path data
+    const chartPaths = page.locator('.apexcharts-area-series path');
+    const pathCount = await chartPaths.count();
+    expect(pathCount).toBeGreaterThan(0);
+  });
+
+  test('RD series has data points', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await waitForChartRender(page);
+    
+    // Check legend contains RD
+    const legend = page.locator('.apexcharts-legend');
+    await expect(legend).toContainText('RD');
+    
+    // RD is a line series, check it has path data
+    const rdLine = page.locator('.apexcharts-line-series path');
+    const pathCount = await rdLine.count();
+    expect(pathCount).toBeGreaterThan(0);
+  });
+
+  test('all expected series appear in chart legend - Monthly view', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await waitForChartRender(page);
+    
+    const legend = page.locator('.apexcharts-legend');
+    
+    // All series that should always appear in Monthly view
+    await expect(legend).toContainText('Internal Monthly');
+    await expect(legend).toContainText('Ahrefs Monthly');
+    await expect(legend).toContainText('Revenue');
+    await expect(legend).toContainText('DR');
+    await expect(legend).toContainText('RD');
   });
 
   test('chart tooltip container is configured', async ({ page }) => {
@@ -177,7 +224,7 @@ test.describe('Chart Data Validation - Average View', () => {
     expect(firstPath.length).toBeGreaterThan(20);
   });
 
-  test('Average view still shows DR and Revenue', async ({ page }) => {
+  test('Ahrefs Average Traffic series has data points', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
     await waitForChartRender(page);
     
@@ -185,15 +232,52 @@ test.describe('Chart Data Validation - Average View', () => {
     await page.locator('#viewAverage').click();
     await page.waitForTimeout(1000);
     
-    // DR and Revenue should still be visible
+    // Check legend contains the Ahrefs Average series
+    const legend = page.locator('.apexcharts-legend');
+    await expect(legend).toContainText('Ahrefs Average');
+    
+    // Verify chart has area series with data
+    const chartPaths = page.locator('.apexcharts-area-series path');
+    const pathCount = await chartPaths.count();
+    expect(pathCount).toBeGreaterThan(0);
+  });
+
+  test('all expected series appear in chart legend - Average view', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await waitForChartRender(page);
+    
+    // Switch to Average view
+    await page.locator('#viewAverage').click();
+    await page.waitForTimeout(1000);
+    
+    const legend = page.locator('.apexcharts-legend');
+    
+    // All series that should appear in Average view
+    await expect(legend).toContainText('Internal Average');
+    await expect(legend).toContainText('Ahrefs Average');
+    await expect(legend).toContainText('Revenue');
+    await expect(legend).toContainText('DR');
+    await expect(legend).toContainText('RD');
+  });
+
+  test('Average view still shows DR, RD and Revenue', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await waitForChartRender(page);
+    
+    // Switch to Average view
+    await page.locator('#viewAverage').click();
+    await page.waitForTimeout(1000);
+    
+    // DR, RD and Revenue should still be visible
     const legend = page.locator('.apexcharts-legend');
     await expect(legend).toContainText('DR');
+    await expect(legend).toContainText('RD');
     await expect(legend).toContainText('Revenue');
   });
 });
 
 test.describe('Chart Data Validation - Both View', () => {
-  test('Both Monthly and Average series have data', async ({ page }) => {
+  test('all expected series appear in chart legend - Both view', async ({ page }) => {
     await page.goto(DASHBOARD_URL);
     await waitForChartRender(page);
     
@@ -201,12 +285,34 @@ test.describe('Chart Data Validation - Both View', () => {
     await page.locator('#viewBoth').click();
     await page.waitForTimeout(1000);
     
-    // Check all series in legend
+    // Check all 7 series in legend
     const legend = page.locator('.apexcharts-legend');
     await expect(legend).toContainText('Internal Monthly');
+    await expect(legend).toContainText('Ahrefs Monthly');
     await expect(legend).toContainText('Internal Average');
-    await expect(legend).toContainText('DR');
+    await expect(legend).toContainText('Ahrefs Average');
     await expect(legend).toContainText('Revenue');
+    await expect(legend).toContainText('DR');
+    await expect(legend).toContainText('RD');
+  });
+
+  test('Both view has data points for all traffic series', async ({ page }) => {
+    await page.goto(DASHBOARD_URL);
+    await waitForChartRender(page);
+    
+    // Switch to Both view
+    await page.locator('#viewBoth').click();
+    await page.waitForTimeout(1000);
+    
+    // Verify area series (traffic + revenue) have paths
+    const areaPaths = page.locator('.apexcharts-area-series path');
+    const areaCount = await areaPaths.count();
+    expect(areaCount).toBeGreaterThan(0);
+    
+    // Verify line series (DR + RD) have paths
+    const linePaths = page.locator('.apexcharts-line-series path');
+    const lineCount = await linePaths.count();
+    expect(lineCount).toBeGreaterThan(0);
   });
 
   test('Both view has more legend items than single views', async ({ page }) => {
