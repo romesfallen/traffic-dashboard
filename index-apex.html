@@ -1601,10 +1601,10 @@
             console.log('🔍 CHART CONFIG DEBUG - Y-axis seriesNames:', options.yaxis.map(y => y.seriesName));
             console.log('🔍 CHART CONFIG DEBUG - RD series index:', allSeries.findIndex(s => s.name === 'RD'));
             console.log('🔍 CHART CONFIG DEBUG - RD yaxis index:', options.yaxis.findIndex(y => y.seriesName === 'RD'));
-            console.log('🔍 STROKE DEBUG - strokeWidth:', strokeWidth);
-            console.log('🔍 STROKE DEBUG - strokeCurve:', strokeCurve);
-            console.log('🔍 STROKE DEBUG - strokeDash:', strokeDash);
-            console.log('🔍 STROKE DEBUG - fillOpacity:', fillOpacity);
+            console.log('🔍 STROKE DEBUG - strokeWidth:', JSON.stringify(strokeWidth));
+            console.log('🔍 STROKE DEBUG - strokeCurve:', JSON.stringify(strokeCurve));
+            console.log('🔍 STROKE DEBUG - strokeDash:', JSON.stringify(strokeDash));
+            console.log('🔍 STROKE DEBUG - fillOpacity:', JSON.stringify(fillOpacity));
             console.log('🔍 MARKER DEBUG - marker sizes:', allSeries.map((s, i) => ({ name: s.name, markerSize: (s.name === 'DR' || s.name === 'RD') ? 2 : 0 })));
             console.log('🔍 RD SERIES DEBUG - RD data points count:', allSeries.find(s => s.name === 'RD')?.data?.length);
             
